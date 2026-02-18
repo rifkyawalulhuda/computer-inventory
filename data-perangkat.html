@@ -37,6 +37,179 @@
         .table-responsive {
             overflow-x: auto;
         }
+
+        .device-table {
+            min-width: 1280px;
+        }
+
+        .device-table th,
+        .device-table td {
+            white-space: nowrap;
+            vertical-align: middle;
+        }
+
+        .device-table th {
+            font-size: 0.72rem;
+            letter-spacing: 0.01em;
+        }
+
+        .device-table th:nth-child(1),
+        .device-table td:nth-child(1),
+        .device-table th:nth-child(11),
+        .device-table td:nth-child(11),
+        .device-table th:nth-child(13),
+        .device-table td:nth-child(13) {
+            text-align: center;
+        }
+
+        .device-table th:nth-child(1),
+        .device-table td:nth-child(1) {
+            min-width: 56px;
+        }
+
+        .device-table th:nth-child(2),
+        .device-table td:nth-child(2) {
+            min-width: 92px;
+        }
+
+        .device-table th:nth-child(3),
+        .device-table td:nth-child(3),
+        .device-table th:nth-child(8),
+        .device-table td:nth-child(8) {
+            min-width: 130px;
+        }
+
+        .device-table th:nth-child(4),
+        .device-table td:nth-child(4),
+        .device-table th:nth-child(7),
+        .device-table td:nth-child(7) {
+            min-width: 140px;
+        }
+
+        .device-table th:nth-child(5),
+        .device-table td:nth-child(5),
+        .device-table th:nth-child(6),
+        .device-table td:nth-child(6),
+        .device-table th:nth-child(10),
+        .device-table td:nth-child(10),
+        .device-table th:nth-child(12),
+        .device-table td:nth-child(12) {
+            min-width: 110px;
+        }
+
+        .device-table th:nth-child(9),
+        .device-table td:nth-child(9) {
+            min-width: 210px;
+            max-width: 210px;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+        .device-table th:nth-child(13),
+        .device-table td:nth-child(13) {
+            min-width: 142px;
+        }
+
+        .table-action-group .btn {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            width: 34px;
+            height: 30px;
+            padding: 0;
+        }
+
+        .table-action-group .btn i {
+            font-size: 14px;
+        }
+
+        .view-drawer-overlay {
+            position: fixed;
+            inset: 0;
+            background: rgba(15, 23, 42, 0.35);
+            opacity: 0;
+            visibility: hidden;
+            transition: opacity 0.2s ease;
+            z-index: 1050;
+        }
+
+        .view-drawer-overlay.open {
+            opacity: 1;
+            visibility: visible;
+        }
+
+        .view-drawer {
+            position: absolute;
+            top: 0;
+            right: 0;
+            width: min(480px, 100vw);
+            height: 100%;
+            background: #ffffff;
+            box-shadow: -18px 0 40px rgba(15, 23, 42, 0.18);
+            transform: translateX(100%);
+            transition: transform 0.25s ease;
+            display: flex;
+            flex-direction: column;
+        }
+
+        .view-drawer-overlay.open .view-drawer {
+            transform: translateX(0);
+        }
+
+        .view-drawer-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 16px 18px;
+            border-bottom: 1px solid #e2e8f0;
+        }
+
+        .view-drawer-title {
+            margin: 0;
+            font-size: 1.05rem;
+            font-weight: 700;
+            color: #0f172a;
+        }
+
+        .view-drawer-close {
+            width: 34px;
+            height: 34px;
+            border-radius: 8px;
+            border: 1px solid #e2e8f0;
+            background: #ffffff;
+            color: #334155;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            cursor: pointer;
+        }
+
+        .view-drawer-close i {
+            font-size: 16px;
+        }
+
+        .view-drawer-body {
+            padding: 16px 18px 24px;
+            overflow-y: auto;
+        }
+
+        .view-drawer-item {
+            padding: 10px 0;
+            border-bottom: 1px dashed #e2e8f0;
+        }
+
+        .view-drawer-label {
+            font-size: 0.72rem;
+            font-weight: 700;
+            letter-spacing: 0.03em;
+            text-transform: uppercase;
+            color: #64748b;
+            margin-bottom: 4px;
+        }
+
+        .view-drawer-value {
+            color: #0f172a;
+            word-break: break-word;
+        }
     </style>
 </head>
 
@@ -54,7 +227,7 @@
                 <div class="card-body">
                     <div class="d-flex flex-wrap justify-content-between align-items-center gap-2 mb-3">
                         <div>
-                            <h5 class="card-title mb-1">Form Input Data Perangkat</h5>
+                            <h5 class="card-title mb-1" id="formCardTitle">Form Input Data Perangkat</h5>
                             <p class="text-muted mb-0">Kolom NO dibuat otomatis oleh sistem.</p>
                         </div>
                         <button type="button" class="btn btn-light border" id="closeFormButton">Tutup Form</button>
@@ -152,7 +325,7 @@
                             </div>
 
                             <div class="col-12 d-flex gap-2">
-                                <button type="submit" class="btn btn-primary">Simpan Data</button>
+                                <button type="submit" class="btn btn-primary" id="submitButton">Simpan Data</button>
                                 <button type="button" class="btn btn-light border" id="resetButton">Reset</button>
                             </div>
                         </div>
@@ -170,7 +343,7 @@
                         </div>
                     </div>
                     <div class="table-responsive">
-                        <table class="table table-hover align-middle mb-0">
+                        <table class="table table-hover align-middle mb-0 device-table">
                             <thead>
                                 <tr>
                                     <th>NO</th>
@@ -183,20 +356,14 @@
                                     <th>User Name</th>
                                     <th>User Email</th>
                                     <th>Status</th>
-                                    <th>Location</th>
-                                    <th>IP List</th>
-                                    <th>Start Date</th>
-                                    <th>End Date</th>
                                     <th>Days Lease</th>
                                     <th>Lease Status</th>
-                                    <th>Hystory Log</th>
-                                    <th>Keterangan</th>
-                                    <th>Bitlocker Key</th>
+                                    <th>Action</th>
                                 </tr>
                             </thead>
                             <tbody id="tableBody">
                                 <tr>
-                                    <td colspan="19" class="text-center text-muted py-4">Loading data...</td>
+                                    <td colspan="13" class="text-center text-muted py-4">Loading data...</td>
                                 </tr>
                             </tbody>
                         </table>
@@ -206,11 +373,25 @@
         </div>
     </main>
 
+    <div class="view-drawer-overlay" id="viewDrawerOverlay" aria-hidden="true">
+        <aside class="view-drawer" id="viewDrawer" role="dialog" aria-modal="true" aria-labelledby="viewDrawerTitle">
+            <div class="view-drawer-header">
+                <h5 class="view-drawer-title" id="viewDrawerTitle">Detail Data Perangkat</h5>
+                <button type="button" class="view-drawer-close" id="viewDrawerCloseButton" aria-label="Tutup Detail">
+                    <i class="feather-x"></i>
+                </button>
+            </div>
+            <div class="view-drawer-body" id="viewDrawerBody"></div>
+        </aside>
+    </div>
+
     <script>
         const API_BASE = "http://localhost:3001/api";
 
         const alertBox = document.getElementById("alertBox");
         const form = document.getElementById("deviceForm");
+        const formCardTitle = document.getElementById("formCardTitle");
+        const submitButton = document.getElementById("submitButton");
         const deviceFormCard = document.getElementById("deviceFormCard");
         const tableBody = document.getElementById("tableBody");
         const jobCodeIdInput = document.getElementById("jobCodeId");
@@ -235,8 +416,14 @@
         const closeFormButton = document.getElementById("closeFormButton");
         const addDataButton = document.getElementById("addDataButton");
         const refreshButton = document.getElementById("refreshButton");
+        const viewDrawerOverlay = document.getElementById("viewDrawerOverlay");
+        const viewDrawerBody = document.getElementById("viewDrawerBody");
+        const viewDrawerCloseButton = document.getElementById("viewDrawerCloseButton");
 
         let masterUsers = [];
+        let masterJobCodes = [];
+        let deviceRows = [];
+        let editingDeviceId = "";
         let lastManualStatus = "";
 
         function showAlert(message, type) {
@@ -253,6 +440,7 @@
         function sanitizeIpListValue(value) {
             return String(value ?? "").replace(/[A-Za-z]/g, "").slice(0, 20);
         }
+
         function escapeHtml(value) {
             return String(value ?? "")
                 .replaceAll("&", "&amp;")
@@ -261,6 +449,7 @@
                 .replaceAll('"', "&quot;")
                 .replaceAll("'", "&#39;");
         }
+
         function getFilteredUsersByJobCode(jobCodeId) {
             if (!Number.isInteger(jobCodeId) || jobCodeId < 1) {
                 return [];
@@ -291,7 +480,6 @@
             ].join("");
         }
 
-
         function calculateDaysLeaseValue(startDateValue, endDateValue) {
             if (!startDateValue || !endDateValue) {
                 return "";
@@ -312,6 +500,7 @@
             const days = Math.ceil((leaseEnd.getTime() - baseDate.getTime()) / msPerDay);
             return String(Math.max(0, days));
         }
+
         function ensureExpiredStatusOption() {
             const existingOption = Array.from(statusInput.options).find((option) => option.value === "EXPIRED");
             if (existingOption) {
@@ -361,6 +550,7 @@
             daysLeaseInput.value = calculateDaysLeaseValue(startDateInput.value, endDateInput.value);
             refreshStatusByDaysLease();
         }
+
         function setFormVisibility(visible, shouldScroll = false) {
             deviceFormCard.classList.toggle("d-none", !visible);
             if (visible && shouldScroll) {
@@ -369,10 +559,14 @@
         }
 
         function resetForm() {
+            editingDeviceId = "";
             form.reset();
+            formCardTitle.textContent = "Form Input Data Perangkat";
+            submitButton.textContent = "Simpan Data";
             userNameInput.value = "";
             userEmailInput.value = "";
             jobCodeIdInput.value = "";
+            picUserIdInput.value = "";
             lastManualStatus = "";
             statusInput.disabled = false;
             removeExpiredStatusOption();
@@ -436,6 +630,32 @@
             return payload;
         }
 
+        function findJobCodeIdByCode(jobCode) {
+            const targetCode = String(jobCode ?? "").trim().toUpperCase();
+            if (!targetCode) {
+                return "";
+            }
+
+            const match = masterJobCodes.find((row) => String(row.code ?? "").trim().toUpperCase() === targetCode);
+            return match ? String(match.id) : "";
+        }
+
+        function selectPicByName(picName) {
+            const target = String(picName ?? "").trim().toLowerCase();
+            if (!target) {
+                return;
+            }
+
+            const matchedOption = Array.from(picUserIdInput.options).find((option) => {
+                const text = String(option.textContent ?? "").trim().toLowerCase();
+                return text === target || text.startsWith(`${target} (`);
+            });
+
+            if (matchedOption) {
+                picUserIdInput.value = matchedOption.value;
+            }
+        }
+
         async function loadMasterData() {
             const [jobCodeRes, masterUserRes] = await Promise.all([
                 fetch(`${API_BASE}/master-job-codes`),
@@ -453,12 +673,12 @@
                 throw new Error(masterUserJson.message || "Gagal memuat Master User.");
             }
 
-            const jobCodes = jobCodeJson.data || [];
+            masterJobCodes = jobCodeJson.data || [];
             masterUsers = masterUserJson.data || [];
 
             jobCodeIdInput.innerHTML = [
                 '<option value="">Pilih Job Code</option>',
-                ...jobCodes.map((row) => `<option value="${row.id}">${escapeHtml(row.code)} - ${escapeHtml(row.siteName)}</option>`)
+                ...masterJobCodes.map((row) => `<option value="${row.id}">${escapeHtml(row.code)} - ${escapeHtml(row.siteName)}</option>`)
             ].join("");
 
             populatePicOptionsByJobCode();
@@ -469,7 +689,7 @@
             if (!rows.length) {
                 tableBody.innerHTML = `
                     <tr>
-                        <td colspan="19" class="text-center text-muted py-4">Belum ada data.</td>
+                        <td colspan="13" class="text-center text-muted py-4">Belum ada data.</td>
                     </tr>
                 `;
                 return;
@@ -485,17 +705,23 @@
                     <td>${escapeHtml(row["Model"])}</td>
                     <td>${escapeHtml(row["Host Name"])}</td>
                     <td>${escapeHtml(row["User Name"])}</td>
-                    <td>${escapeHtml(row["User Email"])}</td>
+                    <td title="${escapeHtml(row["User Email"])}">${escapeHtml(row["User Email"])}</td>
                     <td>${escapeHtml(row["Status"])}</td>
-                    <td>${escapeHtml(row["Location"])}</td>
-                    <td>${escapeHtml(row["IP List"])}</td>
-                    <td>${escapeHtml(row["Start Date"])}</td>
-                    <td>${escapeHtml(row["End Date"])}</td>
                     <td>${escapeHtml(row["Days Lease"])}</td>
                     <td>${escapeHtml(row["Lease Status"])}</td>
-                    <td>${escapeHtml(row["Hystory Log"])}</td>
-                    <td>${escapeHtml(row["Keterangan"])}</td>
-                    <td>${escapeHtml(row["Bitlocker Key"])}</td>
+                    <td>
+                        <div class="btn-group btn-group-sm table-action-group" role="group" aria-label="Aksi Data Perangkat">
+                            <button type="button" class="btn btn-light border text-info" data-action="view" data-id="${escapeHtml(row.id)}" title="Lihat">
+                                <i class="feather-eye"></i>
+                            </button>
+                            <button type="button" class="btn btn-light border text-primary" data-action="edit" data-id="${escapeHtml(row.id)}" title="Edit">
+                                <i class="feather-edit-2"></i>
+                            </button>
+                            <button type="button" class="btn btn-light border text-danger" data-action="delete" data-id="${escapeHtml(row.id)}" title="Hapus">
+                                <i class="feather-trash-2"></i>
+                            </button>
+                        </div>
+                    </td>
                 </tr>
             `).join("");
         }
@@ -503,7 +729,7 @@
         async function loadRows() {
             tableBody.innerHTML = `
                 <tr>
-                    <td colspan="19" class="text-center text-muted py-4">Loading data...</td>
+                    <td colspan="13" class="text-center text-muted py-4">Loading data...</td>
                 </tr>
             `;
 
@@ -513,7 +739,162 @@
                 throw new Error(result.message || "Gagal memuat data perangkat.");
             }
 
-            renderRows(result.data || []);
+            deviceRows = result.data || [];
+            renderRows(deviceRows);
+        }
+
+        function toDisplayValue(value) {
+            if (value === null || value === undefined) {
+                return "-";
+            }
+
+            const text = String(value).trim();
+            return text ? text : "-";
+        }
+
+        function openViewDrawer(row) {
+            const detailFields = [
+                ["NO", "NO"],
+                ["Job Code", "Job Code"],
+                ["PIC Name", "PIC Name"],
+                ["Serial No.", "Serial No."],
+                ["Category", "Category"],
+                ["Model", "Model"],
+                ["Host Name", "Host Name"],
+                ["User Name", "User Name"],
+                ["User Email", "User Email"],
+                ["Status", "Status"],
+                ["Days Lease", "Days Lease"],
+                ["Lease Status", "Lease Status"],
+                ["Location", "Location"],
+                ["IP List", "IP List"],
+                ["Start Date", "Start Date"],
+                ["End Date", "End Date"],
+                ["Hystory Log", "Hystory Log"],
+                ["Keterangan", "Keterangan"],
+                ["Bitlocker Key", "Bitlocker Key"]
+            ];
+
+            viewDrawerBody.innerHTML = detailFields.map(([label, key]) => `
+                <div class="view-drawer-item">
+                    <div class="view-drawer-label">${escapeHtml(label)}</div>
+                    <div class="view-drawer-value">${escapeHtml(toDisplayValue(row[key]))}</div>
+                </div>
+            `).join("");
+
+            viewDrawerOverlay.classList.add("open");
+            viewDrawerOverlay.setAttribute("aria-hidden", "false");
+            document.body.style.overflow = "hidden";
+        }
+
+        function closeViewDrawer() {
+            viewDrawerOverlay.classList.remove("open");
+            viewDrawerOverlay.setAttribute("aria-hidden", "true");
+            document.body.style.overflow = "";
+        }
+
+        function viewRow(row) {
+            openViewDrawer(row);
+        }
+
+        function editRow(row) {
+            const resolvedJobCodeId = findJobCodeIdByCode(row["Job Code"]);
+            jobCodeIdInput.value = resolvedJobCodeId;
+            populatePicOptionsByJobCode();
+            selectPicByName(row["PIC Name"]);
+
+            serialNoInput.value = row["Serial No."] || "";
+            categoryInput.value = row["Category"] || "";
+            modelInput.value = row["Model"] || "";
+            hostNameInput.value = row["Host Name"] || "";
+            userNameInput.value = row["User Name"] || "";
+            userEmailInput.value = row["User Email"] || "";
+            locationInput.value = row["Location"] || "";
+            ipListInput.value = row["IP List"] || "";
+            startDateInput.value = row["Start Date"] || "";
+            endDateInput.value = row["End Date"] || "";
+            leaseStatusInput.value = row["Lease Status"] || "";
+            hystoryLogInput.value = row["Hystory Log"] || "";
+            keteranganInput.value = row["Keterangan"] || "";
+            bitlockerKeyInput.value = row["Bitlocker Key"] || "";
+
+            refreshDaysLease();
+            if (!statusInput.disabled) {
+                statusInput.value = row["Status"] || "";
+            }
+
+            editingDeviceId = row.id;
+            formCardTitle.textContent = "Edit Data Perangkat";
+            submitButton.textContent = "Update Data";
+            setFormVisibility(true, true);
+        }
+
+        async function deleteRow(row) {
+            const yes = window.confirm(`Hapus data perangkat dengan Serial No. ${row["Serial No."] || "-"}?`);
+            if (!yes) {
+                return;
+            }
+
+            hideAlert();
+
+            const response = await fetch(`${API_BASE}/device-records/${row.id}`, {
+                method: "DELETE"
+            });
+
+            if (!response.ok) {
+                const result = await response.json().catch(() => ({}));
+                throw new Error(result.message || "Gagal menghapus data perangkat.");
+            }
+
+            showAlert("Data perangkat berhasil dihapus.", "success");
+            if (editingDeviceId === row.id) {
+                resetForm();
+                setFormVisibility(false);
+            }
+            await loadRows();
+        }
+
+        async function handleTableAction(event) {
+            const target = event.target instanceof Element ? event.target : null;
+            if (!target) {
+                return;
+            }
+
+            const button = target.closest("button[data-action]");
+            if (!button) {
+                return;
+            }
+
+            const action = button.getAttribute("data-action");
+            const id = button.getAttribute("data-id");
+            if (!action || !id) {
+                return;
+            }
+
+            const row = deviceRows.find((item) => String(item.id) === String(id));
+            if (!row) {
+                showAlert("Data perangkat tidak ditemukan.", "danger");
+                return;
+            }
+
+            try {
+                if (action === "view") {
+                    viewRow(row);
+                    return;
+                }
+
+                if (action === "edit") {
+                    hideAlert();
+                    editRow(row);
+                    return;
+                }
+
+                if (action === "delete") {
+                    await deleteRow(row);
+                }
+            } catch (error) {
+                showAlert(error.message, "danger");
+            }
         }
 
         async function submitForm(event) {
@@ -522,8 +903,10 @@
 
             try {
                 const payload = getPayload();
-                const response = await fetch(`${API_BASE}/device-records`, {
-                    method: "POST",
+                const isEdit = Boolean(editingDeviceId);
+                const endpoint = isEdit ? `${API_BASE}/device-records/${editingDeviceId}` : `${API_BASE}/device-records`;
+                const response = await fetch(endpoint, {
+                    method: isEdit ? "PUT" : "POST",
                     headers: { "Content-Type": "application/json" },
                     body: JSON.stringify(payload)
                 });
@@ -533,7 +916,7 @@
                     throw new Error(result.message || "Gagal menyimpan data.");
                 }
 
-                showAlert("Data perangkat berhasil disimpan.", "success");
+                showAlert(isEdit ? "Data perangkat berhasil diupdate." : "Data perangkat berhasil disimpan.", "success");
                 resetForm();
                 setFormVisibility(false);
                 await loadRows();
@@ -551,11 +934,12 @@
                 showAlert(error.message, "danger");
                 tableBody.innerHTML = `
                     <tr>
-                        <td colspan="19" class="text-center text-danger py-4">Gagal memuat data.</td>
+                        <td colspan="13" class="text-center text-danger py-4">Gagal memuat data.</td>
                     </tr>
                 `;
             }
         }
+
         jobCodeIdInput.addEventListener("change", () => {
             populatePicOptionsByJobCode();
         });
@@ -572,6 +956,8 @@
                 ipListInput.value = sanitized;
             }
         });
+
+        tableBody.addEventListener("click", handleTableAction);
         form.addEventListener("submit", submitForm);
         resetButton.addEventListener("click", () => {
             hideAlert();
@@ -579,6 +965,7 @@
         });
         addDataButton.addEventListener("click", () => {
             hideAlert();
+            resetForm();
             setFormVisibility(true, true);
         });
         closeFormButton.addEventListener("click", () => {
@@ -587,12 +974,32 @@
             setFormVisibility(false);
         });
         refreshButton.addEventListener("click", initialize);
+        viewDrawerCloseButton.addEventListener("click", closeViewDrawer);
+        viewDrawerOverlay.addEventListener("click", (event) => {
+            if (event.target === viewDrawerOverlay) {
+                closeViewDrawer();
+            }
+        });
+        document.addEventListener("keydown", (event) => {
+            if (event.key === "Escape" && viewDrawerOverlay.classList.contains("open")) {
+                closeViewDrawer();
+            }
+        });
 
+        resetForm();
         initialize();
     </script>
 </body>
 
 </html>
+
+
+
+
+
+
+
+
 
 
 
