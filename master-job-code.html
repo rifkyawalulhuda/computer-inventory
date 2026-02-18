@@ -1,0 +1,356 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="utf-8">
+    <meta http-equiv="x-ua-compatible" content="IE=edge">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Master Job Code</title>
+    <link rel="shortcut icon" type="image/x-icon" href="assets/images/favicon.ico">
+    <link rel="stylesheet" type="text/css" href="assets/css/bootstrap.min.css">
+    <link rel="stylesheet" type="text/css" href="assets/vendors/css/vendors.min.css">
+    <link rel="stylesheet" type="text/css" href="assets/css/theme.min.css">
+    <style>
+        .page-shell {
+            min-height: 100vh;
+            background: linear-gradient(160deg, #f8fafc 0%, #eef4ff 45%, #edf9f4 100%);
+            padding: 32px 0;
+        }
+
+        .page-title {
+            font-size: 1.5rem;
+            font-weight: 700;
+            color: #0f172a;
+            margin-bottom: 4px;
+        }
+
+        .page-subtitle {
+            color: #475569;
+            margin-bottom: 0;
+        }
+
+        .card-shadow {
+            border: 0;
+            box-shadow: 0 10px 30px rgba(15, 23, 42, 0.08);
+        }
+    </style>
+</head>
+
+<body>
+    <main class="page-shell">
+        <div class="container">
+            <div class="d-flex align-items-center justify-content-between flex-wrap gap-3 mb-4">
+                <div>
+                    <h1 class="page-title">Master Job Code</h1>
+                    <p class="page-subtitle">Menyimpan data Job Code, Site Name, Address, dan Telp. Number.</p>
+                </div>
+            </div>
+
+            <div id="alertBox" class="alert d-none" role="alert"></div>
+
+            <div class="row g-4">
+                <div class="col-lg-4">
+                    <div class="card card-shadow">
+                        <div class="card-body">
+                            <h5 class="card-title mb-3">Form Master Job Code</h5>
+                            <form id="masterJobCodeForm">
+                                <input type="hidden" id="rowId">
+
+                                <div class="mb-3">
+                                    <label for="jobCode" class="form-label">Job Code</label>
+                                    <input type="text" class="form-control" id="jobCode" maxlength="5" placeholder="Contoh: CLC" required>
+                                    <small class="text-muted">Maksimal 5 huruf.</small>
+                                </div>
+
+                                <div class="mb-3">
+                                    <label for="siteName" class="form-label">Site Name</label>
+                                    <input type="text" class="form-control" id="siteName" maxlength="30" placeholder="Contoh: Cikarang Warehouse" required>
+                                    <small class="text-muted">Maksimal 30 karakter.</small>
+                                </div>
+
+                                <div class="mb-3">
+                                    <label for="address" class="form-label">Address</label>
+                                    <textarea class="form-control" id="address" rows="3" placeholder="Alamat site" required></textarea>
+                                </div>
+
+                                <div class="mb-3">
+                                    <label for="phoneNumber" class="form-label">Telp. Number</label>
+                                    <input type="text" class="form-control" id="phoneNumber" maxlength="30" placeholder="Contoh: +62 21 5555 1234" required>
+                                </div>
+
+                                <div class="d-flex gap-2">
+                                    <button type="submit" class="btn btn-primary w-100" id="submitButton">Simpan</button>
+                                    <button type="button" class="btn btn-light border w-100" id="cancelButton">Reset</button>
+                                </div>
+                            </form>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="col-lg-8">
+                    <div class="card card-shadow">
+                        <div class="card-body">
+                            <div class="d-flex align-items-center justify-content-between mb-3">
+                                <h5 class="card-title mb-0">Data Master Job Code</h5>
+                                <button type="button" class="btn btn-sm btn-outline-primary" id="refreshButton">Refresh</button>
+                            </div>
+
+                            <div class="table-responsive">
+                                <table class="table table-hover align-middle mb-0">
+                                    <thead>
+                                        <tr>
+                                            <th>No</th>
+                                            <th>Job Code</th>
+                                            <th>Site Name</th>
+                                            <th>Address</th>
+                                            <th>Telp. Number</th>
+                                            <th style="width: 180px;">Action</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody id="tableBody">
+                                        <tr>
+                                            <td colspan="6" class="text-center text-muted py-4">Loading data...</td>
+                                        </tr>
+                                    </tbody>
+                                </table>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </main>
+
+    <script>
+        const API_BASE = "http://localhost:3001/api";
+        const tableBody = document.getElementById("tableBody");
+        const alertBox = document.getElementById("alertBox");
+        const form = document.getElementById("masterJobCodeForm");
+        const rowId = document.getElementById("rowId");
+        const jobCode = document.getElementById("jobCode");
+        const siteName = document.getElementById("siteName");
+        const address = document.getElementById("address");
+        const phoneNumber = document.getElementById("phoneNumber");
+        const submitButton = document.getElementById("submitButton");
+        const cancelButton = document.getElementById("cancelButton");
+        const refreshButton = document.getElementById("refreshButton");
+
+        function showAlert(message, type) {
+            alertBox.className = `alert alert-${type}`;
+            alertBox.textContent = message;
+            alertBox.classList.remove("d-none");
+        }
+
+        function hideAlert() {
+            alertBox.classList.add("d-none");
+            alertBox.textContent = "";
+        }
+
+        function resetForm() {
+            rowId.value = "";
+            form.reset();
+            submitButton.textContent = "Simpan";
+            jobCode.focus();
+        }
+
+        function validateInput() {
+            const payload = {
+                code: jobCode.value.trim().toUpperCase(),
+                siteName: siteName.value.trim(),
+                address: address.value.trim(),
+                phoneNumber: phoneNumber.value.trim()
+            };
+
+            if (!/^[A-Z]{1,5}$/.test(payload.code)) {
+                throw new Error("Job Code wajib 1-5 huruf (A-Z).");
+            }
+
+            if (payload.siteName.length < 1 || payload.siteName.length > 30) {
+                throw new Error("Site Name wajib diisi maksimal 30 karakter.");
+            }
+
+            if (payload.address.length < 1) {
+                throw new Error("Address wajib diisi.");
+            }
+
+            if (payload.phoneNumber.length < 1 || payload.phoneNumber.length > 30) {
+                throw new Error("Telp. Number wajib diisi maksimal 30 karakter.");
+            }
+
+            return payload;
+        }
+
+        function formatText(value) {
+            return value ? String(value) : "-";
+        }
+
+        function renderRows(rows) {
+            if (!rows.length) {
+                tableBody.innerHTML = `
+                    <tr>
+                        <td colspan="6" class="text-center text-muted py-4">Belum ada data.</td>
+                    </tr>
+                `;
+                return;
+            }
+
+            tableBody.innerHTML = rows.map((row, index) => `
+                <tr>
+                    <td>${index + 1}</td>
+                    <td><span class="badge bg-light text-dark border">${formatText(row.code)}</span></td>
+                    <td>${formatText(row.siteName)}</td>
+                    <td>${formatText(row.address)}</td>
+                    <td>${formatText(row.phoneNumber)}</td>
+                    <td>
+                        <button type="button" class="btn btn-sm btn-outline-primary me-1" data-action="edit" data-id="${row.id}">Edit</button>
+                        <button type="button" class="btn btn-sm btn-outline-danger" data-action="delete" data-id="${row.id}">Delete</button>
+                    </td>
+                </tr>
+            `).join("");
+        }
+
+        async function loadRows() {
+            tableBody.innerHTML = `
+                <tr>
+                    <td colspan="6" class="text-center text-muted py-4">Loading data...</td>
+                </tr>
+            `;
+
+            try {
+                const response = await fetch(`${API_BASE}/master-job-codes`);
+                const result = await response.json();
+                if (!response.ok) {
+                    throw new Error(result.message || "Gagal mengambil data.");
+                }
+                renderRows(result.data || []);
+            } catch (error) {
+                showAlert(error.message, "danger");
+                tableBody.innerHTML = `
+                    <tr>
+                        <td colspan="6" class="text-center text-danger py-4">Gagal memuat data.</td>
+                    </tr>
+                `;
+            }
+        }
+
+        async function submitForm(event) {
+            event.preventDefault();
+            hideAlert();
+
+            try {
+                const payload = validateInput();
+                const id = rowId.value;
+                const isEdit = Boolean(id);
+
+                const response = await fetch(
+                    isEdit ? `${API_BASE}/master-job-codes/${id}` : `${API_BASE}/master-job-codes`,
+                    {
+                        method: isEdit ? "PUT" : "POST",
+                        headers: { "Content-Type": "application/json" },
+                        body: JSON.stringify(payload)
+                    }
+                );
+
+                const result = await response.json().catch(() => ({}));
+                if (!response.ok) {
+                    throw new Error(result.message || "Gagal menyimpan data.");
+                }
+
+                showAlert(isEdit ? "Data berhasil diupdate." : "Data berhasil disimpan.", "success");
+                resetForm();
+                await loadRows();
+            } catch (error) {
+                showAlert(error.message, "danger");
+            }
+        }
+
+        async function deleteRow(id) {
+            const yes = window.confirm("Hapus data ini?");
+            if (!yes) return;
+
+            hideAlert();
+
+            try {
+                const response = await fetch(`${API_BASE}/master-job-codes/${id}`, {
+                    method: "DELETE"
+                });
+
+                if (!response.ok) {
+                    const result = await response.json().catch(() => ({}));
+                    throw new Error(result.message || "Gagal menghapus data.");
+                }
+
+                showAlert("Data berhasil dihapus.", "success");
+                resetForm();
+                await loadRows();
+            } catch (error) {
+                showAlert(error.message, "danger");
+            }
+        }
+
+        async function editRow(id) {
+            try {
+                const response = await fetch(`${API_BASE}/master-job-codes`);
+                const result = await response.json();
+                if (!response.ok) {
+                    throw new Error(result.message || "Gagal mengambil data.");
+                }
+
+                const row = (result.data || []).find((item) => String(item.id) === String(id));
+                if (!row) {
+                    throw new Error("Data tidak ditemukan.");
+                }
+
+                rowId.value = row.id;
+                jobCode.value = row.code || "";
+                siteName.value = row.siteName || "";
+                address.value = row.address || "";
+                phoneNumber.value = row.phoneNumber || "";
+                submitButton.textContent = "Update";
+                window.scrollTo({ top: 0, behavior: "smooth" });
+                jobCode.focus();
+            } catch (error) {
+                showAlert(error.message, "danger");
+            }
+        }
+
+        tableBody.addEventListener("click", (event) => {
+            const button = event.target.closest("button[data-action]");
+            if (!button) return;
+
+            const { action, id } = button.dataset;
+            if (!id) return;
+
+            if (action === "edit") {
+                editRow(id);
+            }
+            if (action === "delete") {
+                deleteRow(id);
+            }
+        });
+
+        jobCode.addEventListener("input", () => {
+            jobCode.value = jobCode.value.toUpperCase().replace(/[^A-Z]/g, "").slice(0, 5);
+        });
+
+        siteName.addEventListener("input", () => {
+            siteName.value = siteName.value.slice(0, 30);
+        });
+
+        phoneNumber.addEventListener("input", () => {
+            phoneNumber.value = phoneNumber.value.slice(0, 30);
+        });
+
+        form.addEventListener("submit", submitForm);
+        cancelButton.addEventListener("click", () => {
+            hideAlert();
+            resetForm();
+        });
+        refreshButton.addEventListener("click", loadRows);
+
+        resetForm();
+        loadRows();
+    </script>
+</body>
+
+</html>

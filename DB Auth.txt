@@ -1,0 +1,23 @@
+Pastikan ada computer_inventory_postgres dengan port 0.0.0.0:5433->5432/tcp.
+
+Ambil kredensial dari backend/.env:
+Host: localhost
+Port: 5433
+Database: computer_inventory
+User: postgres
+Password: postgres
+Schema: public
+Di DBeaver:
+Database -> New Database Connection
+Pilih PostgreSQL
+Isi:
+Host: localhost
+Port: 5433
+Database: computer_inventory
+Username: postgres
+Password: postgres
+Klik Test Connection -> Finish
+Kalau gagal konek:
+Cek container aktif: docker ps
+Cek port tidak bentrok: sudah harus 5433 (bukan 5432)
+Cek credential di .env sama dengan yang diisi di DBeaver

@@ -1,0 +1,204 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model JobCode {
+  id          Int      @id @default(autoincrement())
+  code        String   @unique @db.VarChar(5)
+  siteName    String   @map("site_name") @db.VarChar(30)
+  address     String   @db.Text
+  phoneNumber String   @map("phone_number") @db.VarChar(30)
+  devices     Device[]
+  users       MasterUser[]
+
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  @@map("job_codes")
+}
+
+model MasterUser {
+  id           String  @id @default(cuid())
+  name         String  @db.VarChar(100)
+  email        String  @unique @db.VarChar(191)
+  passwordHash String  @map("password_hash") @db.VarChar(255)
+  contact      String  @db.VarChar(50)
+  rank         String  @db.VarChar(50)
+  jobCodeId    Int     @map("job_code_id")
+
+  jobCode JobCode @relation(fields: [jobCodeId], references: [id], onDelete: Restrict)
+
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  @@index([jobCodeId], map: "idx_master_users_job_code_id")
+  @@map("master_users")
+}
+
+model Location {
+  id      Int      @id @default(autoincrement())
+  name    String   @unique
+  devices Device[]
+
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  @@map("locations")
+}
+
+model DeviceCategory {
+  id      Int      @id @default(autoincrement())
+  name    String   @unique
+  devices Device[]
+
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  @@map("device_categories")
+}
+
+model DeviceModel {
+  id      Int      @id @default(autoincrement())
+  name    String   @unique
+  devices Device[]
+
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  @@map("device_models")
+}
+
+model Employee {
+  id         String             @id @default(cuid())
+  fullName   String             @map("full_name")
+  email      String?            @unique
+  assignments DeviceAssignment[]
+
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  @@map("employees")
+}
+
+model Device {
+  id            String  @id @default(cuid())
+  legacyNo      Int?    @map("legacy_no")
+  serialNumber  String? @unique @map("serial_number")
+  hostName      String? @map("host_name")
+  userNameRaw   String? @map("user_name_raw")
+  userEmailRaw  String? @map("user_email_raw")
+  statusRaw     String? @map("status_raw")
+  locationRaw   String? @map("location_raw")
+  ipListRaw     String? @map("ip_list_raw")
+  picNameRaw    String? @map("pic_name_raw")
+  notes         String? @db.Text
+  bitlockerKey  String? @map("bitlocker_key") @db.Text
+
+  jobCodeId   Int? @map("job_code_id")
+  categoryId  Int? @map("category_id")
+  modelId     Int? @map("model_id")
+  locationId  Int? @map("location_id")
+
+  jobCode   JobCode?        @relation(fields: [jobCodeId], references: [id], onDelete: SetNull)
+  category  DeviceCategory? @relation(fields: [categoryId], references: [id], onDelete: SetNull)
+  model     DeviceModel?    @relation(fields: [modelId], references: [id], onDelete: SetNull)
+  location  Location?       @relation(fields: [locationId], references: [id], onDelete: SetNull)
+
+  ipAddresses          DeviceIp[]
+  assignments          DeviceAssignment[]
+  leaseContracts       LeaseContract[]
+  remoteAccessProfiles RemoteAccessProfile[]
+
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  @@index([hostName], map: "idx_devices_host_name")
+  @@index([locationId], map: "idx_devices_location_id")
+  @@index([categoryId], map: "idx_devices_category_id")
+  @@map("devices")
+}
+
+model DeviceIp {
+  id        Int    @id @default(autoincrement())
+  deviceId  String @map("device_id")
+  ipAddress String @map("ip_address")
+
+  device Device @relation(fields: [deviceId], references: [id], onDelete: Cascade)
+
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  @@unique([deviceId, ipAddress])
+  @@index([ipAddress], map: "idx_device_ips_ip_address")
+  @@map("device_ips")
+}
+
+model DeviceAssignment {
+  id            String   @id @default(cuid())
+  deviceId      String   @map("device_id")
+  employeeId    String?  @map("employee_id")
+  assignedName  String?  @map("assigned_name")
+  assignedEmail String?  @map("assigned_email")
+  startDate     DateTime? @map("start_date")
+  endDate       DateTime? @map("end_date")
+  isActive      Boolean  @default(true) @map("is_active")
+  notes         String?  @db.Text
+
+  device   Device    @relation(fields: [deviceId], references: [id], onDelete: Cascade)
+  employee Employee? @relation(fields: [employeeId], references: [id], onDelete: SetNull)
+
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  @@index([deviceId, isActive], map: "idx_assignments_device_active")
+  @@map("device_assignments")
+}
+
+model LeaseContract {
+  id          String    @id @default(cuid())
+  deviceId    String    @map("device_id")
+  startDate   DateTime? @map("start_date")
+  endDate     DateTime? @map("end_date")
+  daysLease   Int?      @map("days_lease")
+  leaseStatus String?   @map("lease_status")
+  historyLog  String?   @map("history_log") @db.Text
+
+  device Device @relation(fields: [deviceId], references: [id], onDelete: Cascade)
+
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  @@index([endDate], map: "idx_lease_contracts_end_date")
+  @@index([leaseStatus], map: "idx_lease_contracts_lease_status")
+  @@map("lease_contracts")
+}
+
+model RemoteAccessProfile {
+  id                 String    @id @default(cuid())
+  deviceId           String?   @map("device_id")
+  warehouse          String?
+  userName           String?   @map("user_name")
+  deviceType         String?   @map("device_type")
+  pcName             String?   @map("pc_name")
+  teamviewerVersion  String?   @map("teamviewer_version")
+  teamviewerId       String?   @map("teamviewer_id")
+  unattendedPassword String?   @map("unattended_password")
+  picName            String?   @map("pic_name")
+  contact            String?
+  remarks            String?
+  sourceUpdatedOn    DateTime? @map("source_updated_on")
+
+  device Device? @relation(fields: [deviceId], references: [id], onDelete: SetNull)
+
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  @@index([pcName], map: "idx_remote_profiles_pc_name")
+  @@index([teamviewerId], map: "idx_remote_profiles_teamviewer_id")
+  @@map("remote_access_profiles")
+}

@@ -1,0 +1,407 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="utf-8">
+    <meta http-equiv="x-ua-compatible" content="IE=edge">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Master User</title>
+    <link rel="shortcut icon" type="image/x-icon" href="assets/images/favicon.ico">
+    <link rel="stylesheet" type="text/css" href="assets/css/bootstrap.min.css">
+    <link rel="stylesheet" type="text/css" href="assets/vendors/css/vendors.min.css">
+    <link rel="stylesheet" type="text/css" href="assets/css/theme.min.css">
+    <style>
+        .page-shell {
+            min-height: 100vh;
+            background: linear-gradient(160deg, #f8fafc 0%, #eef4ff 45%, #edf9f4 100%);
+            padding: 32px 0;
+        }
+
+        .page-title {
+            font-size: 1.5rem;
+            font-weight: 700;
+            color: #0f172a;
+            margin-bottom: 4px;
+        }
+
+        .page-subtitle {
+            color: #475569;
+            margin-bottom: 0;
+        }
+
+        .card-shadow {
+            border: 0;
+            box-shadow: 0 10px 30px rgba(15, 23, 42, 0.08);
+        }
+    </style>
+</head>
+
+<body>
+    <main class="page-shell">
+        <div class="container">
+            <div class="d-flex align-items-center justify-content-between flex-wrap gap-3 mb-4">
+                <div>
+                    <h1 class="page-title">Master User</h1>
+                    <p class="page-subtitle">Menyimpan user login dan relasi ke Master Job Code.</p>
+                </div>
+            </div>
+
+            <div id="alertBox" class="alert d-none" role="alert"></div>
+
+            <div class="row g-4">
+                <div class="col-lg-4">
+                    <div class="card card-shadow">
+                        <div class="card-body">
+                            <h5 class="card-title mb-3">Form Master User</h5>
+                            <form id="masterUserForm">
+                                <input type="hidden" id="rowId">
+
+                                <div class="mb-3">
+                                    <label for="name" class="form-label">Name</label>
+                                    <input type="text" class="form-control" id="name" maxlength="100" required>
+                                </div>
+
+                                <div class="mb-3">
+                                    <label for="email" class="form-label">Email</label>
+                                    <input type="email" class="form-control" id="email" maxlength="191" required>
+                                    <small class="text-muted">Dipakai sebagai email login.</small>
+                                </div>
+
+                                <div class="mb-3">
+                                    <label for="password" class="form-label">Password</label>
+                                    <input type="password" class="form-control" id="password" maxlength="100" required>
+                                    <small class="text-muted" id="passwordHint">Dipakai sebagai password login (min. 6 karakter).</small>
+                                </div>
+
+                                <div class="mb-3">
+                                    <label for="jobCodeId" class="form-label">Job Code</label>
+                                    <select class="form-select" id="jobCodeId" required>
+                                        <option value="">Loading...</option>
+                                    </select>
+                                </div>
+
+                                <div class="mb-3">
+                                    <label for="contact" class="form-label">Contact</label>
+                                    <input type="text" class="form-control" id="contact" maxlength="50" required>
+                                </div>
+
+                                <div class="mb-3">
+                                    <label for="rank" class="form-label">Rank</label>
+                                    <input type="text" class="form-control" id="rank" maxlength="50" required>
+                                </div>
+
+                                <div class="d-flex gap-2">
+                                    <button type="submit" class="btn btn-primary w-100" id="submitButton">Simpan</button>
+                                    <button type="button" class="btn btn-light border w-100" id="cancelButton">Reset</button>
+                                </div>
+                            </form>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="col-lg-8">
+                    <div class="card card-shadow">
+                        <div class="card-body">
+                            <div class="d-flex align-items-center justify-content-between mb-3">
+                                <h5 class="card-title mb-0">Data Master User</h5>
+                                <button type="button" class="btn btn-sm btn-outline-primary" id="refreshButton">Refresh</button>
+                            </div>
+
+                            <div class="table-responsive">
+                                <table class="table table-hover align-middle mb-0">
+                                    <thead>
+                                        <tr>
+                                            <th>No</th>
+                                            <th>Name</th>
+                                            <th>Email</th>
+                                            <th>Password</th>
+                                            <th>Job Code</th>
+                                            <th>Contact</th>
+                                            <th>Rank</th>
+                                            <th style="width: 180px;">Action</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody id="tableBody">
+                                        <tr>
+                                            <td colspan="8" class="text-center text-muted py-4">Loading data...</td>
+                                        </tr>
+                                    </tbody>
+                                </table>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </main>
+
+    <script>
+        const API_BASE = "http://localhost:3001/api";
+        const tableBody = document.getElementById("tableBody");
+        const alertBox = document.getElementById("alertBox");
+        const form = document.getElementById("masterUserForm");
+        const rowId = document.getElementById("rowId");
+        const nameInput = document.getElementById("name");
+        const emailInput = document.getElementById("email");
+        const passwordInput = document.getElementById("password");
+        const jobCodeIdInput = document.getElementById("jobCodeId");
+        const contactInput = document.getElementById("contact");
+        const rankInput = document.getElementById("rank");
+        const passwordHint = document.getElementById("passwordHint");
+        const submitButton = document.getElementById("submitButton");
+        const cancelButton = document.getElementById("cancelButton");
+        const refreshButton = document.getElementById("refreshButton");
+
+        let jobCodes = [];
+        let users = [];
+
+        function showAlert(message, type) {
+            alertBox.className = `alert alert-${type}`;
+            alertBox.textContent = message;
+            alertBox.classList.remove("d-none");
+        }
+
+        function hideAlert() {
+            alertBox.classList.add("d-none");
+            alertBox.textContent = "";
+        }
+
+        function resetForm() {
+            rowId.value = "";
+            form.reset();
+            passwordInput.required = true;
+            passwordHint.textContent = "Dipakai sebagai password login (min. 6 karakter).";
+            submitButton.textContent = "Simpan";
+            nameInput.focus();
+        }
+
+        function populateJobCodes() {
+            if (!jobCodes.length) {
+                jobCodeIdInput.innerHTML = "<option value=\"\">Belum ada data Job Code</option>";
+                return;
+            }
+
+            jobCodeIdInput.innerHTML = [
+                "<option value=\"\">Pilih Job Code</option>",
+                ...jobCodes.map((row) => `<option value=\"${row.id}\">${row.code} - ${row.siteName}</option>`)
+            ].join("");
+        }
+
+        function validateInput() {
+            const payload = {
+                name: nameInput.value.trim(),
+                email: emailInput.value.trim().toLowerCase(),
+                password: passwordInput.value.trim(),
+                jobCodeId: Number(jobCodeIdInput.value),
+                contact: contactInput.value.trim(),
+                rank: rankInput.value.trim()
+            };
+
+            if (!payload.name || payload.name.length > 100) {
+                throw new Error("Name wajib diisi (maksimal 100 karakter).");
+            }
+
+            if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(payload.email) || payload.email.length > 191) {
+                throw new Error("Email tidak valid.");
+            }
+
+            if (!Number.isInteger(payload.jobCodeId) || payload.jobCodeId < 1) {
+                throw new Error("Job Code wajib dipilih.");
+            }
+
+            if (!payload.contact || payload.contact.length > 50) {
+                throw new Error("Contact wajib diisi (maksimal 50 karakter).");
+            }
+
+            if (!payload.rank || payload.rank.length > 50) {
+                throw new Error("Rank wajib diisi (maksimal 50 karakter).");
+            }
+
+            const isEdit = Boolean(rowId.value);
+            if (!isEdit && payload.password.length < 6) {
+                throw new Error("Password minimal 6 karakter.");
+            }
+
+            if (isEdit && payload.password && payload.password.length < 6) {
+                throw new Error("Jika diisi, Password minimal 6 karakter.");
+            }
+
+            return payload;
+        }
+
+        function formatText(value) {
+            return value ? String(value) : "-";
+        }
+
+        function renderRows() {
+            if (!users.length) {
+                tableBody.innerHTML = `
+                    <tr>
+                        <td colspan="8" class="text-center text-muted py-4">Belum ada data.</td>
+                    </tr>
+                `;
+                return;
+            }
+
+            tableBody.innerHTML = users.map((row, index) => `
+                <tr>
+                    <td>${index + 1}</td>
+                    <td>${formatText(row.name)}</td>
+                    <td>${formatText(row.email)}</td>
+                    <td>********</td>
+                    <td><span class="badge bg-light text-dark border">${formatText(row.jobCode?.code)}</span></td>
+                    <td>${formatText(row.contact)}</td>
+                    <td>${formatText(row.rank)}</td>
+                    <td>
+                        <button type="button" class="btn btn-sm btn-outline-primary me-1" data-action="edit" data-id="${row.id}">Edit</button>
+                        <button type="button" class="btn btn-sm btn-outline-danger" data-action="delete" data-id="${row.id}">Delete</button>
+                    </td>
+                </tr>
+            `).join("");
+        }
+
+        async function loadJobCodes() {
+            const response = await fetch(`${API_BASE}/master-job-codes`);
+            const result = await response.json();
+
+            if (!response.ok) {
+                throw new Error(result.message || "Gagal memuat Job Code.");
+            }
+
+            jobCodes = result.data || [];
+            populateJobCodes();
+        }
+
+        async function loadUsers() {
+            tableBody.innerHTML = `
+                <tr>
+                    <td colspan="8" class="text-center text-muted py-4">Loading data...</td>
+                </tr>
+            `;
+
+            const response = await fetch(`${API_BASE}/master-users`);
+            const result = await response.json();
+            if (!response.ok) {
+                throw new Error(result.message || "Gagal memuat data user.");
+            }
+
+            users = result.data || [];
+            renderRows();
+        }
+
+        async function initialLoad() {
+            try {
+                hideAlert();
+                await loadJobCodes();
+                await loadUsers();
+            } catch (error) {
+                showAlert(error.message, "danger");
+                tableBody.innerHTML = `
+                    <tr>
+                        <td colspan="8" class="text-center text-danger py-4">Gagal memuat data.</td>
+                    </tr>
+                `;
+            }
+        }
+
+        async function submitForm(event) {
+            event.preventDefault();
+            hideAlert();
+
+            try {
+                const payload = validateInput();
+                const id = rowId.value;
+                const isEdit = Boolean(id);
+
+                if (isEdit && !payload.password) {
+                    delete payload.password;
+                }
+
+                const response = await fetch(
+                    isEdit ? `${API_BASE}/master-users/${id}` : `${API_BASE}/master-users`,
+                    {
+                        method: isEdit ? "PUT" : "POST",
+                        headers: { "Content-Type": "application/json" },
+                        body: JSON.stringify(payload)
+                    }
+                );
+
+                const result = await response.json().catch(() => ({}));
+                if (!response.ok) {
+                    throw new Error(result.message || "Gagal menyimpan data.");
+                }
+
+                showAlert(isEdit ? "Data user berhasil diupdate." : "Data user berhasil disimpan.", "success");
+                resetForm();
+                await loadUsers();
+            } catch (error) {
+                showAlert(error.message, "danger");
+            }
+        }
+
+        async function deleteRow(id) {
+            const yes = window.confirm("Hapus data user ini?");
+            if (!yes) return;
+
+            hideAlert();
+
+            try {
+                const response = await fetch(`${API_BASE}/master-users/${id}`, { method: "DELETE" });
+                if (!response.ok) {
+                    const result = await response.json().catch(() => ({}));
+                    throw new Error(result.message || "Gagal menghapus data.");
+                }
+
+                showAlert("Data user berhasil dihapus.", "success");
+                resetForm();
+                await loadUsers();
+            } catch (error) {
+                showAlert(error.message, "danger");
+            }
+        }
+
+        function editRow(id) {
+            const row = users.find((item) => String(item.id) === String(id));
+            if (!row) {
+                showAlert("Data tidak ditemukan.", "danger");
+                return;
+            }
+
+            rowId.value = row.id;
+            nameInput.value = row.name || "";
+            emailInput.value = row.email || "";
+            passwordInput.value = "";
+            jobCodeIdInput.value = String(row.jobCodeId || "");
+            contactInput.value = row.contact || "";
+            rankInput.value = row.rank || "";
+            passwordInput.required = false;
+            passwordHint.textContent = "Kosongkan jika password tidak diubah.";
+            submitButton.textContent = "Update";
+            window.scrollTo({ top: 0, behavior: "smooth" });
+            nameInput.focus();
+        }
+
+        tableBody.addEventListener("click", (event) => {
+            const button = event.target.closest("button[data-action]");
+            if (!button) return;
+
+            const { action, id } = button.dataset;
+            if (!id) return;
+
+            if (action === "edit") editRow(id);
+            if (action === "delete") deleteRow(id);
+        });
+
+        form.addEventListener("submit", submitForm);
+        cancelButton.addEventListener("click", () => {
+            hideAlert();
+            resetForm();
+        });
+        refreshButton.addEventListener("click", initialLoad);
+
+        resetForm();
+        initialLoad();
+    </script>
+</body>
+
+</html>

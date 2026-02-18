@@ -1,0 +1,582 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="utf-8">
+    <meta http-equiv="x-ua-compatible" content="IE=edge">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Data Perangkat</title>
+    <link rel="shortcut icon" type="image/x-icon" href="assets/images/favicon.ico">
+    <link rel="stylesheet" type="text/css" href="assets/css/bootstrap.min.css">
+    <link rel="stylesheet" type="text/css" href="assets/vendors/css/vendors.min.css">
+    <link rel="stylesheet" type="text/css" href="assets/css/theme.min.css">
+    <style>
+        .page-shell {
+            min-height: 100vh;
+            background: linear-gradient(160deg, #f8fafc 0%, #eef4ff 45%, #edf9f4 100%);
+            padding: 32px 0;
+        }
+
+        .page-title {
+            font-size: 1.5rem;
+            font-weight: 700;
+            color: #0f172a;
+            margin-bottom: 4px;
+        }
+
+        .page-subtitle {
+            color: #475569;
+            margin-bottom: 0;
+        }
+
+        .card-shadow {
+            border: 0;
+            box-shadow: 0 10px 30px rgba(15, 23, 42, 0.08);
+        }
+
+        .table-responsive {
+            overflow-x: auto;
+        }
+    </style>
+</head>
+
+<body>
+    <main class="page-shell">
+        <div class="container-fluid px-4">
+            <div class="mb-4">
+                <h1 class="page-title">Data Perangkat</h1>
+                <p class="page-subtitle">Input data perangkat dengan header kolom mengikuti file Excel PC CLC Data List.</p>
+            </div>
+
+            <div id="alertBox" class="alert d-none" role="alert"></div>
+
+            <div class="card card-shadow mb-4">
+                <div class="card-body">
+                    <h5 class="card-title mb-3">Form Input Data Perangkat</h5>
+                    <p class="text-muted mb-3">Kolom NO dibuat otomatis oleh sistem.</p>
+                    <form id="deviceForm">
+                        <div class="row g-3">
+                            <div class="col-md-4">
+                                <label for="jobCodeId" class="form-label">Job Code</label>
+                                <select class="form-select" id="jobCodeId" required>
+                                    <option value="">Loading...</option>
+                                </select>
+                            </div>
+                            <div class="col-md-4">
+                                <label for="picUserId" class="form-label">PIC Name</label>
+                                <select class="form-select" id="picUserId" required>
+                                    <option value="">Loading...</option>
+                                </select>
+                            </div>
+                            <div class="col-md-4">
+                                <label for="serialNo" class="form-label">Serial No.</label>
+                                <input type="text" class="form-control" id="serialNo" maxlength="100" placeholder="Serial Number">
+                            </div>
+
+                            <div class="col-md-3">
+                                <label for="category" class="form-label">Category</label>
+                                <select class="form-select" id="category">
+                                    <option value="">Pilih Category</option>
+                                    <option value="Laptop">Laptop</option>
+                                    <option value="Desktop">Desktop</option>
+                                </select>
+                            </div>
+                            <div class="col-md-3">
+                                <label for="model" class="form-label">Model</label>
+                                <input type="text" class="form-control" id="model" maxlength="100" placeholder="DELL_5420">
+                            </div>
+                            <div class="col-md-3">
+                                <label for="hostName" class="form-label">Host Name</label>
+                                <input type="text" class="form-control" id="hostName" maxlength="120" placeholder="L-ID-22-030">
+                            </div>
+                            <div class="col-md-3">
+                                <label for="status" class="form-label">Status</label>
+                                <select class="form-select" id="status">
+                                    <option value="">Pilih Status</option>
+                                    <option value="ON">ON</option>
+                                    <option value="OFF">OFF</option>
+                                </select>
+                            </div>
+
+                            <div class="col-md-4">
+                                <label for="userName" class="form-label">User Name</label>
+                                <input type="text" class="form-control" id="userName" maxlength="120" placeholder="Nama pengguna perangkat">
+                            </div>
+                            <div class="col-md-4">
+                                <label for="userEmail" class="form-label">User Email</label>
+                                <input type="email" class="form-control" id="userEmail" maxlength="191" placeholder="email@company.com">
+                            </div>
+                            <div class="col-md-4">
+                                <label for="location" class="form-label">Location</label>
+                                <input type="text" class="form-control" id="location" maxlength="120" placeholder="Cikarang KITIC">
+                            </div>
+
+                            <div class="col-md-4">
+                                <label for="ipList" class="form-label">IP List</label>
+                                <textarea class="form-control" id="ipList" rows="2" maxlength="20" placeholder="Pisahkan dengan koma atau baris baru"></textarea>
+                                <small class="text-muted">Hanya angka dan simbol, maksimal 20 karakter.</small>
+                            </div>
+                            <div class="col-md-2">
+                                <label for="startDate" class="form-label">Start Date</label>
+                                <input type="date" class="form-control" id="startDate">
+                            </div>
+                            <div class="col-md-2">
+                                <label for="endDate" class="form-label">End Date</label>
+                                <input type="date" class="form-control" id="endDate">
+                            </div>
+                            <div class="col-md-2">
+                                <label for="daysLease" class="form-label">Days Lease</label>
+                                <input type="number" class="form-control" id="daysLease" readonly>
+                            </div>
+                            <div class="col-md-2">
+                                <label for="leaseStatus" class="form-label">Lease Status</label>
+                                <input type="text" class="form-control" id="leaseStatus" maxlength="50" placeholder="ACTIVE">
+                            </div>
+
+                            <div class="col-md-4">
+                                <label for="hystoryLog" class="form-label">Hystory Log</label>
+                                <textarea class="form-control" id="hystoryLog" rows="2" placeholder="History catatan"></textarea>
+                            </div>
+                            <div class="col-md-4">
+                                <label for="keterangan" class="form-label">Keterangan</label>
+                                <textarea class="form-control" id="keterangan" rows="2" placeholder="Catatan tambahan"></textarea>
+                            </div>
+                            <div class="col-md-4">
+                                <label for="bitlockerKey" class="form-label">Bitlocker Key</label>
+                                <textarea class="form-control" id="bitlockerKey" rows="2" placeholder="Bitlocker recovery key"></textarea>
+                            </div>
+
+                            <div class="col-12 d-flex gap-2">
+                                <button type="submit" class="btn btn-primary">Simpan Data</button>
+                                <button type="button" class="btn btn-light border" id="resetButton">Reset</button>
+                                <button type="button" class="btn btn-outline-primary" id="refreshButton">Refresh Data</button>
+                            </div>
+                        </div>
+                    </form>
+                </div>
+            </div>
+
+            <div class="card card-shadow">
+                <div class="card-body">
+                    <h5 class="card-title mb-3">Daftar Data Perangkat</h5>
+                    <div class="table-responsive">
+                        <table class="table table-hover align-middle mb-0">
+                            <thead>
+                                <tr>
+                                    <th>NO</th>
+                                    <th>Job Code</th>
+                                    <th>PIC Name</th>
+                                    <th>Serial No.</th>
+                                    <th>Category</th>
+                                    <th>Model</th>
+                                    <th>Host Name</th>
+                                    <th>User Name</th>
+                                    <th>User Email</th>
+                                    <th>Status</th>
+                                    <th>Location</th>
+                                    <th>IP List</th>
+                                    <th>Start Date</th>
+                                    <th>End Date</th>
+                                    <th>Days Lease</th>
+                                    <th>Lease Status</th>
+                                    <th>Hystory Log</th>
+                                    <th>Keterangan</th>
+                                    <th>Bitlocker Key</th>
+                                </tr>
+                            </thead>
+                            <tbody id="tableBody">
+                                <tr>
+                                    <td colspan="19" class="text-center text-muted py-4">Loading data...</td>
+                                </tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </main>
+
+    <script>
+        const API_BASE = "http://localhost:3001/api";
+
+        const alertBox = document.getElementById("alertBox");
+        const form = document.getElementById("deviceForm");
+        const tableBody = document.getElementById("tableBody");
+        const jobCodeIdInput = document.getElementById("jobCodeId");
+        const picUserIdInput = document.getElementById("picUserId");
+        const serialNoInput = document.getElementById("serialNo");
+        const categoryInput = document.getElementById("category");
+        const modelInput = document.getElementById("model");
+        const hostNameInput = document.getElementById("hostName");
+        const userNameInput = document.getElementById("userName");
+        const userEmailInput = document.getElementById("userEmail");
+        const statusInput = document.getElementById("status");
+        const locationInput = document.getElementById("location");
+        const ipListInput = document.getElementById("ipList");
+        const startDateInput = document.getElementById("startDate");
+        const endDateInput = document.getElementById("endDate");
+        const daysLeaseInput = document.getElementById("daysLease");
+        const leaseStatusInput = document.getElementById("leaseStatus");
+        const hystoryLogInput = document.getElementById("hystoryLog");
+        const keteranganInput = document.getElementById("keterangan");
+        const bitlockerKeyInput = document.getElementById("bitlockerKey");
+        const resetButton = document.getElementById("resetButton");
+        const refreshButton = document.getElementById("refreshButton");
+
+        let masterUsers = [];
+        let lastManualStatus = "";
+
+        function showAlert(message, type) {
+            alertBox.className = `alert alert-${type}`;
+            alertBox.textContent = message;
+            alertBox.classList.remove("d-none");
+        }
+
+        function hideAlert() {
+            alertBox.classList.add("d-none");
+            alertBox.textContent = "";
+        }
+
+        function sanitizeIpListValue(value) {
+            return String(value ?? "").replace(/[A-Za-z]/g, "").slice(0, 20);
+        }
+        function escapeHtml(value) {
+            return String(value ?? "")
+                .replaceAll("&", "&amp;")
+                .replaceAll("<", "&lt;")
+                .replaceAll(">", "&gt;")
+                .replaceAll('"', "&quot;")
+                .replaceAll("'", "&#39;");
+        }
+        function getFilteredUsersByJobCode(jobCodeId) {
+            if (!Number.isInteger(jobCodeId) || jobCodeId < 1) {
+                return [];
+            }
+
+            return masterUsers.filter((user) => Number(user.jobCodeId) === jobCodeId);
+        }
+
+        function populatePicOptionsByJobCode() {
+            const selectedJobCodeId = Number(jobCodeIdInput.value);
+            const filteredUsers = getFilteredUsersByJobCode(selectedJobCodeId);
+
+            if (!Number.isInteger(selectedJobCodeId) || selectedJobCodeId < 1) {
+                picUserIdInput.innerHTML = '<option value="">Pilih Job Code dulu</option>';
+                picUserIdInput.value = "";
+                return;
+            }
+
+            if (!filteredUsers.length) {
+                picUserIdInput.innerHTML = '<option value="">Tidak ada PIC untuk Job Code ini</option>';
+                picUserIdInput.value = "";
+                return;
+            }
+
+            picUserIdInput.innerHTML = [
+                '<option value="">Pilih PIC Name</option>',
+                ...filteredUsers.map((row) => `<option value="${escapeHtml(row.id)}">${escapeHtml(row.name)} (${escapeHtml(row.email)})</option>`)
+            ].join("");
+        }
+
+
+        function calculateDaysLeaseValue(startDateValue, endDateValue) {
+            if (!startDateValue || !endDateValue) {
+                return "";
+            }
+
+            const leaseStart = new Date(`${startDateValue}T00:00:00`);
+            const leaseEnd = new Date(`${endDateValue}T00:00:00`);
+
+            if (Number.isNaN(leaseStart.getTime()) || Number.isNaN(leaseEnd.getTime()) || leaseEnd < leaseStart) {
+                return "";
+            }
+
+            const today = new Date();
+            today.setHours(0, 0, 0, 0);
+
+            const baseDate = today < leaseStart ? leaseStart : today;
+            const msPerDay = 24 * 60 * 60 * 1000;
+            const days = Math.ceil((leaseEnd.getTime() - baseDate.getTime()) / msPerDay);
+            return String(Math.max(0, days));
+        }
+        function ensureExpiredStatusOption() {
+            const existingOption = Array.from(statusInput.options).find((option) => option.value === "EXPIRED");
+            if (existingOption) {
+                return existingOption;
+            }
+
+            const expiredOption = document.createElement("option");
+            expiredOption.value = "EXPIRED";
+            expiredOption.textContent = "EXPIRED";
+            statusInput.appendChild(expiredOption);
+            return expiredOption;
+        }
+
+        function removeExpiredStatusOption() {
+            const expiredOption = Array.from(statusInput.options).find((option) => option.value === "EXPIRED");
+            if (expiredOption) {
+                expiredOption.remove();
+            }
+        }
+
+        function refreshStatusByDaysLease() {
+            const daysLeaseValue = Number(daysLeaseInput.value);
+            const hasDaysLeaseValue = daysLeaseInput.value !== "" && Number.isFinite(daysLeaseValue);
+            const isExpired = hasDaysLeaseValue && daysLeaseValue <= 0;
+
+            if (isExpired) {
+                if (statusInput.value && statusInput.value !== "EXPIRED") {
+                    lastManualStatus = statusInput.value;
+                }
+
+                ensureExpiredStatusOption();
+                statusInput.value = "EXPIRED";
+                statusInput.disabled = true;
+                return;
+            }
+
+            statusInput.disabled = false;
+            const shouldRestoreManualStatus = statusInput.value === "EXPIRED";
+            removeExpiredStatusOption();
+
+            if (shouldRestoreManualStatus) {
+                statusInput.value = lastManualStatus || "";
+            }
+        }
+
+        function refreshDaysLease() {
+            daysLeaseInput.value = calculateDaysLeaseValue(startDateInput.value, endDateInput.value);
+            refreshStatusByDaysLease();
+        }
+        function resetForm() {
+            form.reset();
+            userNameInput.value = "";
+            userEmailInput.value = "";
+            jobCodeIdInput.value = "";
+            lastManualStatus = "";
+            statusInput.disabled = false;
+            removeExpiredStatusOption();
+            populatePicOptionsByJobCode();
+            refreshDaysLease();
+        }
+
+        function getPayload() {
+            refreshDaysLease();
+
+            const payload = {
+                jobCodeId: Number(jobCodeIdInput.value),
+                picUserId: picUserIdInput.value,
+                userName: userNameInput.value.trim(),
+                userEmail: userEmailInput.value.trim(),
+                serialNo: serialNoInput.value.trim(),
+                category: categoryInput.value.trim(),
+                model: modelInput.value.trim(),
+                hostName: hostNameInput.value.trim(),
+                status: statusInput.value.trim(),
+                location: locationInput.value.trim(),
+                ipList: ipListInput.value.trim(),
+                startDate: startDateInput.value,
+                endDate: endDateInput.value,
+                daysLease: daysLeaseInput.value.trim(),
+                leaseStatus: leaseStatusInput.value.trim(),
+                hystoryLog: hystoryLogInput.value.trim(),
+                keterangan: keteranganInput.value.trim(),
+                bitlockerKey: bitlockerKeyInput.value.trim()
+            };
+
+            if (!Number.isInteger(payload.jobCodeId) || payload.jobCodeId < 1) {
+                throw new Error("Job Code wajib dipilih.");
+            }
+
+            if (!payload.picUserId) {
+                throw new Error("PIC Name wajib dipilih.");
+            }
+
+            const selectedUser = masterUsers.find((user) => String(user.id) === String(payload.picUserId));
+            if (!selectedUser || Number(selectedUser.jobCodeId) !== payload.jobCodeId) {
+                throw new Error("PIC Name harus sesuai dengan Job Code yang dipilih.");
+            }
+
+            if (payload.userEmail && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(payload.userEmail)) {
+                throw new Error("User Email tidak valid.");
+            }
+
+            if (payload.ipList && payload.ipList.length > 20) {
+                throw new Error("IP List maksimal 20 karakter.");
+            }
+
+            if (payload.ipList && /[A-Za-z]/.test(payload.ipList)) {
+                throw new Error("IP List hanya boleh angka dan simbol.");
+            }
+
+            if (payload.startDate && payload.endDate && payload.startDate > payload.endDate) {
+                throw new Error("Start Date tidak boleh lebih besar dari End Date.");
+            }
+
+            return payload;
+        }
+
+        async function loadMasterData() {
+            const [jobCodeRes, masterUserRes] = await Promise.all([
+                fetch(`${API_BASE}/master-job-codes`),
+                fetch(`${API_BASE}/master-users`)
+            ]);
+
+            const jobCodeJson = await jobCodeRes.json();
+            const masterUserJson = await masterUserRes.json();
+
+            if (!jobCodeRes.ok) {
+                throw new Error(jobCodeJson.message || "Gagal memuat Master Job Code.");
+            }
+
+            if (!masterUserRes.ok) {
+                throw new Error(masterUserJson.message || "Gagal memuat Master User.");
+            }
+
+            const jobCodes = jobCodeJson.data || [];
+            masterUsers = masterUserJson.data || [];
+
+            jobCodeIdInput.innerHTML = [
+                '<option value="">Pilih Job Code</option>',
+                ...jobCodes.map((row) => `<option value="${row.id}">${escapeHtml(row.code)} - ${escapeHtml(row.siteName)}</option>`)
+            ].join("");
+
+            populatePicOptionsByJobCode();
+            refreshDaysLease();
+        }
+
+        function renderRows(rows) {
+            if (!rows.length) {
+                tableBody.innerHTML = `
+                    <tr>
+                        <td colspan="19" class="text-center text-muted py-4">Belum ada data.</td>
+                    </tr>
+                `;
+                return;
+            }
+
+            tableBody.innerHTML = rows.map((row) => `
+                <tr>
+                    <td>${escapeHtml(row["NO"])}</td>
+                    <td>${escapeHtml(row["Job Code"])}</td>
+                    <td>${escapeHtml(row["PIC Name"])}</td>
+                    <td>${escapeHtml(row["Serial No."])}</td>
+                    <td>${escapeHtml(row["Category"])}</td>
+                    <td>${escapeHtml(row["Model"])}</td>
+                    <td>${escapeHtml(row["Host Name"])}</td>
+                    <td>${escapeHtml(row["User Name"])}</td>
+                    <td>${escapeHtml(row["User Email"])}</td>
+                    <td>${escapeHtml(row["Status"])}</td>
+                    <td>${escapeHtml(row["Location"])}</td>
+                    <td>${escapeHtml(row["IP List"])}</td>
+                    <td>${escapeHtml(row["Start Date"])}</td>
+                    <td>${escapeHtml(row["End Date"])}</td>
+                    <td>${escapeHtml(row["Days Lease"])}</td>
+                    <td>${escapeHtml(row["Lease Status"])}</td>
+                    <td>${escapeHtml(row["Hystory Log"])}</td>
+                    <td>${escapeHtml(row["Keterangan"])}</td>
+                    <td>${escapeHtml(row["Bitlocker Key"])}</td>
+                </tr>
+            `).join("");
+        }
+
+        async function loadRows() {
+            tableBody.innerHTML = `
+                <tr>
+                    <td colspan="19" class="text-center text-muted py-4">Loading data...</td>
+                </tr>
+            `;
+
+            const response = await fetch(`${API_BASE}/device-records`);
+            const result = await response.json();
+            if (!response.ok) {
+                throw new Error(result.message || "Gagal memuat data perangkat.");
+            }
+
+            renderRows(result.data || []);
+        }
+
+        async function submitForm(event) {
+            event.preventDefault();
+            hideAlert();
+
+            try {
+                const payload = getPayload();
+                const response = await fetch(`${API_BASE}/device-records`, {
+                    method: "POST",
+                    headers: { "Content-Type": "application/json" },
+                    body: JSON.stringify(payload)
+                });
+
+                const result = await response.json().catch(() => ({}));
+                if (!response.ok) {
+                    throw new Error(result.message || "Gagal menyimpan data.");
+                }
+
+                showAlert("Data perangkat berhasil disimpan.", "success");
+                resetForm();
+                await loadRows();
+            } catch (error) {
+                showAlert(error.message, "danger");
+            }
+        }
+
+        async function initialize() {
+            try {
+                hideAlert();
+                await loadMasterData();
+                await loadRows();
+            } catch (error) {
+                showAlert(error.message, "danger");
+                tableBody.innerHTML = `
+                    <tr>
+                        <td colspan="19" class="text-center text-danger py-4">Gagal memuat data.</td>
+                    </tr>
+                `;
+            }
+        }
+        jobCodeIdInput.addEventListener("change", () => {
+            populatePicOptionsByJobCode();
+        });
+        startDateInput.addEventListener("change", refreshDaysLease);
+        endDateInput.addEventListener("change", refreshDaysLease);
+        statusInput.addEventListener("change", () => {
+            if (statusInput.value && statusInput.value !== "EXPIRED") {
+                lastManualStatus = statusInput.value;
+            }
+        });
+        ipListInput.addEventListener("input", () => {
+            const sanitized = sanitizeIpListValue(ipListInput.value);
+            if (sanitized !== ipListInput.value) {
+                ipListInput.value = sanitized;
+            }
+        });
+
+        form.addEventListener("submit", submitForm);
+        resetButton.addEventListener("click", () => {
+            hideAlert();
+            resetForm();
+        });
+        refreshButton.addEventListener("click", initialize);
+
+        initialize();
+    </script>
+</body>
+
+</html>
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
