@@ -213,7 +213,8 @@ function splitIpList(ipList: string | null): string[] {
   return [...new Set(ipList.split(/[\n,;]+/).map((v) => v.trim()).filter(Boolean))];
 }
 
-function mapDeviceToExcelRecord(row: {
+function mapDeviceToExcelRecord(
+  row: {
   id: string;
   legacyNo: number | null;
   serialNumber: string | null;
@@ -236,12 +237,23 @@ function mapDeviceToExcelRecord(row: {
     leaseStatus: string | null;
     historyLog: string | null;
   }>;
-}) {
+},
+  fallbackNo?: number,
+) {
   const latestLease = row.leaseContracts[0] ?? null;
+  const calculatedDaysLease = calculateDaysLease(
+    latestLease?.startDate ?? null,
+    latestLease?.endDate ?? null,
+  );
+  const displayDaysLease = calculatedDaysLease ?? latestLease?.daysLease ?? "";
+  const displayStatus =
+    calculatedDaysLease !== null && calculatedDaysLease <= 0
+      ? "EXPIRED"
+      : row.statusRaw ?? "";
 
   return {
     id: row.id,
-    NO: row.legacyNo ?? "",
+    NO: row.legacyNo ?? fallbackNo ?? "",
     "Job Code": row.jobCode?.code ?? "",
     "PIC Name": row.picNameRaw ?? "",
     "Serial No.": row.serialNumber ?? "",
@@ -250,12 +262,12 @@ function mapDeviceToExcelRecord(row: {
     "Host Name": row.hostName ?? "",
     "User Name": row.userNameRaw ?? "",
     "User Email": row.userEmailRaw ?? "",
-    Status: row.statusRaw ?? "",
+    Status: displayStatus,
     Location: row.locationRaw ?? "",
     "IP List": row.ipListRaw ?? "",
     "Start Date": formatDate(latestLease?.startDate),
     "End Date": formatDate(latestLease?.endDate),
-    "Days Lease": latestLease?.daysLease ?? "",
+    "Days Lease": displayDaysLease,
     "Lease Status": latestLease?.leaseStatus ?? "",
     "Hystory Log": latestLease?.historyLog ?? "",
     Keterangan: row.notes ?? "",
@@ -285,7 +297,7 @@ deviceRecordRouter.get("/device-records", async (_req, res, next) => {
       },
     });
 
-    res.json({ data: rows.map(mapDeviceToExcelRecord) });
+    res.json({ data: rows.map((row, index) => mapDeviceToExcelRecord(row, index + 1)) });
   } catch (error) {
     next(error);
   }
@@ -430,6 +442,9 @@ deviceRecordRouter.post("/device-records", async (req, res, next) => {
     next(error);
   }
 });
+
+
+
 
 
 

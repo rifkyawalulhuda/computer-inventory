@@ -50,10 +50,15 @@
 
             <div id="alertBox" class="alert d-none" role="alert"></div>
 
-            <div class="card card-shadow mb-4">
+            <div class="card card-shadow mb-4 d-none" id="deviceFormCard">
                 <div class="card-body">
-                    <h5 class="card-title mb-3">Form Input Data Perangkat</h5>
-                    <p class="text-muted mb-3">Kolom NO dibuat otomatis oleh sistem.</p>
+                    <div class="d-flex flex-wrap justify-content-between align-items-center gap-2 mb-3">
+                        <div>
+                            <h5 class="card-title mb-1">Form Input Data Perangkat</h5>
+                            <p class="text-muted mb-0">Kolom NO dibuat otomatis oleh sistem.</p>
+                        </div>
+                        <button type="button" class="btn btn-light border" id="closeFormButton">Tutup Form</button>
+                    </div>
                     <form id="deviceForm">
                         <div class="row g-3">
                             <div class="col-md-4">
@@ -149,7 +154,6 @@
                             <div class="col-12 d-flex gap-2">
                                 <button type="submit" class="btn btn-primary">Simpan Data</button>
                                 <button type="button" class="btn btn-light border" id="resetButton">Reset</button>
-                                <button type="button" class="btn btn-outline-primary" id="refreshButton">Refresh Data</button>
                             </div>
                         </div>
                     </form>
@@ -158,7 +162,13 @@
 
             <div class="card card-shadow">
                 <div class="card-body">
-                    <h5 class="card-title mb-3">Daftar Data Perangkat</h5>
+                    <div class="d-flex flex-wrap justify-content-between align-items-center gap-2 mb-3">
+                        <h5 class="card-title mb-0">Daftar Data Perangkat</h5>
+                        <div class="d-flex gap-2">
+                            <button type="button" class="btn btn-primary" id="addDataButton">Tambah Data</button>
+                            <button type="button" class="btn btn-outline-primary" id="refreshButton">Refresh Data</button>
+                        </div>
+                    </div>
                     <div class="table-responsive">
                         <table class="table table-hover align-middle mb-0">
                             <thead>
@@ -201,6 +211,7 @@
 
         const alertBox = document.getElementById("alertBox");
         const form = document.getElementById("deviceForm");
+        const deviceFormCard = document.getElementById("deviceFormCard");
         const tableBody = document.getElementById("tableBody");
         const jobCodeIdInput = document.getElementById("jobCodeId");
         const picUserIdInput = document.getElementById("picUserId");
@@ -221,6 +232,8 @@
         const keteranganInput = document.getElementById("keterangan");
         const bitlockerKeyInput = document.getElementById("bitlockerKey");
         const resetButton = document.getElementById("resetButton");
+        const closeFormButton = document.getElementById("closeFormButton");
+        const addDataButton = document.getElementById("addDataButton");
         const refreshButton = document.getElementById("refreshButton");
 
         let masterUsers = [];
@@ -348,6 +361,13 @@
             daysLeaseInput.value = calculateDaysLeaseValue(startDateInput.value, endDateInput.value);
             refreshStatusByDaysLease();
         }
+        function setFormVisibility(visible, shouldScroll = false) {
+            deviceFormCard.classList.toggle("d-none", !visible);
+            if (visible && shouldScroll) {
+                deviceFormCard.scrollIntoView({ behavior: "smooth", block: "start" });
+            }
+        }
+
         function resetForm() {
             form.reset();
             userNameInput.value = "";
@@ -515,6 +535,7 @@
 
                 showAlert("Data perangkat berhasil disimpan.", "success");
                 resetForm();
+                setFormVisibility(false);
                 await loadRows();
             } catch (error) {
                 showAlert(error.message, "danger");
@@ -551,11 +572,19 @@
                 ipListInput.value = sanitized;
             }
         });
-
         form.addEventListener("submit", submitForm);
         resetButton.addEventListener("click", () => {
             hideAlert();
             resetForm();
+        });
+        addDataButton.addEventListener("click", () => {
+            hideAlert();
+            setFormVisibility(true, true);
+        });
+        closeFormButton.addEventListener("click", () => {
+            hideAlert();
+            resetForm();
+            setFormVisibility(false);
         });
         refreshButton.addEventListener("click", initialize);
 
@@ -564,6 +593,12 @@
 </body>
 
 </html>
+
+
+
+
+
+
 
 
 

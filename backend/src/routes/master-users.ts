@@ -7,6 +7,7 @@ export const masterUserRouter = Router();
 
 type BaseUserPayload = {
   name: string;
+  role: "admin" | "user";
   email: string;
   contact: string;
   rank: string;
@@ -20,6 +21,7 @@ function parseBasePayload(payload: unknown): BaseUserPayload {
 
   const body = payload as Record<string, unknown>;
   const name = String(body.name ?? "").trim();
+  const role = String(body.role ?? "").trim().toLowerCase();
   const email = String(body.email ?? "").trim().toLowerCase();
   const contact = String(body.contact ?? "").trim();
   const rank = String(body.rank ?? "").trim();
@@ -27,6 +29,10 @@ function parseBasePayload(payload: unknown): BaseUserPayload {
 
   if (name.length < 1 || name.length > 100) {
     throw new Error("Name wajib diisi (maksimal 100 karakter).");
+  }
+
+  if (role !== "admin" && role !== "user") {
+    throw new Error("Role wajib dipilih (admin/user).");
   }
 
   if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email) || email.length > 191) {
@@ -45,7 +51,7 @@ function parseBasePayload(payload: unknown): BaseUserPayload {
     throw new Error("Job Code wajib dipilih.");
   }
 
-  return { name, email, contact, rank, jobCodeId };
+  return { name, role: role as "admin" | "user", email, contact, rank, jobCodeId };
 }
 
 function parsePassword(raw: unknown, isRequired: boolean): string | null {
@@ -77,6 +83,7 @@ masterUserRouter.get("/master-users", async (_req, res, next) => {
     const data = rows.map((row) => ({
       id: row.id,
       name: row.name,
+      role: row.role,
       email: row.email,
       contact: row.contact,
       rank: row.rank,
@@ -118,6 +125,7 @@ masterUserRouter.post("/master-users", async (req, res, next) => {
       data: {
         id: created.id,
         name: created.name,
+        role: created.role,
         email: created.email,
         contact: created.contact,
         rank: created.rank,
@@ -157,6 +165,7 @@ masterUserRouter.put("/master-users/:id", async (req, res, next) => {
 
     const dataToUpdate: {
       name: string;
+      role: "admin" | "user";
       email: string;
       contact: string;
       rank: string;
@@ -182,6 +191,7 @@ masterUserRouter.put("/master-users/:id", async (req, res, next) => {
       data: {
         id: updated.id,
         name: updated.name,
+        role: updated.role,
         email: updated.email,
         contact: updated.contact,
         rank: updated.rank,

@@ -60,6 +60,14 @@
                                     <label for="name" class="form-label">Name</label>
                                     <input type="text" class="form-control" id="name" maxlength="100" required>
                                 </div>
+                                <div class="mb-3">
+                                    <label for="role" class="form-label">Role</label>
+                                    <select class="form-select" id="role" required>
+                                        <option value="">Pilih Role</option>
+                                        <option value="admin">admin</option>
+                                        <option value="user">user</option>
+                                    </select>
+                                </div>
 
                                 <div class="mb-3">
                                     <label for="email" class="form-label">Email</label>
@@ -113,6 +121,7 @@
                                         <tr>
                                             <th>No</th>
                                             <th>Name</th>
+                                            <th>Role</th>
                                             <th>Email</th>
                                             <th>Password</th>
                                             <th>Job Code</th>
@@ -123,7 +132,7 @@
                                     </thead>
                                     <tbody id="tableBody">
                                         <tr>
-                                            <td colspan="8" class="text-center text-muted py-4">Loading data...</td>
+                                            <td colspan="9" class="text-center text-muted py-4">Loading data...</td>
                                         </tr>
                                     </tbody>
                                 </table>
@@ -142,6 +151,7 @@
         const form = document.getElementById("masterUserForm");
         const rowId = document.getElementById("rowId");
         const nameInput = document.getElementById("name");
+        const roleInput = document.getElementById("role");
         const emailInput = document.getElementById("email");
         const passwordInput = document.getElementById("password");
         const jobCodeIdInput = document.getElementById("jobCodeId");
@@ -172,6 +182,7 @@
             passwordInput.required = true;
             passwordHint.textContent = "Dipakai sebagai password login (min. 6 karakter).";
             submitButton.textContent = "Simpan";
+            roleInput.value = "user";
             nameInput.focus();
         }
 
@@ -190,6 +201,7 @@
         function validateInput() {
             const payload = {
                 name: nameInput.value.trim(),
+                role: roleInput.value,
                 email: emailInput.value.trim().toLowerCase(),
                 password: passwordInput.value.trim(),
                 jobCodeId: Number(jobCodeIdInput.value),
@@ -199,6 +211,10 @@
 
             if (!payload.name || payload.name.length > 100) {
                 throw new Error("Name wajib diisi (maksimal 100 karakter).");
+            }
+
+            if (!["admin", "user"].includes(payload.role)) {
+                throw new Error("Role wajib dipilih (admin/user).");
             }
 
             if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(payload.email) || payload.email.length > 191) {
@@ -237,7 +253,7 @@
             if (!users.length) {
                 tableBody.innerHTML = `
                     <tr>
-                        <td colspan="8" class="text-center text-muted py-4">Belum ada data.</td>
+                        <td colspan="9" class="text-center text-muted py-4">Belum ada data.</td>
                     </tr>
                 `;
                 return;
@@ -247,6 +263,7 @@
                 <tr>
                     <td>${index + 1}</td>
                     <td>${formatText(row.name)}</td>
+                    <td>${formatText(row.role)}</td>
                     <td>${formatText(row.email)}</td>
                     <td>********</td>
                     <td><span class="badge bg-light text-dark border">${formatText(row.jobCode?.code)}</span></td>
@@ -275,7 +292,7 @@
         async function loadUsers() {
             tableBody.innerHTML = `
                 <tr>
-                    <td colspan="8" class="text-center text-muted py-4">Loading data...</td>
+                    <td colspan="9" class="text-center text-muted py-4">Loading data...</td>
                 </tr>
             `;
 
@@ -298,7 +315,7 @@
                 showAlert(error.message, "danger");
                 tableBody.innerHTML = `
                     <tr>
-                        <td colspan="8" class="text-center text-danger py-4">Gagal memuat data.</td>
+                        <td colspan="9" class="text-center text-danger py-4">Gagal memuat data.</td>
                     </tr>
                 `;
             }
@@ -369,6 +386,7 @@
 
             rowId.value = row.id;
             nameInput.value = row.name || "";
+            roleInput.value = row.role || "user";
             emailInput.value = row.email || "";
             passwordInput.value = "";
             jobCodeIdInput.value = String(row.jobCodeId || "");
@@ -405,3 +423,4 @@
 </body>
 
 </html>
+

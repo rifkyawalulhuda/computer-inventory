@@ -37,6 +37,73 @@
         .nxl-lavel-mega-menu {
             display: none !important;
         }
+
+        .nxl-navigation .navbar-content {
+            padding: 14px 12px 18px;
+        }
+
+        .nxl-navigation .nxl-navbar>.nxl-item {
+            margin-bottom: 4px;
+        }
+
+        .nxl-navigation .nxl-link {
+            border: 1px solid transparent;
+            border-radius: 10px;
+            transition: all 0.2s ease;
+        }
+
+        .nxl-navigation .nxl-submenu .nxl-link {
+            border-radius: 8px;
+            margin: 2px 0;
+            padding-left: 44px;
+        }
+
+        .nxl-navigation .nxl-link:hover {
+            background: #eef4ff;
+            border-color: #d8e5ff;
+            color: #1d4ed8;
+        }
+
+        .nxl-navigation .nxl-link:hover .nxl-micon i,
+        .nxl-navigation .nxl-link:hover .nxl-arrow i {
+            color: #1d4ed8;
+        }
+
+        .nxl-navigation .nxl-link.is-active {
+            background: #e3edff;
+            border-color: #c8dbff;
+            color: #1d4ed8;
+            font-weight: 600;
+        }
+
+        .nxl-navigation .nxl-link.is-active .nxl-micon i,
+        .nxl-navigation .nxl-link.is-active .nxl-arrow i {
+            color: #1d4ed8;
+        }
+
+        .nxl-navigation .nxl-item.nxl-hasmenu.is-open>.nxl-submenu {
+            display: block;
+        }
+
+        .nxl-navigation .nxl-link .nxl-arrow i {
+            transition: transform 0.2s ease;
+        }
+
+        .nxl-navigation .nxl-item.nxl-hasmenu.is-open>.nxl-link .nxl-arrow i {
+            transform: rotate(90deg);
+        }
+
+        .page-header .breadcrumb .breadcrumb-item.is-current {
+            background: #e6efff;
+            color: #1d4ed8;
+            border-radius: 999px;
+            font-weight: 600;
+            padding: 3px 10px;
+        }
+
+        .page-header .breadcrumb .breadcrumb-item.is-current::before {
+            color: #1d4ed8;
+        }
     </style>
     <!--! HTML5 shim and Respond.js for IE8 support of HTML5 elements and media queries !-->
     <!--! WARNING: Respond.js doesn"t work if you view the page via file: !-->
@@ -78,8 +145,13 @@
                         <ul class="nxl-submenu">
                             <li class="nxl-item"><a class="nxl-link master-inline-nav" href="master-job-code.html" data-master-title="Master Job Code">Master Job Code</a></li>
                             <li class="nxl-item"><a class="nxl-link master-inline-nav" href="master-user.html" data-master-title="Master User">Master User</a></li>
-                            <li class="nxl-item"><a class="nxl-link master-inline-nav" href="data-perangkat.html" data-master-title="Data Perangkat">Data Perangkat</a></li>
                         </ul>
+                    </li>
+                    <li class="nxl-item">
+                        <a href="data-perangkat.html" class="nxl-link master-inline-nav" data-master-title="Data Perangkat">
+                            <span class="nxl-micon"><i class="feather-monitor"></i></span>
+                            <span class="nxl-mtext">Data Perangkat</span>
+                        </a>
                     </li>
                 </ul>
             </div>
@@ -3411,15 +3483,58 @@
     <script>
         (function () {
             const inlineLinks = document.querySelectorAll(".master-inline-nav");
+            const allNavLinks = document.querySelectorAll(".nxl-navigation .nxl-link");
+            const menuParents = document.querySelectorAll(".nxl-navigation .nxl-item.nxl-hasmenu");
+            const dashboardLink = document.querySelector('.nxl-navigation .nxl-link[href="index.html"]');
             const inlineContainer = document.getElementById("masterInlineContainer");
             const inlineFrame = document.getElementById("masterInlineFrame");
             const mainContent = document.querySelector(".main-content");
             const pageTitle = document.querySelector(".page-header-title h5");
             const breadcrumbItems = document.querySelectorAll(".page-header .breadcrumb .breadcrumb-item");
+            const breadcrumbHomeItem = breadcrumbItems[0];
+            const breadcrumbCurrentItem = breadcrumbItems[1];
             const pageHeaderRight = document.querySelector(".page-header-right");
 
             if (!inlineContainer || !inlineFrame || !mainContent || !pageTitle || breadcrumbItems.length < 2) {
                 return;
+            }
+
+            function setActiveNav(link) {
+                allNavLinks.forEach((item) => item.classList.remove("is-active"));
+                menuParents.forEach((item) => item.classList.remove("is-open"));
+
+                if (!link) {
+                    return;
+                }
+
+                link.classList.add("is-active");
+                const submenu = link.closest(".nxl-submenu");
+                if (!submenu) {
+                    return;
+                }
+
+                const parentItem = submenu.closest(".nxl-item.nxl-hasmenu");
+                if (!parentItem) {
+                    return;
+                }
+
+                parentItem.classList.add("is-open");
+                const parentLink = parentItem.querySelector(":scope > .nxl-link");
+                if (parentLink) {
+                    parentLink.classList.add("is-active");
+                }
+            }
+
+            function setActiveBreadcrumb(title) {
+                if (!breadcrumbCurrentItem) {
+                    return;
+                }
+
+                breadcrumbCurrentItem.textContent = title || "Computer Inventory";
+                breadcrumbCurrentItem.classList.add("is-current");
+                if (breadcrumbHomeItem) {
+                    breadcrumbHomeItem.classList.remove("is-current");
+                }
             }
 
             function openInlinePage(url, title) {
@@ -3428,7 +3543,7 @@
                 if (pageHeaderRight) pageHeaderRight.classList.add("d-none");
 
                 pageTitle.textContent = title;
-                breadcrumbItems[1].textContent = title;
+                setActiveBreadcrumb(title);
                 inlineFrame.src = url;
                 window.scrollTo({ top: 0, behavior: "smooth" });
             }
@@ -3439,12 +3554,19 @@
                     const url = link.getAttribute("href");
                     const title = link.getAttribute("data-master-title") || "Master Data";
                     if (!url) return;
+                    setActiveNav(link);
                     openInlinePage(url, title);
                 });
             });
+
+            setActiveNav(dashboardLink);
+            setActiveBreadcrumb(pageTitle.textContent.trim());
         })();
     </script>
 </body>
 
 </html>
+
+
+
 
