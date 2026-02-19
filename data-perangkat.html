@@ -606,7 +606,11 @@
                                         </div>
                                         <div class="col-xl-3 col-lg-4 col-md-6">
                                             <label for="leaseStatus" class="form-label">Lease Status</label>
-                                            <input type="text" class="form-control" id="leaseStatus" maxlength="50" placeholder="ACTIVE">
+                                            <select class="form-select" id="leaseStatus">
+                                                <option value="ACTIVE">ACTIVE</option>
+                                                <option value="EXPIRED">EXPIRED</option>
+                                                <option value="Back To KDDI">Back To KDDI</option>
+                                            </select>
                                         </div>
                                     </div>
                                 </div>
@@ -836,6 +840,7 @@
         let deviceRows = [];
         let editingDeviceId = "";
         let lastManualStatus = "";
+        let lastManualLeaseStatus = "ACTIVE";
         let currentDrawerHistoryLog = "";
         let currentSortKey = "";
         let currentSortDirection = "asc";
@@ -988,6 +993,7 @@
                 daysLeaseInput.readOnly = true;
                 statusInput.disabled = false;
                 refreshStatusByDaysLease();
+                refreshLeaseStatusByEndDate();
             }
         }
 
@@ -1117,9 +1123,50 @@
             }
         }
 
+        function isLeaseExpiredByEndDate(endDateValue) {
+            if (!endDateValue) {
+                return false;
+            }
+
+            const leaseEnd = new Date(`${endDateValue}T00:00:00`);
+            if (Number.isNaN(leaseEnd.getTime())) {
+                return false;
+            }
+
+            const today = new Date();
+            today.setHours(0, 0, 0, 0);
+            return leaseEnd.getTime() <= today.getTime();
+        }
+
+        function refreshLeaseStatusByEndDate() {
+            const isUserRestrictedEdit = currentUserRole === "user" && Boolean(editingDeviceId);
+            const isExpired = isLeaseExpiredByEndDate(endDateInput.value);
+
+            if (isExpired) {
+                if (leaseStatusInput.value && leaseStatusInput.value !== "EXPIRED") {
+                    lastManualLeaseStatus = leaseStatusInput.value;
+                }
+
+                leaseStatusInput.value = "EXPIRED";
+                leaseStatusInput.disabled = true;
+                return;
+            }
+
+            if (isUserRestrictedEdit) {
+                leaseStatusInput.disabled = true;
+                return;
+            }
+
+            leaseStatusInput.disabled = false;
+            if (leaseStatusInput.value === "EXPIRED" || !leaseStatusInput.value) {
+                leaseStatusInput.value = lastManualLeaseStatus || "ACTIVE";
+            }
+        }
+
         function refreshDaysLease() {
             daysLeaseInput.value = calculateDaysLeaseValue(startDateInput.value, endDateInput.value);
             refreshStatusByDaysLease();
+            refreshLeaseStatusByEndDate();
         }
 
         function setFormVisibility(visible, shouldScroll = false) {
@@ -1139,8 +1186,11 @@
             jobCodeIdInput.value = "";
             picUserIdInput.value = "";
             lastManualStatus = "";
+            lastManualLeaseStatus = "ACTIVE";
             statusInput.disabled = false;
             removeExpiredStatusOption();
+            leaseStatusInput.value = "ACTIVE";
+            leaseStatusInput.disabled = false;
             populatePicOptionsByJobCode();
             refreshDaysLease();
             applyRoleBasedFieldPermissions();
@@ -1737,7 +1787,10 @@
             ipListInput.value = row["IP List"] || "";
             startDateInput.value = row["Start Date"] || "";
             endDateInput.value = row["End Date"] || "";
-            leaseStatusInput.value = row["Lease Status"] || "";
+            leaseStatusInput.value = row["Lease Status"] || "ACTIVE";
+            if (leaseStatusInput.value && leaseStatusInput.value !== "EXPIRED") {
+                lastManualLeaseStatus = leaseStatusInput.value;
+            }
             hystoryLogInput.value = row["Hystory Log"] || "";
             keteranganInput.value = row["Keterangan"] || "";
             bitlockerKeyInput.value = row["Bitlocker Key"] || "";
@@ -1895,6 +1948,11 @@
         statusInput.addEventListener("change", () => {
             if (statusInput.value && statusInput.value !== "EXPIRED") {
                 lastManualStatus = statusInput.value;
+            }
+        });
+        leaseStatusInput.addEventListener("change", () => {
+            if (leaseStatusInput.value && leaseStatusInput.value !== "EXPIRED") {
+                lastManualLeaseStatus = leaseStatusInput.value;
             }
         });
         ipListInput.addEventListener("input", () => {
