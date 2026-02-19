@@ -45,7 +45,7 @@
             <div class="d-flex align-items-center justify-content-between flex-wrap gap-2 mb-4">
                 <div>
                     <h2 class="mb-1">Profile Details</h2>
-                    <p class="text-muted mb-0">Anda hanya bisa mengubah Foto Profile, Contact, dan Rank.</p>
+                    <p class="text-muted mb-0">Anda bisa mengubah Foto Profile, Contact, Rank, dan Password (wajib isi password lama).</p>
                 </div>
                 <a href="index.html" class="btn btn-light border">Kembali ke Dashboard</a>
             </div>
@@ -81,6 +81,15 @@
                                         <label for="rankInput" class="form-label">Rank</label>
                                         <input type="text" class="form-control" id="rankInput" maxlength="50" required>
                                     </div>
+                                    <div class="col-md-6">
+                                        <label for="currentPasswordInput" class="form-label">Password Lama</label>
+                                        <input type="password" class="form-control" id="currentPasswordInput" minlength="6" maxlength="100" autocomplete="current-password" placeholder="Wajib diisi saat ganti password">
+                                    </div>
+                                    <div class="col-md-6">
+                                        <label for="passwordInput" class="form-label">Password Baru</label>
+                                        <input type="password" class="form-control" id="passwordInput" minlength="6" maxlength="100" autocomplete="new-password" placeholder="Kosongkan jika tidak ingin mengubah">
+                                        <small class="text-muted">Minimal 6 karakter.</small>
+                                    </div>
                                     <div class="col-12">
                                         <button type="submit" class="btn btn-primary" id="submitButton">Simpan Perubahan</button>
                                     </div>
@@ -104,6 +113,8 @@
         const emailInput = document.getElementById("emailInput");
         const contactInput = document.getElementById("contactInput");
         const rankInput = document.getElementById("rankInput");
+        const currentPasswordInput = document.getElementById("currentPasswordInput");
+        const passwordInput = document.getElementById("passwordInput");
         const profilePhotoInput = document.getElementById("profilePhotoInput");
         const profilePreview = document.getElementById("profilePreview");
 
@@ -172,6 +183,9 @@
             emailInput.value = currentUser?.email || "";
             contactInput.value = currentUser?.contact || "";
             rankInput.value = currentUser?.rank || "";
+            currentPasswordInput.value = "";
+            passwordInput.value = "";
+
             const sessionPhoto = selectedProfilePhotoDataUrl
                 || String(currentUser?.profilePhotoUrl || "").trim()
                 || getInitialPhotoFromSession();
@@ -230,6 +244,8 @@
 
             const contact = contactInput.value.trim();
             const rank = rankInput.value.trim();
+            const currentPassword = currentPasswordInput.value.trim();
+            const password = passwordInput.value.trim();
 
             if (!contact || contact.length > 50) {
                 showAlert("Contact wajib diisi (maksimal 50 karakter).", "danger");
@@ -238,6 +254,26 @@
 
             if (!rank || rank.length > 50) {
                 showAlert("Rank wajib diisi (maksimal 50 karakter).", "danger");
+                return;
+            }
+
+            if (password && !currentPassword) {
+                showAlert("Password lama wajib diisi untuk mengganti password.", "danger");
+                return;
+            }
+
+            if (currentPassword && !password) {
+                showAlert("Isi password baru untuk mengganti password.", "danger");
+                return;
+            }
+
+            if (currentPassword && (currentPassword.length < 6 || currentPassword.length > 100)) {
+                showAlert("Password lama tidak valid.", "danger");
+                return;
+            }
+
+            if (password && (password.length < 6 || password.length > 100)) {
+                showAlert("Password baru minimal 6 karakter.", "danger");
                 return;
             }
 
@@ -251,6 +287,8 @@
                     body: JSON.stringify({
                         contact,
                         rank,
+                        currentPassword: password ? currentPassword : undefined,
+                        password: password || undefined,
                         profilePhotoDataUrl: selectedProfilePhotoDataUrl || undefined
                     })
                 });
@@ -273,6 +311,8 @@
 
                 currentUser = updatedUser;
                 selectedProfilePhotoDataUrl = "";
+                currentPasswordInput.value = "";
+                passwordInput.value = "";
                 renderForm();
                 showAlert("Profile berhasil diperbarui.", "success");
             } catch (error) {

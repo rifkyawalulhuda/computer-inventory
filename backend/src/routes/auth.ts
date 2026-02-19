@@ -17,6 +17,8 @@ function cleanText(value: unknown): string {
 function parseProfilePayload(payload: unknown): {
   contact: string;
   rank: string;
+  currentPassword: string;
+  password: string;
   profilePhotoDataUrl: string | null;
 } {
   if (!payload || typeof payload !== "object") {
@@ -26,6 +28,8 @@ function parseProfilePayload(payload: unknown): {
   const body = payload as Record<string, unknown>;
   const contact = cleanText(body.contact);
   const rank = cleanText(body.rank);
+  const currentPassword = cleanText(body.currentPassword);
+  const password = cleanText(body.password);
   const profilePhotoDataUrlRaw = cleanText(body.profilePhotoDataUrl);
 
   if (!contact || contact.length > 50) {
@@ -36,9 +40,27 @@ function parseProfilePayload(payload: unknown): {
     throw new Error("Rank wajib diisi (maksimal 50 karakter).");
   }
 
+  if (currentPassword && currentPassword.length > 100) {
+    throw new Error("Password lama tidak valid.");
+  }
+
+  if (password && (password.length < 6 || password.length > 100)) {
+    throw new Error("Password baru minimal 6 karakter.");
+  }
+
+  if (password && !currentPassword) {
+    throw new Error("Password lama wajib diisi untuk mengganti password.");
+  }
+
+  if (currentPassword && !password) {
+    throw new Error("Isi password baru untuk mengganti password.");
+  }
+
   return {
     contact,
     rank,
+    currentPassword,
+    password,
     profilePhotoDataUrl: profilePhotoDataUrlRaw ? profilePhotoDataUrlRaw : null,
   };
 }
@@ -161,12 +183,39 @@ authRouter.patch("/auth/profile", requireAuth, async (req, res, next) => {
     }
 
     const payload = parseProfilePayload(req.body);
+    const updateData: { contact: string; rank: string; passwordHash?: string } = {
+      contact: payload.contact,
+      rank: payload.rank,
+    };
+
+    if (payload.password) {
+      const userWithPassword = await prisma.masterUser.findUnique({
+        where: { id: userId },
+        select: {
+          id: true,
+          passwordHash: true,
+        },
+      });
+
+      if (!userWithPassword) {
+        return res.status(401).json({ message: "Unauthorized." });
+      }
+
+      const isValidCurrentPassword = await bcrypt.compare(
+        payload.currentPassword,
+        userWithPassword.passwordHash,
+      );
+
+      if (!isValidCurrentPassword) {
+        throw new Error("Password lama tidak sesuai.");
+      }
+
+      updateData.passwordHash = await bcrypt.hash(payload.password, 10);
+    }
+
     const updated = await prisma.masterUser.update({
       where: { id: userId },
-      data: {
-        contact: payload.contact,
-        rank: payload.rank,
-      },
+      data: updateData,
       select: {
         id: true,
         name: true,
