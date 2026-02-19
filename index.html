@@ -2137,7 +2137,7 @@
                                 <span>Account Settings</span>
                             </a>
                             <div class="dropdown-divider"></div>
-                            <a href="./auth-login-minimal.html" class="dropdown-item">
+                            <a href="javascript:void(0);" class="dropdown-item" data-auth-action="logout">
                                 <i class="feather-log-out"></i>
                                 <span>Logout</span>
                             </a>
@@ -3493,6 +3493,7 @@
             const allNavLinks = document.querySelectorAll(".nxl-navigation .nxl-link");
             const menuParents = document.querySelectorAll(".nxl-navigation .nxl-item.nxl-hasmenu");
             const dashboardLink = document.querySelector('.nxl-navigation .nxl-link[href="index.html"]');
+            const logoutLink = document.querySelector('[data-auth-action="logout"]');
             const inlineContainer = document.getElementById("masterInlineContainer");
             const inlineFrame = document.getElementById("masterInlineFrame");
             const mainContent = document.querySelector(".main-content");
@@ -3565,6 +3566,20 @@
                     openInlinePage(url, title);
                 });
             });
+
+            if (logoutLink) {
+                logoutLink.addEventListener("click", (event) => {
+                    event.preventDefault();
+
+                    if (window.AuthClient) {
+                        window.AuthClient.clearSession();
+                        window.AuthClient.redirectToLogin("index.html");
+                        return;
+                    }
+
+                    window.location.href = "auth-login.html";
+                });
+            }
 
             setActiveNav(dashboardLink);
             setActiveBreadcrumb(pageTitle.textContent.trim());
