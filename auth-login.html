@@ -1,4 +1,4 @@
-<!DOCTYPE html>
+﻿<!DOCTYPE html>
 <html lang="en">
 
 <head>
@@ -12,58 +12,222 @@
     <link rel="stylesheet" type="text/css" href="assets/css/theme.min.css">
     <script src="assets/js/auth-client.js"></script>
     <style>
+        :root {
+            --corp-blue-900: #0a2f6d;
+            --corp-blue-800: #123f88;
+            --corp-blue-700: #1e56ad;
+            --corp-blue-100: #e6efff;
+            --corp-text: #0f172a;
+        }
+
         .login-shell {
             min-height: 100vh;
+            padding: 28px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            background:
+                radial-gradient(circle at 14% 14%, rgba(135, 186, 255, 0.32) 0%, rgba(135, 186, 255, 0) 42%),
+                radial-gradient(circle at 86% 86%, rgba(94, 145, 255, 0.2) 0%, rgba(94, 145, 255, 0) 40%),
+                linear-gradient(145deg, #f2f7ff 0%, #dfeeff 55%, #f6f9ff 100%);
+        }
+
+        .login-layout {
+            width: min(980px, 100%);
             display: grid;
-            place-items: center;
-            padding: 24px;
-            background: radial-gradient(circle at top left, #dbeafe 0%, #f8fafc 46%, #ecfeff 100%);
+            grid-template-columns: 1.05fr 0.95fr;
+            border-radius: 22px;
+            overflow: hidden;
+            box-shadow: 0 24px 64px rgba(9, 30, 66, 0.2);
+            background: #fff;
+        }
+
+        .login-hero {
+            padding: 48px 42px;
+            background: linear-gradient(165deg, #184b97 0%, #245db0 52%, #3a78cd 100%);
+            color: #fff;
+            position: relative;
+        }
+
+        .login-hero::after {
+            content: "";
+            position: absolute;
+            inset: 0;
+            background:
+                linear-gradient(120deg, rgba(255, 255, 255, 0.08) 0, rgba(255, 255, 255, 0) 60%),
+                repeating-linear-gradient(
+                    -45deg,
+                    rgba(255, 255, 255, 0.03) 0px,
+                    rgba(255, 255, 255, 0.03) 8px,
+                    rgba(255, 255, 255, 0) 8px,
+                    rgba(255, 255, 255, 0) 20px
+                );
+            pointer-events: none;
+        }
+
+        .hero-content {
+            position: relative;
+            z-index: 1;
+        }
+
+        .company-logo {
+            width: 132px;
+            height: auto;
+            display: block;
+            margin-bottom: 18px;
+            filter: drop-shadow(0 10px 20px rgba(0, 0, 0, 0.28));
+        }
+
+        .company-name {
+            margin: 0;
+            font-size: 1.34rem;
+            font-weight: 800;
+            letter-spacing: 0.02em;
+            line-height: 1.35;
+            color: #f7fbff;
+            text-shadow: 0 2px 10px rgba(8, 35, 82, 0.28);
+        }
+
+        .company-subtitle {
+            margin: 12px 0 0;
+            color: rgba(236, 246, 255, 0.92);
+            font-size: 0.98rem;
+        }
+
+        .hero-footer {
+            margin-top: 24px;
+            color: rgba(226, 239, 255, 0.9);
+            font-size: 0.9rem;
         }
 
         .login-card {
-            width: min(460px, 100%);
+            width: 100%;
+            border-radius: 0;
             border: 0;
-            border-radius: 18px;
-            box-shadow: 0 16px 42px rgba(15, 23, 42, 0.16);
+            box-shadow: none;
         }
 
-        .login-brand {
+        .login-card .card-body {
+            padding: 46px 40px;
+        }
+
+        .login-title {
+            margin: 0;
+            color: var(--corp-text);
             font-weight: 800;
-            letter-spacing: 0.04em;
-            color: #0f172a;
+            font-size: 1.36rem;
+        }
+
+        .login-subtitle {
+            margin-top: 8px;
+            color: #475569;
+            margin-bottom: 28px;
+        }
+
+        .form-label {
+            font-weight: 700;
+            color: #334155;
+        }
+
+        .form-control {
+            border-radius: 10px;
+            border-color: #cbd5e1;
+            min-height: 44px;
+        }
+
+        .form-control:focus {
+            border-color: #7eaaf4;
+            box-shadow: 0 0 0 0.2rem rgba(30, 86, 173, 0.16);
+        }
+
+        .form-check-label {
+            color: #475569;
+        }
+
+        .btn-primary {
+            background: linear-gradient(130deg, var(--corp-blue-700), var(--corp-blue-900));
+            border: 0;
+            border-radius: 10px;
+            min-height: 44px;
+            font-weight: 700;
+        }
+
+        .btn-primary:hover,
+        .btn-primary:focus {
+            background: linear-gradient(130deg, #1a4d9e, #082759);
+        }
+
+        @media (max-width: 920px) {
+            .login-layout {
+                grid-template-columns: 1fr;
+            }
+
+            .login-hero {
+                padding: 34px 30px;
+            }
+
+            .company-logo {
+                width: 104px;
+                margin-bottom: 12px;
+            }
+
+            .login-card .card-body {
+                padding: 34px 28px;
+            }
+        }
+
+        @media (max-width: 575px) {
+            .login-shell {
+                padding: 12px;
+            }
+
+            .login-card .card-body {
+                padding: 26px 18px;
+            }
         }
     </style>
 </head>
 
 <body>
     <main class="login-shell">
-        <div class="card login-card">
-            <div class="card-body p-4 p-md-5">
-                <h2 class="login-brand mb-1">DURALUX</h2>
-                <p class="text-muted mb-4">Login untuk mengakses Computer Inventory.</p>
+        <div class="login-layout">
+            <section class="login-hero">
+                <div class="hero-content">
+                    <img src="assets/images/logo/sankyu-logo.png" alt="Logo PT SANKYU INDONESIA INTERNATIONAL" class="company-logo">
+                    <h1 class="company-name">PT. SANKYU INDONESIA INTERNATIONAL</h1>
+                    <p class="company-subtitle">Aplikasi Manajemen Inventaris Komputer</p>
+                    <p class="hero-footer">Sistem terpusat untuk pengelolaan aset perangkat perusahaan secara terstruktur dan akurat.</p>
+                </div>
+            </section>
 
-                <div id="alertBox" class="alert d-none" role="alert"></div>
+            <div class="card login-card">
+                <div class="card-body">
+                    <h2 class="login-title">Login Sistem</h2>
+                    <p class="login-subtitle">Masukkan akun Anda untuk melanjutkan.</p>
 
-                <form id="loginForm">
-                    <div class="mb-3">
-                        <label for="email" class="form-label">Email</label>
-                        <input type="email" class="form-control" id="email" placeholder="email@company.com" required>
-                    </div>
+                    <div id="alertBox" class="alert d-none" role="alert"></div>
 
-                    <div class="mb-3">
-                        <label for="password" class="form-label">Password</label>
-                        <input type="password" class="form-control" id="password" placeholder="Masukkan password" required>
-                    </div>
+                    <form id="loginForm">
+                        <div class="mb-3">
+                            <label for="email" class="form-label">Email</label>
+                            <input type="email" class="form-control" id="email" placeholder="email@company.com" required>
+                        </div>
 
-                    <div class="form-check mb-4">
-                        <input class="form-check-input" type="checkbox" value="1" id="rememberMe" checked>
-                        <label class="form-check-label" for="rememberMe">
-                            Tetap login di perangkat ini
-                        </label>
-                    </div>
+                        <div class="mb-3">
+                            <label for="password" class="form-label">Password</label>
+                            <input type="password" class="form-control" id="password" placeholder="Masukkan password" required>
+                        </div>
 
-                    <button type="submit" class="btn btn-primary w-100" id="submitButton">Login</button>
-                </form>
+                        <div class="form-check mb-4">
+                            <input class="form-check-input" type="checkbox" value="1" id="rememberMe" checked>
+                            <label class="form-check-label" for="rememberMe">
+                                Tetap login di perangkat ini
+                            </label>
+                        </div>
+
+                        <button type="submit" class="btn btn-primary w-100" id="submitButton">Login</button>
+                    </form>
+                </div>
             </div>
         </div>
     </main>
@@ -164,3 +328,4 @@
 </body>
 
 </html>
+
