@@ -5,7 +5,7 @@
     <meta charset="utf-8">
     <meta http-equiv="x-ua-compatible" content="IE=edge">
     <meta name="viewport" content="width=device-width, initial-scale=1">
-    <title>Data Perangkat</title>
+    <title>Form Data Perangkat</title>
     <link rel="shortcut icon" type="image/x-icon" href="assets/images/favicon.ico">
     <link rel="stylesheet" type="text/css" href="assets/css/bootstrap.min.css">
     <link rel="stylesheet" type="text/css" href="assets/vendors/css/vendors.min.css">
@@ -392,8 +392,8 @@
     <main class="page-shell">
         <div class="container-fluid px-4">
             <div class="mb-4">
-                <h1 class="page-title">Data Perangkat</h1>
-                <p class="page-subtitle">Table Data Perangkat Masing-masing site</p>
+                <h1 class="page-title">Form Data Perangkat</h1>
+                <p class="page-subtitle">Input dan update data perangkat.</p>
             </div>
 
             <div id="alertBox" class="alert d-none" role="alert"></div>
@@ -406,7 +406,7 @@
                             <p class="text-muted mb-0">Kolom NO dibuat otomatis oleh sistem.</p>
                             <p class="text-warning mb-0 mt-1 d-none" id="roleEditHint">Role user hanya bisa edit: User Name, User Email, Location, IP List, dan Keterangan.</p>
                         </div>
-                        <button type="button" class="btn btn-light border" id="closeFormButton">Tutup Form</button>
+                        <button type="button" class="btn btn-light border" id="closeFormButton">Kembali ke Data Perangkat</button>
                     </div>
                     <form id="deviceForm" class="device-form-layout">
                         <div class="row g-3">
@@ -533,7 +533,7 @@
                 </div>
             </div>
 
-            <div class="card card-shadow">
+            <div class="card card-shadow d-none" id="deviceTableCard">
                 <div class="card-body">
                     <div class="d-flex flex-wrap justify-content-between align-items-center gap-2 mb-3">
                         <h5 class="card-title mb-0">Daftar Data Perangkat</h5>
@@ -763,6 +763,12 @@
 
         if (currentUserRole === "user") {
             addDataButton.classList.add("d-none");
+        }
+        const urlParams = new URLSearchParams(window.location.search);
+        const editingFromQueryId = String(urlParams.get("id") || "").trim();
+
+        function goToDeviceTablePage() {
+            window.location.href = "data-perangkat.html";
         }
 
         function applyRoleBasedFieldPermissions() {
@@ -1343,7 +1349,8 @@
                 }
 
                 if (action === "edit") {
-                    window.location.href = `data-perangkat-form.html?id=${encodeURIComponent(row.id)}`;
+                    hideAlert();
+                    editRow(row);
                     return;
                 }
 
@@ -1362,6 +1369,10 @@
             try {
                 const payload = getPayload();
                 const isEdit = Boolean(editingDeviceId);
+
+                if (!isEdit && currentUserRole === "user") {
+                    throw new Error("Role user tidak diizinkan menambah data perangkat.");
+                }
 
                 if (isEdit) {
                     const yes = await openConfirmModal({
@@ -1392,9 +1403,8 @@
                 }
 
                 showAlert(isEdit ? "Data perangkat berhasil diupdate." : "Data perangkat berhasil disimpan.", "success");
-                resetForm();
-                setFormVisibility(false);
-                await loadRows();
+                goToDeviceTablePage();
+                return;
             } catch (error) {
                 showAlert(error.message, "danger");
             }
@@ -1403,15 +1413,29 @@
         async function initialize() {
             try {
                 hideAlert();
+
+                if (currentUserRole === "user" && !editingFromQueryId) {
+                    goToDeviceTablePage();
+                    return;
+                }
+
                 await loadMasterData();
                 await loadRows();
+
+                if (editingFromQueryId) {
+                    const row = deviceRows.find((item) => String(item.id) === String(editingFromQueryId));
+                    if (!row) {
+                        throw new Error("Data perangkat yang akan diedit tidak ditemukan.");
+                    }
+
+                    editRow(row);
+                    return;
+                }
+
+                resetForm();
+                setFormVisibility(true, false);
             } catch (error) {
                 showAlert(error.message, "danger");
-                tableBody.innerHTML = `
-                    <tr>
-                        <td colspan="13" class="text-center text-danger py-4">Gagal memuat data.</td>
-                    </tr>
-                `;
             }
         }
 
@@ -1447,9 +1471,7 @@
             window.location.href = "data-perangkat-form.html";
         });
         closeFormButton.addEventListener("click", () => {
-            hideAlert();
-            resetForm();
-            setFormVisibility(false);
+            goToDeviceTablePage();
         });
         confirmCloseButton.addEventListener("click", () => closeConfirmModal(false));
         confirmCancelButton.addEventListener("click", () => closeConfirmModal(false));
@@ -1488,8 +1510,6 @@
                 closeViewDrawer();
             }
         });
-
-        resetForm();
         initialize();
     </script>
 </body>

@@ -532,6 +532,11 @@ deviceRecordRouter.get("/device-records", async (_req, res, next) => {
 
 deviceRecordRouter.post("/device-records", async (req, res, next) => {
   try {
+    const editorRole = parseEditorRole(req);
+    if (editorRole !== "admin") {
+      return res.status(403).json({ message: "Role user tidak diizinkan menambah data perangkat." });
+    }
+
     const payload = parsePayload(req.body);
     const actorName = getHistoryActorName(req);
 
@@ -898,3 +903,4 @@ deviceRecordRouter.delete("/device-records/:id", async (req, res, next) => {
     next(error);
   }
 });
+
