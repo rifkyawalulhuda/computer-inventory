@@ -2,6 +2,7 @@ import { Prisma } from "@prisma/client";
 import bcrypt from "bcryptjs";
 import { Router } from "express";
 import { prisma } from "../lib/prisma";
+import { requireRole } from "../middleware/auth";
 
 export const masterUserRouter = Router();
 
@@ -99,7 +100,7 @@ masterUserRouter.get("/master-users", async (_req, res, next) => {
   }
 });
 
-masterUserRouter.post("/master-users", async (req, res, next) => {
+masterUserRouter.post("/master-users", requireRole("admin"), async (req, res, next) => {
   try {
     const payload = parseBasePayload(req.body);
     const password = parsePassword((req.body as Record<string, unknown>)?.password, true);
@@ -148,7 +149,7 @@ masterUserRouter.post("/master-users", async (req, res, next) => {
   }
 });
 
-masterUserRouter.put("/master-users/:id", async (req, res, next) => {
+masterUserRouter.put("/master-users/:id", requireRole("admin"), async (req, res, next) => {
   try {
     const id = String(req.params.id ?? "").trim();
     if (!id) {
@@ -218,7 +219,7 @@ masterUserRouter.put("/master-users/:id", async (req, res, next) => {
   }
 });
 
-masterUserRouter.delete("/master-users/:id", async (req, res, next) => {
+masterUserRouter.delete("/master-users/:id", requireRole("admin"), async (req, res, next) => {
   try {
     const id = String(req.params.id ?? "").trim();
     if (!id) {

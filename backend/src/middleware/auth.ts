@@ -37,3 +37,18 @@ export function requireAuth(req: Request, res: Response, next: NextFunction): vo
 
   next();
 }
+
+export function requireRole(...allowedRoles: Array<"admin" | "user">) {
+  const normalizedAllowedRoles = allowedRoles.filter((role) => role === "admin" || role === "user");
+
+  return (req: Request, res: Response, next: NextFunction): void => {
+    const role = req.authUser?.role;
+
+    if (!role || !normalizedAllowedRoles.includes(role)) {
+      res.status(403).json({ message: "Forbidden. Anda tidak memiliki akses ke resource ini." });
+      return;
+    }
+
+    next();
+  };
+}

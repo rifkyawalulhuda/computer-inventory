@@ -160,6 +160,26 @@
         return true;
     }
 
+    function requireRole(role, fallbackPath) {
+        if (!requireAuth()) {
+            return false;
+        }
+
+        var expectedRole = String(role || "").trim().toLowerCase();
+        if (expectedRole !== "admin" && expectedRole !== "user") {
+            return true;
+        }
+
+        var currentRole = getUserRole();
+        if (currentRole === expectedRole) {
+            return true;
+        }
+
+        var fallback = String(fallbackPath || "index.html").trim() || "index.html";
+        window.location.href = isSafeInternalPath(fallback) ? fallback : "index.html";
+        return false;
+    }
+
     function isSafeInternalPath(path) {
         var text = String(path || "").trim();
         if (!text) {
@@ -247,6 +267,7 @@
         setUser: setUser,
         clearSession: clearSession,
         requireAuth: requireAuth,
+        requireRole: requireRole,
         redirectToLogin: redirectToLogin,
         redirectIfAuthenticated: redirectIfAuthenticated,
         withAuth: withAuth,

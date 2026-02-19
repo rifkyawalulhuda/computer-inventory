@@ -13,8 +13,11 @@
     <script src="assets/js/auth-client.js"></script>
     <script>
         if (window.AuthClient) {
-            window.AuthClient.requireAuth();
-            window.AuthClient.validateSession("http://localhost:3001/api");
+            if (!window.AuthClient.requireRole("admin", "index.html")) {
+                // Redirect handled by AuthClient.
+            } else {
+                window.AuthClient.validateSession("http://localhost:3001/api");
+            }
         }
     </script>
     <style>
@@ -727,4 +730,5 @@
 </body>
 
 </html>
+
 

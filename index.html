@@ -144,14 +144,14 @@
                             <span class="nxl-mtext">Dashboard</span>
                         </a>
                     </li>
-                    <li class="nxl-item nxl-hasmenu">
+                    <li class="nxl-item nxl-hasmenu" id="masterDataMenuItem" data-admin-only="true">
                         <a href="javascript:void(0);" class="nxl-link">
                             <span class="nxl-micon"><i class="feather-database"></i></span>
                             <span class="nxl-mtext">Master Data</span><span class="nxl-arrow"><i class="feather-chevron-right"></i></span>
                         </a>
                         <ul class="nxl-submenu">
-                            <li class="nxl-item"><a class="nxl-link master-inline-nav" href="master-job-code.html" data-master-title="Master Job Code">Master Job Code</a></li>
-                            <li class="nxl-item"><a class="nxl-link master-inline-nav" href="master-user.html" data-master-title="Master User">Master User</a></li>
+                            <li class="nxl-item" data-admin-only="true"><a class="nxl-link master-inline-nav" href="master-job-code.html" data-master-title="Master Job Code" data-admin-only="true">Master Job Code</a></li>
+                            <li class="nxl-item" data-admin-only="true"><a class="nxl-link master-inline-nav" href="master-user.html" data-master-title="Master User" data-admin-only="true">Master User</a></li>
                         </ul>
                     </li>
                     <li class="nxl-item">
@@ -2188,8 +2188,8 @@
                                 <h4 class="mb-2">Computer Inventory</h4>
                                 <p class="text-muted mb-4">Gunakan menu di bawah untuk mengelola master data dan data perangkat.</p>
                                 <div class="d-flex flex-wrap gap-2">
-                                    <a class="btn btn-primary master-inline-nav" href="master-job-code.html" data-master-title="Master Job Code">Master Job Code</a>
-                                    <a class="btn btn-light-brand master-inline-nav" href="master-user.html" data-master-title="Master User">Master User</a>
+                                    <a class="btn btn-primary master-inline-nav" href="master-job-code.html" data-master-title="Master Job Code" data-admin-only="true">Master Job Code</a>
+                                    <a class="btn btn-light-brand master-inline-nav" href="master-user.html" data-master-title="Master User" data-admin-only="true">Master User</a>
                                     <a class="btn btn-success master-inline-nav" href="data-perangkat.html" data-master-title="Data Perangkat">Data Perangkat</a>
                                 </div>
                             </div>
@@ -3450,6 +3450,9 @@
             const breadcrumbHomeItem = breadcrumbItems[0];
             const breadcrumbCurrentItem = breadcrumbItems[1];
             const pageHeaderRight = document.querySelector(".page-header-right");
+            const currentUserRole = window.AuthClient ? window.AuthClient.getUserRole() : "";
+            const adminOnlyElements = document.querySelectorAll('[data-admin-only="true"]');
+            const masterDataMenuItem = document.getElementById("masterDataMenuItem");
 
             if (!inlineContainer || !inlineFrame || !mainContent || !pageTitle || breadcrumbItems.length < 2) {
                 return;
@@ -3555,9 +3558,29 @@
                 }
             }
 
+            function applyRoleBasedNavigation() {
+                const isAdmin = currentUserRole === "admin";
+                adminOnlyElements.forEach((element) => {
+                    if (!(element instanceof HTMLElement)) {
+                        return;
+                    }
+                    element.classList.toggle("d-none", !isAdmin);
+                });
+
+                if (!isAdmin && masterDataMenuItem) {
+                    masterDataMenuItem.classList.remove("is-open");
+                }
+            }
+
             inlineLinks.forEach((link) => {
                 link.addEventListener("click", (event) => {
                     event.preventDefault();
+
+                    const isAdminOnly = String(link.getAttribute("data-admin-only") || "").trim().toLowerCase() === "true";
+                    if (isAdminOnly && currentUserRole !== "admin") {
+                        return;
+                    }
+
                     const url = link.getAttribute("href");
                     const title = link.getAttribute("data-master-title") || "Master Data";
                     if (!url) return;
@@ -3588,6 +3611,7 @@
             }
 
             setDropdownUserProfile();
+            applyRoleBasedNavigation();
             setActiveNav(dashboardLink);
             setActiveBreadcrumb(pageTitle.textContent.trim());
         })();

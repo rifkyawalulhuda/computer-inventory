@@ -1,6 +1,7 @@
 import { Prisma } from "@prisma/client";
 import { Router } from "express";
 import { prisma } from "../lib/prisma";
+import { requireRole } from "../middleware/auth";
 
 export const masterJobCodeRouter = Router();
 
@@ -60,7 +61,7 @@ masterJobCodeRouter.get("/master-job-codes", async (_req, res, next) => {
   }
 });
 
-masterJobCodeRouter.post("/master-job-codes", async (req, res, next) => {
+masterJobCodeRouter.post("/master-job-codes", requireRole("admin"), async (req, res, next) => {
   try {
     const payload = parsePayload(req.body);
 
@@ -82,7 +83,7 @@ masterJobCodeRouter.post("/master-job-codes", async (req, res, next) => {
   }
 });
 
-masterJobCodeRouter.put("/master-job-codes/:id", async (req, res, next) => {
+masterJobCodeRouter.put("/master-job-codes/:id", requireRole("admin"), async (req, res, next) => {
   try {
     const id = Number(req.params.id);
     if (!Number.isInteger(id) || id < 1) {
@@ -114,7 +115,7 @@ masterJobCodeRouter.put("/master-job-codes/:id", async (req, res, next) => {
   }
 });
 
-masterJobCodeRouter.delete("/master-job-codes/:id", async (req, res, next) => {
+masterJobCodeRouter.delete("/master-job-codes/:id", requireRole("admin"), async (req, res, next) => {
   try {
     const id = Number(req.params.id);
     if (!Number.isInteger(id) || id < 1) {
