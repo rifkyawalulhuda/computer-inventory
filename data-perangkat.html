@@ -137,6 +137,75 @@
             color: #1d4ed8;
         }
 
+        .device-table-filters {
+            padding: 10px 12px;
+            border: 1px solid #e2e8f0;
+            border-radius: 10px;
+            background: linear-gradient(180deg, #ffffff 0%, #f8fbff 100%);
+        }
+
+        .device-table-filters .form-label {
+            font-size: 0.72rem;
+            font-weight: 700;
+            letter-spacing: 0.02em;
+            text-transform: uppercase;
+            color: #334155;
+            margin-bottom: 0.35rem;
+        }
+
+        .filter-dropdown-button {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            min-height: 38px;
+            font-size: 0.88rem;
+            color: #1e293b;
+        }
+
+        .filter-dropdown-menu {
+            max-height: 240px;
+            overflow-y: auto;
+            border: 1px solid #dbe3ee;
+            border-radius: 10px;
+            box-shadow: 0 10px 25px rgba(15, 23, 42, 0.12);
+        }
+        .filter-dropdown-menu.show {
+            display: block;
+        }
+
+
+        .filter-option-item {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            padding: 6px 4px;
+            margin: 0;
+            font-size: 0.86rem;
+            color: #334155;
+            cursor: pointer;
+        }
+
+        .filter-option-item input {
+            margin: 0;
+        }
+
+        .filter-empty {
+            color: #64748b;
+            font-size: 0.85rem;
+            padding: 4px;
+        }
+
+        .filter-search-group .input-group-text {
+            background: #f8fafc;
+            border-color: #dbe3ee;
+            color: #64748b;
+        }
+
+        .filter-search-group .form-control,
+        .filter-search-group .btn {
+            border-color: #dbe3ee;
+        }
+
         .device-table th:nth-child(1),
         .device-table td:nth-child(1),
         .device-table th:nth-child(11),
@@ -580,6 +649,41 @@
                             <button type="button" class="btn btn-outline-primary" id="refreshButton">Refresh Data</button>
                         </div>
                     </div>
+                    <div class="device-table-filters mb-3">
+                        <div class="row g-2 align-items-end">
+                            <div class="col-12 col-xl-5">
+                                <label for="tableSearchInput" class="form-label">Pencarian Data</label>
+                                <div class="input-group filter-search-group">
+                                    <span class="input-group-text"><i class="feather-search"></i></span>
+                                    <input type="text" class="form-control" id="tableSearchInput" placeholder="Cari kata apa saja (no case sensitive)">
+                                    <button type="button" class="btn btn-light" id="clearSearchButton" title="Bersihkan pencarian">
+                                        <i class="feather-x"></i>
+                                    </button>
+                                </div>
+                            </div>
+                            <div class="col-12 col-md-6 col-xl-3">
+                                <label class="form-label">Filter Job Code</label>
+                                <div class="dropdown w-100">
+                                    <button class="btn btn-light border dropdown-toggle w-100 text-start filter-dropdown-button" type="button" id="jobCodeFilterButton" aria-expanded="false">
+                                        Semua Job Code
+                                    </button>
+                                    <div class="dropdown-menu w-100 p-2 filter-dropdown-menu" id="jobCodeFilterMenu" data-filter-type="jobCode"></div>
+                                </div>
+                            </div>
+                            <div class="col-12 col-md-6 col-xl-3">
+                                <label class="form-label">Filter Status</label>
+                                <div class="dropdown w-100">
+                                    <button class="btn btn-light border dropdown-toggle w-100 text-start filter-dropdown-button" type="button" id="statusFilterButton" aria-expanded="false">
+                                        Semua Status
+                                    </button>
+                                    <div class="dropdown-menu w-100 p-2 filter-dropdown-menu" id="statusFilterMenu" data-filter-type="status"></div>
+                                </div>
+                            </div>
+                            <div class="col-12 col-xl-1">
+                                <button type="button" class="btn btn-light border w-100" id="clearTableFilterButton">Reset</button>
+                            </div>
+                        </div>
+                    </div>
                     <div class="table-responsive">
                         <table class="table table-hover align-middle mb-0 device-table">
                             <thead>
@@ -701,6 +805,17 @@
         const roleEditHint = document.getElementById("roleEditHint");
         const addDataButton = document.getElementById("addDataButton");
         const refreshButton = document.getElementById("refreshButton");
+        const tableSearchInput = document.getElementById("tableSearchInput");
+        const clearSearchButton = document.getElementById("clearSearchButton");
+        const clearTableFilterButton = document.getElementById("clearTableFilterButton");
+        const jobCodeFilterButton = document.getElementById("jobCodeFilterButton");
+        const statusFilterButton = document.getElementById("statusFilterButton");
+        const jobCodeFilterMenu = document.getElementById("jobCodeFilterMenu");
+        const statusFilterMenu = document.getElementById("statusFilterMenu");
+        const filterDropdownControls = [
+            { button: jobCodeFilterButton, menu: jobCodeFilterMenu },
+            { button: statusFilterButton, menu: statusFilterMenu }
+        ];
         const viewDrawerOverlay = document.getElementById("viewDrawerOverlay");
         const viewDrawerBody = document.getElementById("viewDrawerBody");
         const viewDrawerCloseButton = document.getElementById("viewDrawerCloseButton");
@@ -739,6 +854,30 @@
             "Days Lease",
             "Lease Status"
         ]);
+        const searchableColumns = [
+            "NO",
+            "Job Code",
+            "PIC Name",
+            "Serial No.",
+            "Category",
+            "Model",
+            "Host Name",
+            "User Name",
+            "User Email",
+            "Status",
+            "Days Lease",
+            "Lease Status",
+            "Location",
+            "IP List",
+            "Start Date",
+            "End Date",
+            "Hystory Log",
+            "Keterangan",
+            "Bitlocker Key"
+        ];
+        let currentSearchQuery = "";
+        const activeJobCodeFilters = new Set();
+        const activeStatusFilters = new Set();
         const editableInputs = [
             jobCodeIdInput,
             picUserIdInput,
@@ -1128,6 +1267,21 @@
             return Number.isFinite(parsed) ? parsed : null;
         }
 
+        function normalizeFilterValue(value) {
+            return String(value ?? "").trim();
+        }
+
+        function normalizeSearchValue(value) {
+            return String(value ?? "").toLowerCase().trim();
+        }
+
+        function tokenizeSearchQuery(query) {
+            return normalizeSearchValue(query)
+                .split(/\s+/)
+                .map((token) => token.trim())
+                .filter(Boolean);
+        }
+
         function getSortComparable(row, key) {
             const rawValue = row?.[key];
             if (sortNumericColumns.has(key)) {
@@ -1174,24 +1328,17 @@
             return direction === "asc" ? compared : -compared;
         }
 
-        function getSortedRows(rows) {
-            const list = Array.isArray(rows) ? [...rows] : [];
-            if (!currentSortKey || !sortableColumns.has(currentSortKey)) {
-                return list;
+        function compareRowsWithCurrentSort(a, b) {
+            if (currentSortKey && sortableColumns.has(currentSortKey)) {
+                const sorted = compareBySort(a, b, currentSortKey, currentSortDirection);
+                if (sorted !== 0) {
+                    return sorted;
+                }
             }
 
-            list.sort((a, b) => {
-                const primary = compareBySort(a, b, currentSortKey, currentSortDirection);
-                if (primary !== 0) {
-                    return primary;
-                }
-
-                const fallbackA = parseSortNumber(a["NO"]) ?? 0;
-                const fallbackB = parseSortNumber(b["NO"]) ?? 0;
-                return fallbackA - fallbackB;
-            });
-
-            return list;
+            const fallbackA = parseSortNumber(a["NO"]) ?? 0;
+            const fallbackB = parseSortNumber(b["NO"]) ?? 0;
+            return fallbackA - fallbackB;
         }
 
         function updateSortHeaderState() {
@@ -1213,19 +1360,191 @@
             });
         }
 
-        function renderRows(rows) {
-            const sortedRows = getSortedRows(rows);
+        function getUniqueSortedColumnValues(rows, key) {
+            return [...new Set((rows || [])
+                .map((row) => normalizeFilterValue(row?.[key]))
+                .filter(Boolean))]
+                .sort((a, b) => a.localeCompare(b, undefined, { sensitivity: "base" }));
+        }
 
-            if (!sortedRows.length) {
+        function renderMultiSelectFilterMenu(menuElement, options, selectedValues, filterType) {
+            if (!menuElement) {
+                return;
+            }
+
+            if (!options.length) {
+                menuElement.innerHTML = '<div class="filter-empty">Belum ada opsi.</div>';
+                return;
+            }
+
+            menuElement.innerHTML = options.map((option, index) => {
+                const optionValue = String(option);
+                const checkboxId = `${filterType}-filter-${index}`;
+                const checked = selectedValues.has(optionValue) ? "checked" : "";
+                return `
+                    <label class="filter-option-item" for="${checkboxId}">
+                        <input type="checkbox" id="${checkboxId}" value="${escapeHtml(optionValue)}" ${checked}>
+                        <span>${escapeHtml(optionValue)}</span>
+                    </label>
+                `;
+            }).join("");
+        }
+
+        function updateFilterDropdownLabel(button, placeholder, selectedValues) {
+            if (!button) {
+                return;
+            }
+
+            const selectedCount = selectedValues.size;
+            button.textContent = selectedCount > 0
+                ? `${placeholder} (${selectedCount})`
+                : `Semua ${placeholder}`;
+        }
+
+        
+        function closeFilterDropdowns(exceptMenu = null) {
+            filterDropdownControls.forEach(({ button, menu }) => {
+                const keepOpen = exceptMenu && menu === exceptMenu;
+                if (keepOpen) {
+                    return;
+                }
+
+                menu.classList.remove("show");
+                button.setAttribute("aria-expanded", "false");
+            });
+        }
+
+        function toggleFilterDropdown(button, menu) {
+            const willOpen = !menu.classList.contains("show");
+            closeFilterDropdowns();
+
+            if (willOpen) {
+                menu.classList.add("show");
+                button.setAttribute("aria-expanded", "true");
+            }
+        }
+        function refreshTableFilterOptions() {
+            const availableJobCodes = getUniqueSortedColumnValues(deviceRows, "Job Code");
+            const availableStatuses = getUniqueSortedColumnValues(deviceRows, "Status");
+
+            [...activeJobCodeFilters].forEach((value) => {
+                if (!availableJobCodes.includes(value)) {
+                    activeJobCodeFilters.delete(value);
+                }
+            });
+
+            [...activeStatusFilters].forEach((value) => {
+                if (!availableStatuses.includes(value)) {
+                    activeStatusFilters.delete(value);
+                }
+            });
+
+            renderMultiSelectFilterMenu(jobCodeFilterMenu, availableJobCodes, activeJobCodeFilters, "jobCode");
+            renderMultiSelectFilterMenu(statusFilterMenu, availableStatuses, activeStatusFilters, "status");
+            updateFilterDropdownLabel(jobCodeFilterButton, "Job Code", activeJobCodeFilters);
+            updateFilterDropdownLabel(statusFilterButton, "Status", activeStatusFilters);
+        }
+
+        function getSearchScore(row, query, tokens) {
+            if (!query) {
+                return 0;
+            }
+
+            let score = 0;
+            const joinedValues = searchableColumns
+                .map((key) => normalizeSearchValue(row?.[key]))
+                .filter(Boolean)
+                .join(" ");
+
+            if (!joinedValues) {
+                return 0;
+            }
+
+            if (joinedValues.includes(query)) {
+                score += 35;
+            }
+
+            if (tokens.length > 0 && tokens.every((token) => joinedValues.includes(token))) {
+                score += 25;
+            }
+
+            searchableColumns.forEach((key) => {
+                const value = normalizeSearchValue(row?.[key]);
+                if (!value) {
+                    return;
+                }
+
+                if (value === query) {
+                    score += 120;
+                } else if (value.startsWith(query)) {
+                    score += 85;
+                } else if (value.includes(query)) {
+                    score += 45;
+                }
+
+                tokens.forEach((token) => {
+                    if (!token) {
+                        return;
+                    }
+
+                    if (value === token) {
+                        score += 30;
+                    } else if (value.startsWith(token)) {
+                        score += 18;
+                    } else if (value.includes(token)) {
+                        score += 9;
+                    }
+                });
+            });
+
+            return score;
+        }
+
+        function getDisplayRows(rows) {
+            const sourceRows = Array.isArray(rows) ? [...rows] : [];
+
+            const filteredRows = sourceRows.filter((row) => {
+                const rowJobCode = normalizeFilterValue(row?.["Job Code"]);
+                const rowStatus = normalizeFilterValue(row?.["Status"]);
+
+                const passJobCode = activeJobCodeFilters.size === 0 || activeJobCodeFilters.has(rowJobCode);
+                const passStatus = activeStatusFilters.size === 0 || activeStatusFilters.has(rowStatus);
+
+                return passJobCode && passStatus;
+            });
+
+            if (!currentSearchQuery) {
+                return filteredRows.sort(compareRowsWithCurrentSort);
+            }
+
+            const tokens = tokenizeSearchQuery(currentSearchQuery);
+            return filteredRows
+                .map((row) => ({ row, score: getSearchScore(row, currentSearchQuery, tokens) }))
+                .filter((entry) => entry.score > 0)
+                .sort((a, b) => {
+                    if (b.score !== a.score) {
+                        return b.score - a.score;
+                    }
+
+                    return compareRowsWithCurrentSort(a.row, b.row);
+                })
+                .map((entry) => entry.row);
+        }
+
+        function renderRows(rows) {
+            const displayRows = getDisplayRows(rows);
+
+            if (!displayRows.length) {
+                const isFiltering = Boolean(currentSearchQuery) || activeJobCodeFilters.size > 0 || activeStatusFilters.size > 0;
                 tableBody.innerHTML = `
                     <tr>
-                        <td colspan="13" class="text-center text-muted py-4">Belum ada data.</td>
+                        <td colspan="13" class="text-center text-muted py-4">${isFiltering ? "Tidak ada data yang cocok dengan filter/pencarian." : "Belum ada data."}</td>
                     </tr>
                 `;
                 return;
             }
 
-            tableBody.innerHTML = sortedRows.map((row) => `
+            tableBody.innerHTML = displayRows.map((row) => `
                 <tr>
                     <td>${escapeHtml(row["NO"])}</td>
                     <td>${escapeHtml(row["Job Code"])}</td>
@@ -1255,7 +1574,6 @@
                 </tr>
             `).join("");
         }
-
         async function loadRows() {
             tableBody.innerHTML = `
                 <tr>
@@ -1270,6 +1588,7 @@
             }
 
             deviceRows = result.data || [];
+            refreshTableFilterOptions();
             renderRows(deviceRows);
         }
 
@@ -1604,6 +1923,96 @@
             });
         });
 
+        filterDropdownControls.forEach(({ button, menu }) => {
+            button.addEventListener("click", (event) => {
+                event.preventDefault();
+                event.stopPropagation();
+                toggleFilterDropdown(button, menu);
+            });
+
+            menu.addEventListener("click", (event) => {
+                event.stopPropagation();
+            });
+        });
+
+        document.addEventListener("click", (event) => {
+            const target = event.target;
+            if (!(target instanceof Element)) {
+                closeFilterDropdowns();
+                return;
+            }
+
+            const isInsideFilter = filterDropdownControls.some(({ button, menu }) =>
+                button.contains(target) || menu.contains(target)
+            );
+
+            if (!isInsideFilter) {
+                closeFilterDropdowns();
+            }
+        });
+
+        jobCodeFilterMenu.addEventListener("change", (event) => {
+            const target = event.target;
+            if (!(target instanceof HTMLInputElement) || target.type !== "checkbox") {
+                return;
+            }
+
+            const value = normalizeFilterValue(target.value);
+            if (!value) {
+                return;
+            }
+
+            if (target.checked) {
+                activeJobCodeFilters.add(value);
+            } else {
+                activeJobCodeFilters.delete(value);
+            }
+
+            updateFilterDropdownLabel(jobCodeFilterButton, "Job Code", activeJobCodeFilters);
+            renderRows(deviceRows);
+        });
+
+        statusFilterMenu.addEventListener("change", (event) => {
+            const target = event.target;
+            if (!(target instanceof HTMLInputElement) || target.type !== "checkbox") {
+                return;
+            }
+
+            const value = normalizeFilterValue(target.value);
+            if (!value) {
+                return;
+            }
+
+            if (target.checked) {
+                activeStatusFilters.add(value);
+            } else {
+                activeStatusFilters.delete(value);
+            }
+
+            updateFilterDropdownLabel(statusFilterButton, "Status", activeStatusFilters);
+            renderRows(deviceRows);
+        });
+
+        tableSearchInput.addEventListener("input", () => {
+            currentSearchQuery = normalizeSearchValue(tableSearchInput.value);
+            renderRows(deviceRows);
+        });
+
+        clearSearchButton.addEventListener("click", () => {
+            tableSearchInput.value = "";
+            currentSearchQuery = "";
+            renderRows(deviceRows);
+        });
+
+        clearTableFilterButton.addEventListener("click", () => {
+            activeJobCodeFilters.clear();
+            activeStatusFilters.clear();
+            tableSearchInput.value = "";
+            currentSearchQuery = "";
+            refreshTableFilterOptions();
+            renderRows(deviceRows);
+        });
+
         tableBody.addEventListener("click", handleTableAction);
         form.addEventListener("submit", submitForm);
         resetButton.addEventListener("click", () => {
@@ -1646,7 +2055,12 @@
             }
         });
         document.addEventListener("keydown", (event) => {
-            if (event.key === "Escape" && confirmModalOverlay.classList.contains("open")) {
+                        const hasOpenFilterDropdown = filterDropdownControls.some(({ menu }) => menu.classList.contains("show"));
+            if (event.key === "Escape" && hasOpenFilterDropdown) {
+                closeFilterDropdowns();
+                return;
+            }
+if (event.key === "Escape" && confirmModalOverlay.classList.contains("open")) {
                 closeConfirmModal(false);
                 return;
             }
