@@ -951,14 +951,19 @@
 
         function refreshLeaseStatusByEndDate() {
             const isUserRestrictedEdit = currentUserRole === "user" && Boolean(editingDeviceId);
-            const isExpired = isLeaseExpiredByEndDate(endDateInput.value);
+            const endDateValue = endDateInput.value;
+            const parsedEndDate = endDateValue ? new Date(`${endDateValue}T00:00:00`) : null;
+            const hasValidEndDate = parsedEndDate && !Number.isNaN(parsedEndDate.getTime());
 
-            if (isExpired) {
-                if (leaseStatusInput.value && leaseStatusInput.value !== "EXPIRED") {
+            if (hasValidEndDate) {
+                const today = new Date();
+                today.setHours(0, 0, 0, 0);
+
+                if (leaseStatusInput.value && leaseStatusInput.value !== "EXPIRED" && leaseStatusInput.value !== "ACTIVE") {
                     lastManualLeaseStatus = leaseStatusInput.value;
                 }
 
-                leaseStatusInput.value = "EXPIRED";
+                leaseStatusInput.value = parsedEndDate.getTime() <= today.getTime() ? "EXPIRED" : "ACTIVE";
                 leaseStatusInput.disabled = true;
                 return;
             }
@@ -969,7 +974,7 @@
             }
 
             leaseStatusInput.disabled = false;
-            if (leaseStatusInput.value === "EXPIRED" || !leaseStatusInput.value) {
+            if (!leaseStatusInput.value || leaseStatusInput.value === "EXPIRED" || leaseStatusInput.value === "ACTIVE") {
                 leaseStatusInput.value = lastManualLeaseStatus || "ACTIVE";
             }
         }
