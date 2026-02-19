@@ -1,4 +1,4 @@
-﻿<!DOCTYPE html>
+<!DOCTYPE html>
 <html lang="en">
 
 <head>
@@ -137,6 +137,45 @@
             box-shadow: 0 0 0 0.2rem rgba(30, 86, 173, 0.16);
         }
 
+        .password-field-wrap {
+            position: relative;
+        }
+
+        .password-field-wrap .form-control {
+            padding-right: 46px;
+        }
+
+        .password-toggle-btn {
+            position: absolute;
+            top: 50%;
+            right: 12px;
+            transform: translateY(-50%);
+            border: 0;
+            background: transparent;
+            color: #64748b;
+            width: 24px;
+            height: 24px;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            padding: 0;
+            cursor: pointer;
+        }
+
+        .password-toggle-btn:hover {
+            color: #1e56ad;
+        }
+
+        .password-toggle-btn:focus-visible {
+            outline: 2px solid #7eaaf4;
+            outline-offset: 2px;
+            border-radius: 6px;
+        }
+
+        .password-toggle-btn i {
+            font-size: 16px;
+            line-height: 1;
+        }
         .form-check-label {
             color: #475569;
         }
@@ -212,7 +251,12 @@
 
                         <div class="mb-3">
                             <label for="password" class="form-label">Password</label>
-                            <input type="password" class="form-control" id="password" placeholder="Masukkan password" required>
+                            <div class="password-field-wrap">
+                                <input type="password" class="form-control" id="password" placeholder="Masukkan password" required>
+                                <button type="button" class="password-toggle-btn" id="passwordToggleButton" aria-label="Tampilkan password" aria-pressed="false">
+                                    <i class="feather-eye" id="passwordToggleIcon" aria-hidden="true"></i>
+                                </button>
+                            </div>
                         </div>
 
                         <div class="form-check mb-4">
@@ -236,6 +280,8 @@
         const submitButton = document.getElementById("submitButton");
         const emailInput = document.getElementById("email");
         const passwordInput = document.getElementById("password");
+        const passwordToggleButton = document.getElementById("passwordToggleButton");
+        const passwordToggleIcon = document.getElementById("passwordToggleIcon");
         const rememberMeInput = document.getElementById("rememberMe");
 
         function showAlert(message, type) {
@@ -247,6 +293,13 @@
         function hideAlert() {
             alertBox.classList.add("d-none");
             alertBox.textContent = "";
+        }
+
+        function setPasswordVisibility(isVisible) {
+            passwordInput.type = isVisible ? "text" : "password";
+            passwordToggleButton.setAttribute("aria-pressed", isVisible ? "true" : "false");
+            passwordToggleButton.setAttribute("aria-label", isVisible ? "Sembunyikan password" : "Tampilkan password");
+            passwordToggleIcon.className = isVisible ? "feather-eye-off" : "feather-eye";
         }
 
         function getNextPath() {
@@ -320,6 +373,12 @@
             window.AuthClient.redirectIfAuthenticated("index.html");
         }
 
+        passwordToggleButton.addEventListener("click", () => {
+            const willShowPassword = passwordInput.type === "password";
+            setPasswordVisibility(willShowPassword);
+        });
+
+        setPasswordVisibility(false);
         loginForm.addEventListener("submit", submitLogin);
     </script>
 </body>
