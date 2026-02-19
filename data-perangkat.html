@@ -281,6 +281,71 @@
             color: #64748b;
             margin: 0;
         }
+
+        .confirm-modal-overlay {
+            position: fixed;
+            inset: 0;
+            background: rgba(15, 23, 42, 0.45);
+            opacity: 0;
+            visibility: hidden;
+            transition: opacity 0.2s ease;
+            z-index: 1070;
+        }
+
+        .confirm-modal-overlay.open {
+            opacity: 1;
+            visibility: visible;
+        }
+
+        .confirm-modal {
+            width: min(430px, calc(100vw - 32px));
+            margin: 48px auto;
+            background: #ffffff;
+            border-radius: 14px;
+            box-shadow: 0 20px 60px rgba(15, 23, 42, 0.3);
+            overflow: hidden;
+        }
+
+        .confirm-modal-header {
+            padding: 14px 16px;
+            border-bottom: 1px solid #e2e8f0;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 8px;
+        }
+
+        .confirm-modal-title {
+            margin: 0;
+            font-size: 1rem;
+            font-weight: 700;
+            color: #0f172a;
+        }
+
+        .confirm-modal-body {
+            padding: 14px 16px;
+            color: #475569;
+        }
+
+        .confirm-modal-footer {
+            padding: 0 16px 16px;
+            display: flex;
+            justify-content: flex-end;
+            gap: 8px;
+        }
+
+        .confirm-modal-close {
+            width: 32px;
+            height: 32px;
+            border: 1px solid #e2e8f0;
+            border-radius: 8px;
+            background: #ffffff;
+            color: #475569;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            cursor: pointer;
+        }
     </style>
 </head>
 
@@ -475,6 +540,28 @@
         </div>
     </div>
 
+    
+
+    <div class="confirm-modal-overlay" id="confirmModalOverlay" aria-hidden="true">
+        <div class="confirm-modal" role="dialog" aria-modal="true" aria-labelledby="confirmModalTitle">
+            <div class="confirm-modal-header">
+                <h5 class="confirm-modal-title" id="confirmModalTitle">Konfirmasi Hapus</h5>
+                <button type="button" class="confirm-modal-close" id="confirmCloseButton" aria-label="Tutup Konfirmasi">
+                    <i class="feather-x"></i>
+                </button>
+            </div>
+            <div class="confirm-modal-body">
+                <p class="mb-0" id="confirmModalMessage">Apakah Anda yakin ingin menghapus data ini?</p>
+            </div>
+            <div class="confirm-modal-footer">
+                <button type="button" class="btn btn-light border" id="confirmCancelButton">Batal</button>
+                <button type="button" class="btn btn-danger" id="confirmConfirmButton">
+                    <i class="feather-trash-2 me-1"></i>Hapus
+                </button>
+            </div>
+        </div>
+    </div>
+
     <script>
         const API_BASE = "http://localhost:3001/api";
         async function apiFetch(url, options = {}) {
@@ -521,6 +608,12 @@
         const historyLogOverlay = document.getElementById("historyLogOverlay");
         const historyLogBody = document.getElementById("historyLogBody");
         const historyLogCloseButton = document.getElementById("historyLogCloseButton");
+        const confirmModalOverlay = document.getElementById("confirmModalOverlay");
+        const confirmModalTitle = document.getElementById("confirmModalTitle");
+        const confirmModalMessage = document.getElementById("confirmModalMessage");
+        const confirmCloseButton = document.getElementById("confirmCloseButton");
+        const confirmCancelButton = document.getElementById("confirmCancelButton");
+        const confirmConfirmButton = document.getElementById("confirmConfirmButton");
 
         let masterUsers = [];
         let masterJobCodes = [];
@@ -996,6 +1089,43 @@
             historyLogOverlay.setAttribute("aria-hidden", "false");
         }
 
+        let confirmResolve = null;
+
+        function openConfirmModal(options) {
+            const settings = typeof options === "string"
+                ? { message: options }
+                : (options || {});
+
+            confirmModalTitle.textContent = settings.title || "Konfirmasi";
+            confirmModalMessage.textContent = settings.message || "Apakah Anda yakin?";
+
+            const confirmText = settings.confirmText || "Lanjutkan";
+            const confirmIcon = settings.confirmIcon
+                ? "<i class=\"" + settings.confirmIcon + " me-1\"></i>"
+                : "";
+            confirmConfirmButton.className = "btn " + (settings.confirmClass || "btn-primary");
+            confirmConfirmButton.innerHTML = confirmIcon + confirmText;
+
+            confirmModalOverlay.classList.add("open");
+            confirmModalOverlay.setAttribute("aria-hidden", "false");
+            document.body.style.overflow = "hidden";
+
+            return new Promise((resolve) => {
+                confirmResolve = resolve;
+            });
+        }
+
+        function closeConfirmModal(confirmed = false) {
+            confirmModalOverlay.classList.remove("open");
+            confirmModalOverlay.setAttribute("aria-hidden", "true");
+            if (confirmResolve) {
+                confirmResolve(confirmed);
+                confirmResolve = null;
+            }
+            const shouldLockScroll = viewDrawerOverlay.classList.contains("open") || historyLogOverlay.classList.contains("open");
+            document.body.style.overflow = shouldLockScroll ? "hidden" : "";
+        }
+
         function openViewDrawer(row) {
             const historyLines = parseHistoryLogLines(row["Hystory Log"]);
             currentDrawerHistoryLog = historyLines.join("\n");
@@ -1085,7 +1215,13 @@
         }
 
         async function deleteRow(row) {
-            const yes = window.confirm(`Hapus data perangkat dengan Serial No. ${row["Serial No."] || "-"}?`);
+            const yes = await openConfirmModal({
+                title: "Konfirmasi Hapus",
+                message: `Hapus data perangkat dengan Serial No. ${row["Serial No."] || "-"}?`,
+                confirmText: "Hapus",
+                confirmClass: "btn-danger",
+                confirmIcon: "feather-trash-2"
+            });
             if (!yes) {
                 return;
             }
@@ -1159,6 +1295,20 @@
             try {
                 const payload = getPayload();
                 const isEdit = Boolean(editingDeviceId);
+
+                if (isEdit) {
+                    const yes = await openConfirmModal({
+                        title: "Konfirmasi Update",
+                        message: "Update data perangkat ini?",
+                        confirmText: "Update",
+                        confirmClass: "btn-primary",
+                        confirmIcon: "feather-check"
+                    });
+                    if (!yes) {
+                        return;
+                    }
+                }
+
                 const endpoint = isEdit ? `${API_BASE}/device-records/${editingDeviceId}` : `${API_BASE}/device-records`;
                 const response = await apiFetch(endpoint, {
                     method: isEdit ? "PUT" : "POST",
@@ -1231,6 +1381,14 @@
             resetForm();
             setFormVisibility(false);
         });
+        confirmCloseButton.addEventListener("click", () => closeConfirmModal(false));
+        confirmCancelButton.addEventListener("click", () => closeConfirmModal(false));
+        confirmConfirmButton.addEventListener("click", () => closeConfirmModal(true));
+        confirmModalOverlay.addEventListener("click", (event) => {
+            if (event.target === confirmModalOverlay) {
+                closeConfirmModal(false);
+            }
+        });
         refreshButton.addEventListener("click", initialize);
         viewDrawerCloseButton.addEventListener("click", closeViewDrawer);
         viewDrawerHistoryButton.addEventListener("click", openHistoryLogOverlay);
@@ -1246,6 +1404,11 @@
             }
         });
         document.addEventListener("keydown", (event) => {
+            if (event.key === "Escape" && confirmModalOverlay.classList.contains("open")) {
+                closeConfirmModal(false);
+                return;
+            }
+
             if (event.key === "Escape" && historyLogOverlay.classList.contains("open")) {
                 closeHistoryLogOverlay();
                 return;
