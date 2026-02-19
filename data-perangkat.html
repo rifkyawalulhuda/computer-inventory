@@ -41,6 +41,45 @@
             box-shadow: 0 10px 30px rgba(15, 23, 42, 0.08);
         }
 
+        .device-form-layout .form-label {
+            font-size: 0.78rem;
+            font-weight: 700;
+            letter-spacing: 0.02em;
+            color: #334155;
+            margin-bottom: 0.4rem;
+        }
+
+        .device-form-layout .form-control,
+        .device-form-layout .form-select {
+            min-height: 42px;
+        }
+
+        .device-form-layout textarea.form-control {
+            min-height: 96px;
+            resize: vertical;
+        }
+
+        .device-form-section {
+            border: 1px solid #e2e8f0;
+            border-radius: 12px;
+            background: #ffffff;
+            padding: 16px;
+        }
+
+        .device-form-section-title {
+            margin: 0 0 12px;
+            font-size: 0.95rem;
+            font-weight: 700;
+            color: #0f172a;
+        }
+
+        .device-form-actions {
+            border-top: 1px dashed #dbe2ea;
+            padding-top: 14px;
+            margin-top: 4px;
+        }
+
+
         .table-responsive {
             overflow-x: auto;
         }
@@ -369,102 +408,125 @@
                         </div>
                         <button type="button" class="btn btn-light border" id="closeFormButton">Tutup Form</button>
                     </div>
-                    <form id="deviceForm">
+                    <form id="deviceForm" class="device-form-layout">
                         <div class="row g-3">
-                            <div class="col-md-4">
-                                <label for="jobCodeId" class="form-label">Job Code</label>
-                                <select class="form-select" id="jobCodeId" required>
-                                    <option value="">Loading...</option>
-                                </select>
+                            <div class="col-12">
+                                <div class="device-form-section">
+                                    <h6 class="device-form-section-title">Informasi Perangkat</h6>
+                                    <div class="row g-3">
+                                        <div class="col-xxl-3 col-lg-4 col-md-6">
+                                            <label for="jobCodeId" class="form-label">Job Code</label>
+                                            <select class="form-select" id="jobCodeId" required>
+                                                <option value="">Loading...</option>
+                                            </select>
+                                        </div>
+                                        <div class="col-xxl-3 col-lg-4 col-md-6">
+                                            <label for="picUserId" class="form-label">PIC Name</label>
+                                            <select class="form-select" id="picUserId" required>
+                                                <option value="">Loading...</option>
+                                            </select>
+                                        </div>
+                                        <div class="col-xxl-3 col-lg-4 col-md-6">
+                                            <label for="serialNo" class="form-label">Serial No.</label>
+                                            <input type="text" class="form-control" id="serialNo" maxlength="100" placeholder="Serial Number">
+                                        </div>
+                                        <div class="col-xxl-3 col-lg-4 col-md-6">
+                                            <label for="status" class="form-label">Status</label>
+                                            <select class="form-select" id="status">
+                                                <option value="">Pilih Status</option>
+                                                <option value="ON">ON</option>
+                                                <option value="OFF">OFF</option>
+                                            </select>
+                                        </div>
+                                        <div class="col-xxl-4 col-lg-4 col-md-6">
+                                            <label for="category" class="form-label">Category</label>
+                                            <select class="form-select" id="category">
+                                                <option value="">Pilih Category</option>
+                                                <option value="Laptop">Laptop</option>
+                                                <option value="Desktop">Desktop</option>
+                                            </select>
+                                        </div>
+                                        <div class="col-xxl-4 col-lg-4 col-md-6">
+                                            <label for="model" class="form-label">Model</label>
+                                            <input type="text" class="form-control" id="model" maxlength="100" placeholder="DELL_5420">
+                                        </div>
+                                        <div class="col-xxl-4 col-lg-4 col-md-6">
+                                            <label for="hostName" class="form-label">Host Name</label>
+                                            <input type="text" class="form-control" id="hostName" maxlength="120" placeholder="L-ID-22-030">
+                                        </div>
+                                    </div>
+                                </div>
                             </div>
-                            <div class="col-md-4">
-                                <label for="picUserId" class="form-label">PIC Name</label>
-                                <select class="form-select" id="picUserId" required>
-                                    <option value="">Loading...</option>
-                                </select>
+                            <div class="col-12">
+                                <div class="device-form-section">
+                                    <h6 class="device-form-section-title">User dan Lokasi</h6>
+                                    <div class="row g-3">
+                                        <div class="col-lg-4 col-md-6">
+                                            <label for="userName" class="form-label">User Name</label>
+                                            <input type="text" class="form-control" id="userName" maxlength="120" placeholder="Nama pengguna perangkat">
+                                        </div>
+                                        <div class="col-lg-4 col-md-6">
+                                            <label for="userEmail" class="form-label">User Email</label>
+                                            <input type="email" class="form-control" id="userEmail" maxlength="191" placeholder="email@company.com">
+                                        </div>
+                                        <div class="col-lg-4 col-md-6">
+                                            <label for="location" class="form-label">Location</label>
+                                            <input type="text" class="form-control" id="location" maxlength="120" placeholder="Cikarang KITIC">
+                                        </div>
+                                    </div>
+                                </div>
                             </div>
-                            <div class="col-md-4">
-                                <label for="serialNo" class="form-label">Serial No.</label>
-                                <input type="text" class="form-control" id="serialNo" maxlength="100" placeholder="Serial Number">
+                            <div class="col-12">
+                                <div class="device-form-section">
+                                    <h6 class="device-form-section-title">Masa Lease</h6>
+                                    <div class="row g-3">
+                                        <div class="col-xl-3 col-lg-4 col-md-6">
+                                            <label for="ipList" class="form-label">IP List</label>
+                                            <input type="text" class="form-control" id="ipList" maxlength="20" placeholder="192.168.1.10">
+                                            <small class="text-muted d-block mt-1">Hanya angka dan simbol, maksimal 20 karakter.</small>
+                                        </div>
+                                        <div class="col-xl-2 col-lg-4 col-md-6">
+                                            <label for="startDate" class="form-label">Start Date</label>
+                                            <input type="date" class="form-control" id="startDate">
+                                        </div>
+                                        <div class="col-xl-2 col-lg-4 col-md-6">
+                                            <label for="endDate" class="form-label">End Date</label>
+                                            <input type="date" class="form-control" id="endDate">
+                                        </div>
+                                        <div class="col-xl-2 col-lg-4 col-md-6">
+                                            <label for="daysLease" class="form-label">Days Lease</label>
+                                            <input type="number" class="form-control" id="daysLease" readonly>
+                                        </div>
+                                        <div class="col-xl-3 col-lg-4 col-md-6">
+                                            <label for="leaseStatus" class="form-label">Lease Status</label>
+                                            <input type="text" class="form-control" id="leaseStatus" maxlength="50" placeholder="ACTIVE">
+                                        </div>
+                                    </div>
+                                </div>
                             </div>
-
-                            <div class="col-md-3">
-                                <label for="category" class="form-label">Category</label>
-                                <select class="form-select" id="category">
-                                    <option value="">Pilih Category</option>
-                                    <option value="Laptop">Laptop</option>
-                                    <option value="Desktop">Desktop</option>
-                                </select>
-                            </div>
-                            <div class="col-md-3">
-                                <label for="model" class="form-label">Model</label>
-                                <input type="text" class="form-control" id="model" maxlength="100" placeholder="DELL_5420">
-                            </div>
-                            <div class="col-md-3">
-                                <label for="hostName" class="form-label">Host Name</label>
-                                <input type="text" class="form-control" id="hostName" maxlength="120" placeholder="L-ID-22-030">
-                            </div>
-                            <div class="col-md-3">
-                                <label for="status" class="form-label">Status</label>
-                                <select class="form-select" id="status">
-                                    <option value="">Pilih Status</option>
-                                    <option value="ON">ON</option>
-                                    <option value="OFF">OFF</option>
-                                </select>
-                            </div>
-
-                            <div class="col-md-4">
-                                <label for="userName" class="form-label">User Name</label>
-                                <input type="text" class="form-control" id="userName" maxlength="120" placeholder="Nama pengguna perangkat">
-                            </div>
-                            <div class="col-md-4">
-                                <label for="userEmail" class="form-label">User Email</label>
-                                <input type="email" class="form-control" id="userEmail" maxlength="191" placeholder="email@company.com">
-                            </div>
-                            <div class="col-md-4">
-                                <label for="location" class="form-label">Location</label>
-                                <input type="text" class="form-control" id="location" maxlength="120" placeholder="Cikarang KITIC">
-                            </div>
-
-                            <div class="col-md-2">
-                                <label for="ipList" class="form-label">IP List</label>
-                                <input type="text" class="form-control" id="ipList" maxlength="20" placeholder="192.168.1.10">
-                                <small class="text-muted">Hanya angka dan simbol, maksimal 20 karakter.</small>
-                            </div>
-                            <div class="col-md-2">
-                                <label for="startDate" class="form-label">Start Date</label>
-                                <input type="date" class="form-control" id="startDate">
-                            </div>
-                            <div class="col-md-2">
-                                <label for="endDate" class="form-label">End Date</label>
-                                <input type="date" class="form-control" id="endDate">
-                            </div>
-                            <div class="col-md-2">
-                                <label for="daysLease" class="form-label">Days Lease</label>
-                                <input type="number" class="form-control" id="daysLease" readonly>
-                            </div>
-                            <div class="col-md-2">
-                                <label for="leaseStatus" class="form-label">Lease Status</label>
-                                <input type="text" class="form-control" id="leaseStatus" maxlength="50" placeholder="ACTIVE">
-                            </div>
-
-                            <div class="col-md-4">
-                                <label for="hystoryLog" class="form-label">Hystory Log</label>
-                                <textarea class="form-control" id="hystoryLog" rows="2" placeholder="History log otomatis dari sistem" readonly></textarea>
-                                <small class="text-muted">Terisi otomatis saat data dibuat atau diubah.</small>
-                            </div>
-                            <div class="col-md-4">
-                                <label for="keterangan" class="form-label">Keterangan</label>
-                                <textarea class="form-control" id="keterangan" rows="2" placeholder="Catatan tambahan"></textarea>
-                            </div>
-                            <div class="col-md-4">
-                                <label for="bitlockerKey" class="form-label">Bitlocker Key</label>
-                                <textarea class="form-control" id="bitlockerKey" rows="2" placeholder="Bitlocker recovery key"></textarea>
-                            </div>
-
-                            <div class="col-12 d-flex gap-2">
-                                <button type="submit" class="btn btn-primary" id="submitButton">Simpan Data</button>
-                                <button type="button" class="btn btn-light border" id="resetButton">Reset</button>
+                            <div class="col-12">
+                                <div class="device-form-section">
+                                    <h6 class="device-form-section-title">Catatan Tambahan</h6>
+                                    <div class="row g-3">
+                                        <div class="col-lg-4 col-md-12">
+                                            <label for="hystoryLog" class="form-label">Hystory Log</label>
+                                            <textarea class="form-control" id="hystoryLog" rows="3" placeholder="History log otomatis dari sistem" readonly></textarea>
+                                            <small class="text-muted d-block mt-1">Terisi otomatis saat data dibuat atau diubah.</small>
+                                        </div>
+                                        <div class="col-lg-4 col-md-6">
+                                            <label for="keterangan" class="form-label">Keterangan</label>
+                                            <textarea class="form-control" id="keterangan" rows="3" placeholder="Catatan tambahan"></textarea>
+                                        </div>
+                                        <div class="col-lg-4 col-md-6">
+                                            <label for="bitlockerKey" class="form-label">Bitlocker Key</label>
+                                            <textarea class="form-control" id="bitlockerKey" rows="3" placeholder="Bitlocker recovery key"></textarea>
+                                        </div>
+                                    </div>
+                                    <div class="d-flex gap-2 device-form-actions">
+                                        <button type="submit" class="btn btn-primary" id="submitButton">Simpan Data</button>
+                                        <button type="button" class="btn btn-light border" id="resetButton">Reset</button>
+                                    </div>
+                                </div>
                             </div>
                         </div>
                     </form>
@@ -1425,36 +1487,3 @@
 </body>
 
 </html>
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
