@@ -1789,12 +1789,19 @@
                 ["Bitlocker Key", row["Bitlocker Key"]]
             ];
 
-            viewDrawerBody.innerHTML = detailFields.map(([label, value]) => `
+            viewDrawerBody.innerHTML = detailFields.map(([label, value]) => {
+                const isLeaseStatusField = label === "Lease Status";
+                const renderedValue = isLeaseStatusField
+                    ? renderLeaseStatusBadge(value)
+                    : escapeHtml(toDisplayValue(value));
+
+                return `
                 <div class="view-drawer-item">
                     <div class="view-drawer-label">${escapeHtml(label)}</div>
-                    <div class="view-drawer-value">${escapeHtml(toDisplayValue(value))}</div>
+                    <div class="view-drawer-value">${renderedValue}</div>
                 </div>
-            `).join("");
+                `;
+            }).join("");
 
             viewDrawerOverlay.classList.add("open");
             viewDrawerOverlay.setAttribute("aria-hidden", "false");
