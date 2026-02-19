@@ -97,6 +97,44 @@
         .device-table th {
             font-size: 0.72rem;
             letter-spacing: 0.01em;
+            color: #1e293b;
+        }
+
+        .table-sort-btn {
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+            border: 0;
+            background: transparent;
+            padding: 0;
+            font: inherit;
+            font-weight: 700;
+            color: inherit;
+            cursor: pointer;
+            line-height: 1.2;
+            text-transform: uppercase;
+        }
+
+        .table-sort-btn:focus-visible {
+            outline: 2px solid #3b82f6;
+            outline-offset: 2px;
+            border-radius: 4px;
+        }
+
+        .table-sort-btn .table-sort-indicator {
+            min-width: 10px;
+            text-align: center;
+            color: #94a3b8;
+            font-size: 0.7rem;
+            font-weight: 700;
+        }
+
+        .table-sort-btn.is-active {
+            color: #1d4ed8;
+        }
+
+        .table-sort-btn.is-active .table-sort-indicator {
+            color: #1d4ed8;
         }
 
         .device-table th:nth-child(1),
@@ -546,18 +584,18 @@
                         <table class="table table-hover align-middle mb-0 device-table">
                             <thead>
                                 <tr>
-                                    <th>NO</th>
-                                    <th>Job Code</th>
-                                    <th>PIC Name</th>
-                                    <th>Serial No.</th>
-                                    <th>Category</th>
-                                    <th>Model</th>
-                                    <th>Host Name</th>
-                                    <th>User Name</th>
-                                    <th>User Email</th>
-                                    <th>Status</th>
-                                    <th>Days Lease</th>
-                                    <th>Lease Status</th>
+                                    <th><button type="button" class="table-sort-btn" data-sort-key="NO" aria-label="Sort by NO">NO <span class="table-sort-indicator">-</span></button></th>
+                                    <th><button type="button" class="table-sort-btn" data-sort-key="Job Code" aria-label="Sort by Job Code">Job Code <span class="table-sort-indicator">-</span></button></th>
+                                    <th><button type="button" class="table-sort-btn" data-sort-key="PIC Name" aria-label="Sort by PIC Name">PIC Name <span class="table-sort-indicator">-</span></button></th>
+                                    <th><button type="button" class="table-sort-btn" data-sort-key="Serial No." aria-label="Sort by Serial No">Serial No. <span class="table-sort-indicator">-</span></button></th>
+                                    <th><button type="button" class="table-sort-btn" data-sort-key="Category" aria-label="Sort by Category">Category <span class="table-sort-indicator">-</span></button></th>
+                                    <th><button type="button" class="table-sort-btn" data-sort-key="Model" aria-label="Sort by Model">Model <span class="table-sort-indicator">-</span></button></th>
+                                    <th><button type="button" class="table-sort-btn" data-sort-key="Host Name" aria-label="Sort by Host Name">Host Name <span class="table-sort-indicator">-</span></button></th>
+                                    <th><button type="button" class="table-sort-btn" data-sort-key="User Name" aria-label="Sort by User Name">User Name <span class="table-sort-indicator">-</span></button></th>
+                                    <th><button type="button" class="table-sort-btn" data-sort-key="User Email" aria-label="Sort by User Email">User Email <span class="table-sort-indicator">-</span></button></th>
+                                    <th><button type="button" class="table-sort-btn" data-sort-key="Status" aria-label="Sort by Status">Status <span class="table-sort-indicator">-</span></button></th>
+                                    <th><button type="button" class="table-sort-btn" data-sort-key="Days Lease" aria-label="Sort by Days Lease">Days Lease <span class="table-sort-indicator">-</span></button></th>
+                                    <th><button type="button" class="table-sort-btn" data-sort-key="Lease Status" aria-label="Sort by Lease Status">Lease Status <span class="table-sort-indicator">-</span></button></th>
                                     <th>Action</th>
                                 </tr>
                             </thead>
@@ -676,6 +714,7 @@
         const confirmCloseButton = document.getElementById("confirmCloseButton");
         const confirmCancelButton = document.getElementById("confirmCancelButton");
         const confirmConfirmButton = document.getElementById("confirmConfirmButton");
+        const sortableHeaderButtons = Array.from(document.querySelectorAll(".table-sort-btn[data-sort-key]"));
 
         let masterUsers = [];
         let masterJobCodes = [];
@@ -683,6 +722,23 @@
         let editingDeviceId = "";
         let lastManualStatus = "";
         let currentDrawerHistoryLog = "";
+        let currentSortKey = "";
+        let currentSortDirection = "asc";
+        const sortNumericColumns = new Set(["NO", "Days Lease"]);
+        const sortableColumns = new Set([
+            "NO",
+            "Job Code",
+            "PIC Name",
+            "Serial No.",
+            "Category",
+            "Model",
+            "Host Name",
+            "User Name",
+            "User Email",
+            "Status",
+            "Days Lease",
+            "Lease Status"
+        ]);
         const editableInputs = [
             jobCodeIdInput,
             picUserIdInput,
@@ -1062,8 +1118,105 @@
             refreshDaysLease();
         }
 
+        function parseSortNumber(value) {
+            const text = String(value ?? "").trim();
+            if (!text) {
+                return null;
+            }
+
+            const parsed = Number(text.replace(/,/g, ""));
+            return Number.isFinite(parsed) ? parsed : null;
+        }
+
+        function getSortComparable(row, key) {
+            const rawValue = row?.[key];
+            if (sortNumericColumns.has(key)) {
+                const numericValue = parseSortNumber(rawValue);
+                return {
+                    isEmpty: numericValue === null,
+                    value: numericValue ?? 0,
+                    type: "number"
+                };
+            }
+
+            const textValue = String(rawValue ?? "").trim();
+            return {
+                isEmpty: textValue === "",
+                value: textValue.toLowerCase(),
+                type: "text"
+            };
+        }
+
+        function compareBySort(a, b, key, direction) {
+            const left = getSortComparable(a, key);
+            const right = getSortComparable(b, key);
+
+            if (left.isEmpty && right.isEmpty) {
+                return 0;
+            }
+            if (left.isEmpty) {
+                return 1;
+            }
+            if (right.isEmpty) {
+                return -1;
+            }
+
+            let compared = 0;
+            if (left.type === "number" && right.type === "number") {
+                compared = left.value - right.value;
+            } else {
+                compared = String(left.value).localeCompare(String(right.value), undefined, {
+                    numeric: true,
+                    sensitivity: "base"
+                });
+            }
+
+            return direction === "asc" ? compared : -compared;
+        }
+
+        function getSortedRows(rows) {
+            const list = Array.isArray(rows) ? [...rows] : [];
+            if (!currentSortKey || !sortableColumns.has(currentSortKey)) {
+                return list;
+            }
+
+            list.sort((a, b) => {
+                const primary = compareBySort(a, b, currentSortKey, currentSortDirection);
+                if (primary !== 0) {
+                    return primary;
+                }
+
+                const fallbackA = parseSortNumber(a["NO"]) ?? 0;
+                const fallbackB = parseSortNumber(b["NO"]) ?? 0;
+                return fallbackA - fallbackB;
+            });
+
+            return list;
+        }
+
+        function updateSortHeaderState() {
+            sortableHeaderButtons.forEach((button) => {
+                const key = String(button.dataset.sortKey || "");
+                const indicator = button.querySelector(".table-sort-indicator");
+                const isActive = key === currentSortKey;
+
+                button.classList.toggle("is-active", isActive);
+                button.classList.toggle("is-asc", isActive && currentSortDirection === "asc");
+                button.classList.toggle("is-desc", isActive && currentSortDirection === "desc");
+                button.setAttribute("aria-pressed", isActive ? "true" : "false");
+
+                if (indicator) {
+                    indicator.textContent = isActive
+                        ? (currentSortDirection === "asc" ? "^" : "v")
+                        : "-";
+                }
+            });
+        }
+
         function renderRows(rows) {
-            if (!rows.length) {
+            const sortedRows = getSortedRows(rows);
+
+            if (!sortedRows.length) {
                 tableBody.innerHTML = `
                     <tr>
                         <td colspan="13" class="text-center text-muted py-4">Belum ada data.</td>
@@ -1072,7 +1225,7 @@
                 return;
             }
 
-            tableBody.innerHTML = rows.map((row) => `
+            tableBody.innerHTML = sortedRows.map((row) => `
                 <tr>
                     <td>${escapeHtml(row["NO"])}</td>
                     <td>${escapeHtml(row["Job Code"])}</td>
@@ -1432,6 +1585,25 @@
             }
         });
 
+        sortableHeaderButtons.forEach((button) => {
+            button.addEventListener("click", () => {
+                const nextSortKey = String(button.dataset.sortKey || "");
+                if (!nextSortKey || !sortableColumns.has(nextSortKey)) {
+                    return;
+                }
+
+                if (currentSortKey === nextSortKey) {
+                    currentSortDirection = currentSortDirection === "asc" ? "desc" : "asc";
+                } else {
+                    currentSortKey = nextSortKey;
+                    currentSortDirection = "asc";
+                }
+
+                updateSortHeaderState();
+                renderRows(deviceRows);
+            });
+        });
+
         tableBody.addEventListener("click", handleTableAction);
         form.addEventListener("submit", submitForm);
         resetButton.addEventListener("click", () => {
@@ -1490,8 +1662,10 @@
         });
 
         resetForm();
+        updateSortHeaderState();
         initialize();
     </script>
 </body>
 
 </html>
+
