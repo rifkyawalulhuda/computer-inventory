@@ -1047,6 +1047,37 @@
                 throw new Error("PIC Name harus sesuai dengan Job Code yang dipilih.");
             }
 
+            const isCreateMode = !editingDeviceId;
+            if (isCreateMode) {
+                if (!payload.serialNo) {
+                    throw new Error("Serial No. wajib diisi saat tambah data.");
+                }
+
+                if (!payload.status) {
+                    throw new Error("Status wajib diisi saat tambah data.");
+                }
+
+                if (!payload.category) {
+                    throw new Error("Category wajib diisi saat tambah data.");
+                }
+
+                if (!payload.model) {
+                    throw new Error("Model wajib diisi saat tambah data.");
+                }
+
+                if (!payload.hostName) {
+                    throw new Error("Host Name wajib diisi saat tambah data.");
+                }
+
+                if (!payload.startDate) {
+                    throw new Error("Start Date wajib diisi saat tambah data.");
+                }
+
+                if (!payload.endDate) {
+                    throw new Error("End Date wajib diisi saat tambah data.");
+                }
+            }
+
             if (payload.userEmail && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(payload.userEmail)) {
                 throw new Error("User Email tidak valid.");
             }
