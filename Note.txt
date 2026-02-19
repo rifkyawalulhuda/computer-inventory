@@ -1,0 +1,24 @@
+docker ps                      # lihat container jalan
+docker stop queue_system       # stop database
+docker start queue_system      # start lagi
+docker logs queue_system       # lihat log database
+
+
+cd folder_docker
+docker compose up -d
+
+
+SETIAP KALI PINDAH LAPTOP (RITUAL WAJIB
+
+git pull
+docker compose up -d (docker)
+npx prisma migrate dev (backend)
+npm run migrate:deploy (backend)
+npm install (jika ada perubahan dependency) (Backend)
+npm run dev (front end)
+
+Set-ExecutionPolicy -Scope CurrentUser -ExecutionPolicy RemoteSigned
+
+
+
+http://localhost:5000/material-dashboard-shadcn-vue/display/antrian-truk
