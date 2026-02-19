@@ -303,6 +303,38 @@ function getHistoryActorName(req: Request, fallbackName?: string): string {
   return fallback || "Unknown";
 }
 
+async function getAssignedJobCodeId(req: Request): Promise<number | null> {
+  const authUserId = cleanText(req.authUser?.id);
+  if (!authUserId) {
+    return null;
+  }
+
+  const user = await prisma.masterUser.findUnique({
+    where: { id: authUserId },
+    select: { jobCodeId: true },
+  });
+
+  if (!user || !Number.isInteger(user.jobCodeId) || user.jobCodeId < 1) {
+    return null;
+  }
+
+  return user.jobCodeId;
+}
+
+async function resolveDataScope(req: Request): Promise<{ editorRole: EditorRole; userJobCodeId: number | null }> {
+  const editorRole = parseEditorRole(req);
+  if (editorRole === "admin") {
+    return { editorRole, userJobCodeId: null };
+  }
+
+  const userJobCodeId = await getAssignedJobCodeId(req);
+  if (!userJobCodeId) {
+    throw new Error("ROLE_USER_JOB_CODE_NOT_FOUND");
+  }
+
+  return { editorRole, userJobCodeId };
+}
+
 function splitIpList(ipList: string | null): string[] {
   if (!ipList) {
     return [];
@@ -515,9 +547,11 @@ async function getMappedDeviceById(tx: Prisma.TransactionClient, id: string) {
   return mapDeviceToExcelRecord(row as unknown as MappedDeviceRow);
 }
 
-deviceRecordRouter.get("/device-records", async (_req, res, next) => {
+deviceRecordRouter.get("/device-records", async (req, res, next) => {
   try {
+    const scope = await resolveDataScope(req);
     const rows = await prisma.device.findMany({
+      where: scope.editorRole === "user" ? { jobCodeId: scope.userJobCodeId ?? undefined } : undefined,
       orderBy: { createdAt: "desc" },
       include: deviceRecordInclude,
     });
@@ -526,6 +560,10 @@ deviceRecordRouter.get("/device-records", async (_req, res, next) => {
       data: rows.map((row, index) => mapDeviceToExcelRecord(row as unknown as MappedDeviceRow, index + 1)),
     });
   } catch (error) {
+    if (error instanceof Error && error.message === "ROLE_USER_JOB_CODE_NOT_FOUND") {
+      return res.status(403).json({ message: "Job Code user tidak ditemukan. Hubungi admin." });
+    }
+
     next(error);
   }
 });
@@ -604,7 +642,7 @@ deviceRecordRouter.put("/device-records/:id", async (req, res, next) => {
       return res.status(400).json({ message: "ID tidak valid." });
     }
 
-    const editorRole = parseEditorRole(req);
+    const { editorRole, userJobCodeId } = await resolveDataScope(req);
     const payload = parsePayload(req.body);
     const actorName = getHistoryActorName(req);
 
@@ -651,6 +689,10 @@ deviceRecordRouter.put("/device-records/:id", async (req, res, next) => {
 
       if (!existing) {
         throw new Error("DATA_PERANGKAT_NOT_FOUND");
+      }
+
+      if (editorRole === "user" && existing.jobCodeId !== userJobCodeId) {
+        throw new Error("ROLE_USER_SCOPE_FORBIDDEN");
       }
 
       const picUser = await validateJobAndPic(tx, payload);
@@ -871,6 +913,14 @@ deviceRecordRouter.put("/device-records/:id", async (req, res, next) => {
       return res.status(404).json({ message: "Data perangkat tidak ditemukan." });
     }
 
+    if (error instanceof Error && error.message === "ROLE_USER_JOB_CODE_NOT_FOUND") {
+      return res.status(403).json({ message: "Job Code user tidak ditemukan. Hubungi admin." });
+    }
+
+    if (error instanceof Error && error.message === "ROLE_USER_SCOPE_FORBIDDEN") {
+      return res.status(403).json({ message: "Role user tidak diizinkan mengakses data perangkat di Job Code lain." });
+    }
+
     if (error instanceof Error && error.message.startsWith("ROLE_USER_FORBIDDEN_FIELDS:")) {
       const changedColumns = error.message.replace("ROLE_USER_FORBIDDEN_FIELDS:", "").trim();
       return res.status(403).json({
@@ -893,6 +943,23 @@ deviceRecordRouter.delete("/device-records/:id", async (req, res, next) => {
       return res.status(400).json({ message: "ID tidak valid." });
     }
 
+    const { editorRole, userJobCodeId } = await resolveDataScope(req);
+
+    if (editorRole === "user") {
+      const target = await prisma.device.findUnique({
+        where: { id },
+        select: { id: true, jobCodeId: true },
+      });
+
+      if (!target) {
+        return res.status(404).json({ message: "Data perangkat tidak ditemukan." });
+      }
+
+      if (target.jobCodeId !== userJobCodeId) {
+        return res.status(403).json({ message: "Role user tidak diizinkan menghapus data perangkat di Job Code lain." });
+      }
+    }
+
     await prisma.device.delete({ where: { id } });
     res.status(204).send();
   } catch (error) {
@@ -900,7 +967,10 @@ deviceRecordRouter.delete("/device-records/:id", async (req, res, next) => {
       return res.status(404).json({ message: "Data perangkat tidak ditemukan." });
     }
 
+    if (error instanceof Error && error.message === "ROLE_USER_JOB_CODE_NOT_FOUND") {
+      return res.status(403).json({ message: "Job Code user tidak ditemukan. Hubungi admin." });
+    }
+
     next(error);
   }
 });
-
