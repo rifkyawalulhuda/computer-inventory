@@ -1,6 +1,8 @@
 import cors from "cors";
 import dotenv from "dotenv";
 import express, { type NextFunction, type Request, type Response } from "express";
+import { requireAuth } from "./middleware/auth";
+import { authRouter } from "./routes/auth";
 import { deviceRecordRouter } from "./routes/device-records";
 import { deviceRouter } from "./routes/devices";
 import { healthRouter } from "./routes/health";
@@ -15,10 +17,11 @@ app.use(cors());
 app.use(express.json());
 
 app.use("/api", healthRouter);
-app.use("/api", deviceRouter);
-app.use("/api", deviceRecordRouter);
-app.use("/api", masterJobCodeRouter);
-app.use("/api", masterUserRouter);
+app.use("/api", authRouter);
+app.use("/api", requireAuth, deviceRouter);
+app.use("/api", requireAuth, deviceRecordRouter);
+app.use("/api", requireAuth, masterJobCodeRouter);
+app.use("/api", requireAuth, masterUserRouter);
 
 app.use((req, res) => {
   res.status(404).json({

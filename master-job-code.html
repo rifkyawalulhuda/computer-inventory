@@ -10,6 +10,13 @@
     <link rel="stylesheet" type="text/css" href="assets/css/bootstrap.min.css">
     <link rel="stylesheet" type="text/css" href="assets/vendors/css/vendors.min.css">
     <link rel="stylesheet" type="text/css" href="assets/css/theme.min.css">
+    <script src="assets/js/auth-client.js"></script>
+    <script>
+        if (window.AuthClient) {
+            window.AuthClient.requireAuth();
+            window.AuthClient.validateSession("http://localhost:3001/api");
+        }
+    </script>
     <style>
         .page-shell {
             min-height: 100vh;
@@ -123,6 +130,13 @@
 
     <script>
         const API_BASE = "http://localhost:3001/api";
+        async function apiFetch(url, options = {}) {
+            if (window.AuthClient) {
+                return window.AuthClient.fetchWithAuth(url, options);
+            }
+
+            return fetch(url, options);
+        }
         const tableBody = document.getElementById("tableBody");
         const alertBox = document.getElementById("alertBox");
         const form = document.getElementById("masterJobCodeForm");
@@ -217,7 +231,7 @@
             `;
 
             try {
-                const response = await fetch(`${API_BASE}/master-job-codes`);
+                const response = await apiFetch(`${API_BASE}/master-job-codes`);
                 const result = await response.json();
                 if (!response.ok) {
                     throw new Error(result.message || "Gagal mengambil data.");
@@ -242,7 +256,7 @@
                 const id = rowId.value;
                 const isEdit = Boolean(id);
 
-                const response = await fetch(
+                const response = await apiFetch(
                     isEdit ? `${API_BASE}/master-job-codes/${id}` : `${API_BASE}/master-job-codes`,
                     {
                         method: isEdit ? "PUT" : "POST",
@@ -271,7 +285,7 @@
             hideAlert();
 
             try {
-                const response = await fetch(`${API_BASE}/master-job-codes/${id}`, {
+                const response = await apiFetch(`${API_BASE}/master-job-codes/${id}`, {
                     method: "DELETE"
                 });
 
@@ -290,7 +304,7 @@
 
         async function editRow(id) {
             try {
-                const response = await fetch(`${API_BASE}/master-job-codes`);
+                const response = await apiFetch(`${API_BASE}/master-job-codes`);
                 const result = await response.json();
                 if (!response.ok) {
                     throw new Error(result.message || "Gagal mengambil data.");

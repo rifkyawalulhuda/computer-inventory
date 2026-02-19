@@ -1,5 +1,5 @@
 import { Prisma } from "@prisma/client";
-import { Router } from "express";
+import { type Request, Router } from "express";
 import { prisma } from "../lib/prisma";
 
 export const deviceRecordRouter = Router();
@@ -25,6 +25,14 @@ type DeviceRecordPayload = {
   keterangan: string | null;
   bitlockerKey: string | null;
 };
+
+type HistoryFieldChange = {
+  label: string;
+  before: string | number | null | undefined;
+  after: string | number | null | undefined;
+};
+
+type EditorRole = "admin" | "user";
 
 function cleanText(value: unknown): string {
   return String(value ?? "").trim();
@@ -208,6 +216,73 @@ function formatDate(date: Date | null | undefined): string {
   return `${year}-${month}-${day}`;
 }
 
+function normalizeComparableValue(value: string | number | null | undefined): string {
+  return String(value ?? "").trim();
+}
+
+function toHistoryDisplayValue(value: string | number | null | undefined): string {
+  const text = normalizeComparableValue(value);
+  return text || "-";
+}
+
+function formatHistoryTimestamp(date = new Date()): string {
+  const year = String(date.getFullYear());
+  const month = String(date.getMonth() + 1).padStart(2, "0");
+  const day = String(date.getDate()).padStart(2, "0");
+  const hours = String(date.getHours()).padStart(2, "0");
+  const minutes = String(date.getMinutes()).padStart(2, "0");
+  const seconds = String(date.getSeconds()).padStart(2, "0");
+  return `${year}-${month}-${day} ${hours}:${minutes}:${seconds}`;
+}
+
+function buildHistoryEntry(message: string): string {
+  return `[${formatHistoryTimestamp()}] ${message}`;
+}
+
+function appendHistoryEntries(
+  existingHistory: string | null | undefined,
+  entries: string[],
+): string | null {
+  const base = toNullableText(existingHistory);
+  const cleanEntries = entries.map((entry) => cleanText(entry)).filter(Boolean);
+  if (!cleanEntries.length) {
+    return base;
+  }
+
+  return base ? `${base}\n${cleanEntries.join("\n")}` : cleanEntries.join("\n");
+}
+
+function getChangedFieldMessages(changes: HistoryFieldChange[]): string[] {
+  return changes
+    .filter(
+      ({ before, after }) =>
+        normalizeComparableValue(before) !== normalizeComparableValue(after),
+    )
+    .map(
+      ({ label, before, after }) =>
+        `${label}: "${toHistoryDisplayValue(before)}" -> "${toHistoryDisplayValue(after)}"`,
+    );
+}
+
+function getChangedFieldLabels(changes: HistoryFieldChange[]): string[] {
+  return changes
+    .filter(
+      ({ before, after }) =>
+        normalizeComparableValue(before) !== normalizeComparableValue(after),
+    )
+    .map(({ label }) => label);
+}
+
+function parseEditorRole(req: Request): EditorRole {
+  if (req.authUser?.role === "admin" || req.authUser?.role === "user") {
+    return req.authUser.role;
+  }
+
+  const body = req.body as Record<string, unknown> | null | undefined;
+  const rawRole = cleanText(req.header("x-user-role") ?? body?.editorRole).toLowerCase();
+  return rawRole === "user" ? "user" : "admin";
+}
+
 function splitIpList(ipList: string | null): string[] {
   if (!ipList) {
     return [];
@@ -299,7 +374,7 @@ function mapDeviceToExcelRecord(row: MappedDeviceRow, fallbackNo?: number) {
 async function validateJobAndPic(
   tx: Prisma.TransactionClient,
   payload: DeviceRecordPayload,
-): Promise<{ name: string; jobCodeId: number }> {
+): Promise<{ name: string; jobCodeId: number; jobCodeCode: string }> {
   const jobCode = await tx.jobCode.findUnique({ where: { id: payload.jobCodeId } });
   if (!jobCode) {
     throw new Error("Job Code tidak ditemukan.");
@@ -314,7 +389,7 @@ async function validateJobAndPic(
     throw new Error("PIC Name tidak sesuai dengan Job Code yang dipilih.");
   }
 
-  return { name: picUser.name, jobCodeId: picUser.jobCodeId };
+  return { name: picUser.name, jobCodeId: picUser.jobCodeId, jobCodeCode: jobCode.code };
 }
 
 async function resolveLookupIds(tx: Prisma.TransactionClient, payload: DeviceRecordPayload) {
@@ -467,7 +542,17 @@ deviceRecordRouter.post("/device-records", async (req, res, next) => {
       });
 
       await syncDeviceIps(tx, device.id, payload.ipList);
-      await syncLatestLease(tx, device.id, payload);
+      const createdHistoryLog = appendHistoryEntries(payload.hystoryLog, [
+        buildHistoryEntry(
+          `Data perangkat dibuat oleh ${picUser.name}${payload.serialNo ? ` (Serial No: ${payload.serialNo})` : ""
+          }.`,
+        ),
+      ]);
+
+      await syncLatestLease(tx, device.id, {
+        ...payload,
+        hystoryLog: createdHistoryLog,
+      });
 
       return getMappedDeviceById(tx, device.id);
     });
@@ -493,6 +578,7 @@ deviceRecordRouter.put("/device-records/:id", async (req, res, next) => {
       return res.status(400).json({ message: "ID tidak valid." });
     }
 
+    const editorRole = parseEditorRole(req);
     const payload = parsePayload(req.body);
 
     const updated = await prisma.$transaction(async (tx) => {
@@ -501,10 +587,37 @@ deviceRecordRouter.put("/device-records/:id", async (req, res, next) => {
         select: {
           id: true,
           legacyNo: true,
+          jobCodeId: true,
+          serialNumber: true,
+          hostName: true,
+          userNameRaw: true,
+          userEmailRaw: true,
+          statusRaw: true,
+          locationRaw: true,
+          ipListRaw: true,
+          picNameRaw: true,
+          notes: true,
+          bitlockerKey: true,
+          jobCode: {
+            select: { code: true },
+          },
+          category: {
+            select: { name: true },
+          },
+          model: {
+            select: { name: true },
+          },
           leaseContracts: {
             orderBy: { createdAt: "desc" },
             take: 1,
-            select: { id: true },
+            select: {
+              id: true,
+              startDate: true,
+              endDate: true,
+              daysLease: true,
+              leaseStatus: true,
+              historyLog: true,
+            },
           },
         },
       });
@@ -515,6 +628,171 @@ deviceRecordRouter.put("/device-records/:id", async (req, res, next) => {
 
       const picUser = await validateJobAndPic(tx, payload);
       const { categoryId, modelId, locationId } = await resolveLookupIds(tx, payload);
+      const latestLease = existing.leaseContracts[0] ?? null;
+
+      if (editorRole === "user") {
+        const restrictedChangedLabels = getChangedFieldLabels([
+          {
+            label: "NO",
+            before: existing.legacyNo,
+            after: payload.no ?? existing.legacyNo,
+          },
+          {
+            label: "Job Code",
+            before: existing.jobCodeId,
+            after: payload.jobCodeId,
+          },
+          {
+            label: "PIC Name",
+            before: existing.picNameRaw,
+            after: picUser.name,
+          },
+          {
+            label: "Serial No.",
+            before: existing.serialNumber,
+            after: payload.serialNo,
+          },
+          {
+            label: "Category",
+            before: existing.category?.name ?? null,
+            after: payload.category,
+          },
+          {
+            label: "Model",
+            before: existing.model?.name ?? null,
+            after: payload.model,
+          },
+          {
+            label: "Host Name",
+            before: existing.hostName,
+            after: payload.hostName,
+          },
+          {
+            label: "Status",
+            before: existing.statusRaw,
+            after: payload.status,
+          },
+          {
+            label: "Start Date",
+            before: formatDate(latestLease?.startDate),
+            after: formatDate(payload.startDate),
+          },
+          {
+            label: "End Date",
+            before: formatDate(latestLease?.endDate),
+            after: formatDate(payload.endDate),
+          },
+          {
+            label: "Lease Status",
+            before: latestLease?.leaseStatus,
+            after: payload.leaseStatus,
+          },
+          {
+            label: "Bitlocker Key",
+            before: existing.bitlockerKey,
+            after: payload.bitlockerKey,
+          },
+        ]);
+
+        if (restrictedChangedLabels.length > 0) {
+          throw new Error(`ROLE_USER_FORBIDDEN_FIELDS:${restrictedChangedLabels.join(", ")}`);
+        }
+      }
+
+      const changedFieldMessages = getChangedFieldMessages([
+        {
+          label: "NO",
+          before: existing.legacyNo,
+          after: payload.no ?? existing.legacyNo,
+        },
+        {
+          label: "Job Code",
+          before: existing.jobCode?.code ?? null,
+          after: picUser.jobCodeCode,
+        },
+        {
+          label: "PIC Name",
+          before: existing.picNameRaw,
+          after: picUser.name,
+        },
+        {
+          label: "Serial No.",
+          before: existing.serialNumber,
+          after: payload.serialNo,
+        },
+        {
+          label: "Category",
+          before: existing.category?.name ?? null,
+          after: payload.category,
+        },
+        {
+          label: "Model",
+          before: existing.model?.name ?? null,
+          after: payload.model,
+        },
+        {
+          label: "Host Name",
+          before: existing.hostName,
+          after: payload.hostName,
+        },
+        {
+          label: "User Name",
+          before: existing.userNameRaw,
+          after: payload.userName,
+        },
+        {
+          label: "User Email",
+          before: existing.userEmailRaw,
+          after: payload.userEmail,
+        },
+        {
+          label: "Status",
+          before: existing.statusRaw,
+          after: payload.status,
+        },
+        {
+          label: "Location",
+          before: existing.locationRaw,
+          after: payload.location,
+        },
+        {
+          label: "IP List",
+          before: existing.ipListRaw,
+          after: payload.ipList,
+        },
+        {
+          label: "Start Date",
+          before: formatDate(latestLease?.startDate),
+          after: formatDate(payload.startDate),
+        },
+        {
+          label: "End Date",
+          before: formatDate(latestLease?.endDate),
+          after: formatDate(payload.endDate),
+        },
+        {
+          label: "Lease Status",
+          before: latestLease?.leaseStatus,
+          after: payload.leaseStatus,
+        },
+        {
+          label: "Keterangan",
+          before: existing.notes,
+          after: payload.keterangan,
+        },
+        {
+          label: "Bitlocker Key",
+          before: existing.bitlockerKey,
+          after: payload.bitlockerKey,
+        },
+      ]);
+      const historyEntries = changedFieldMessages.length
+        ? [
+          buildHistoryEntry(`Data perangkat diubah oleh ${picUser.name}.`),
+          ...changedFieldMessages.map((message) => buildHistoryEntry(message)),
+        ]
+        : [];
+      const updatedHistoryLog = appendHistoryEntries(latestLease?.historyLog, historyEntries);
 
       await tx.device.update({
         where: { id },
@@ -538,7 +816,15 @@ deviceRecordRouter.put("/device-records/:id", async (req, res, next) => {
       });
 
       await syncDeviceIps(tx, id, payload.ipList);
-      await syncLatestLease(tx, id, payload, existing.leaseContracts[0]?.id);
+      await syncLatestLease(
+        tx,
+        id,
+        {
+          ...payload,
+          hystoryLog: updatedHistoryLog,
+        },
+        latestLease?.id,
+      );
 
       return getMappedDeviceById(tx, id);
     });
@@ -555,6 +841,13 @@ deviceRecordRouter.put("/device-records/:id", async (req, res, next) => {
 
     if (error instanceof Error && error.message === "DATA_PERANGKAT_NOT_FOUND") {
       return res.status(404).json({ message: "Data perangkat tidak ditemukan." });
+    }
+
+    if (error instanceof Error && error.message.startsWith("ROLE_USER_FORBIDDEN_FIELDS:")) {
+      const changedColumns = error.message.replace("ROLE_USER_FORBIDDEN_FIELDS:", "").trim();
+      return res.status(403).json({
+        message: `Role user hanya boleh edit kolom User Name, User Email, Location, IP List, dan Keterangan. Kolom tidak diizinkan: ${changedColumns}.`,
+      });
     }
 
     if (error instanceof Error) {

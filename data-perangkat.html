@@ -10,6 +10,13 @@
     <link rel="stylesheet" type="text/css" href="assets/css/bootstrap.min.css">
     <link rel="stylesheet" type="text/css" href="assets/vendors/css/vendors.min.css">
     <link rel="stylesheet" type="text/css" href="assets/css/theme.min.css">
+    <script src="assets/js/auth-client.js"></script>
+    <script>
+        if (window.AuthClient) {
+            window.AuthClient.requireAuth();
+            window.AuthClient.validateSession("http://localhost:3001/api");
+        }
+    </script>
     <style>
         .page-shell {
             min-height: 100vh;
@@ -187,6 +194,10 @@
             font-size: 16px;
         }
 
+        .view-drawer-history-btn {
+            border-radius: 8px;
+        }
+
         .view-drawer-body {
             padding: 16px 18px 24px;
             overflow-y: auto;
@@ -210,6 +221,66 @@
             color: #0f172a;
             word-break: break-word;
         }
+
+        .history-log-overlay {
+            position: fixed;
+            inset: 0;
+            background: rgba(15, 23, 42, 0.45);
+            opacity: 0;
+            visibility: hidden;
+            transition: opacity 0.2s ease;
+            z-index: 1060;
+        }
+
+        .history-log-overlay.open {
+            opacity: 1;
+            visibility: visible;
+        }
+
+        .history-log-modal {
+            width: min(720px, calc(100vw - 32px));
+            max-height: calc(100vh - 48px);
+            margin: 24px auto;
+            background: #ffffff;
+            border-radius: 14px;
+            box-shadow: 0 20px 60px rgba(15, 23, 42, 0.35);
+            display: flex;
+            flex-direction: column;
+            overflow: hidden;
+        }
+
+        .history-log-header {
+            padding: 14px 16px;
+            border-bottom: 1px solid #e2e8f0;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .history-log-title {
+            margin: 0;
+            font-size: 1rem;
+            font-weight: 700;
+            color: #0f172a;
+        }
+
+        .history-log-body {
+            padding: 14px 16px;
+            overflow: auto;
+        }
+
+        .history-log-list {
+            margin: 0;
+            padding-left: 18px;
+            display: grid;
+            gap: 8px;
+            color: #1e293b;
+        }
+
+        .history-log-empty {
+            color: #64748b;
+            margin: 0;
+        }
     </style>
 </head>
 
@@ -229,6 +300,7 @@
                         <div>
                             <h5 class="card-title mb-1" id="formCardTitle">Form Input Data Perangkat</h5>
                             <p class="text-muted mb-0">Kolom NO dibuat otomatis oleh sistem.</p>
+                            <p class="text-warning mb-0 mt-1 d-none" id="roleEditHint">Role user hanya bisa edit: User Name, User Email, Location, IP List, dan Keterangan.</p>
                         </div>
                         <button type="button" class="btn btn-light border" id="closeFormButton">Tutup Form</button>
                     </div>
@@ -313,7 +385,8 @@
 
                             <div class="col-md-4">
                                 <label for="hystoryLog" class="form-label">Hystory Log</label>
-                                <textarea class="form-control" id="hystoryLog" rows="2" placeholder="History catatan"></textarea>
+                                <textarea class="form-control" id="hystoryLog" rows="2" placeholder="History log otomatis dari sistem" readonly></textarea>
+                                <small class="text-muted">Terisi otomatis saat data dibuat atau diubah.</small>
                             </div>
                             <div class="col-md-4">
                                 <label for="keterangan" class="form-label">Keterangan</label>
@@ -377,16 +450,40 @@
         <aside class="view-drawer" id="viewDrawer" role="dialog" aria-modal="true" aria-labelledby="viewDrawerTitle">
             <div class="view-drawer-header">
                 <h5 class="view-drawer-title" id="viewDrawerTitle">Detail Data Perangkat</h5>
-                <button type="button" class="view-drawer-close" id="viewDrawerCloseButton" aria-label="Tutup Detail">
-                    <i class="feather-x"></i>
-                </button>
+                <div class="d-flex align-items-center gap-2">
+                    <button type="button" class="btn btn-sm btn-outline-primary view-drawer-history-btn" id="viewDrawerHistoryButton">
+                        History Log
+                    </button>
+                    <button type="button" class="view-drawer-close" id="viewDrawerCloseButton" aria-label="Tutup Detail">
+                        <i class="feather-x"></i>
+                    </button>
+                </div>
             </div>
             <div class="view-drawer-body" id="viewDrawerBody"></div>
         </aside>
     </div>
 
+    <div class="history-log-overlay" id="historyLogOverlay" aria-hidden="true">
+        <div class="history-log-modal" role="dialog" aria-modal="true" aria-labelledby="historyLogTitle">
+            <div class="history-log-header">
+                <h5 class="history-log-title" id="historyLogTitle">History Log</h5>
+                <button type="button" class="view-drawer-close" id="historyLogCloseButton" aria-label="Tutup History Log">
+                    <i class="feather-x"></i>
+                </button>
+            </div>
+            <div class="history-log-body" id="historyLogBody"></div>
+        </div>
+    </div>
+
     <script>
         const API_BASE = "http://localhost:3001/api";
+        async function apiFetch(url, options = {}) {
+            if (window.AuthClient) {
+                return window.AuthClient.fetchWithAuth(url, options);
+            }
+
+            return fetch(url, options);
+        }
 
         const alertBox = document.getElementById("alertBox");
         const form = document.getElementById("deviceForm");
@@ -414,17 +511,129 @@
         const bitlockerKeyInput = document.getElementById("bitlockerKey");
         const resetButton = document.getElementById("resetButton");
         const closeFormButton = document.getElementById("closeFormButton");
+        const roleEditHint = document.getElementById("roleEditHint");
         const addDataButton = document.getElementById("addDataButton");
         const refreshButton = document.getElementById("refreshButton");
         const viewDrawerOverlay = document.getElementById("viewDrawerOverlay");
         const viewDrawerBody = document.getElementById("viewDrawerBody");
         const viewDrawerCloseButton = document.getElementById("viewDrawerCloseButton");
+        const viewDrawerHistoryButton = document.getElementById("viewDrawerHistoryButton");
+        const historyLogOverlay = document.getElementById("historyLogOverlay");
+        const historyLogBody = document.getElementById("historyLogBody");
+        const historyLogCloseButton = document.getElementById("historyLogCloseButton");
 
         let masterUsers = [];
         let masterJobCodes = [];
         let deviceRows = [];
         let editingDeviceId = "";
         let lastManualStatus = "";
+        let currentDrawerHistoryLog = "";
+        const editableInputs = [
+            jobCodeIdInput,
+            picUserIdInput,
+            serialNoInput,
+            categoryInput,
+            modelInput,
+            hostNameInput,
+            statusInput,
+            userNameInput,
+            userEmailInput,
+            locationInput,
+            ipListInput,
+            startDateInput,
+            endDateInput,
+            leaseStatusInput,
+            hystoryLogInput,
+            keteranganInput,
+            bitlockerKeyInput
+        ];
+        const userAllowedEditInputIds = new Set(["userName", "userEmail", "location", "ipList", "keterangan"]);
+
+        function getSafeStorageRole(storage) {
+            if (!storage) {
+                return "";
+            }
+
+            const directKeys = ["inventory_user_role", "currentUserRole", "userRole", "authUserRole", "role"];
+            for (const key of directKeys) {
+                const value = String(storage.getItem(key) || "").trim().toLowerCase();
+                if (value === "admin" || value === "user") {
+                    return value;
+                }
+            }
+
+            const jsonKeys = ["currentUser", "authUser", "userSession", "loggedInUser"];
+            for (const key of jsonKeys) {
+                const raw = storage.getItem(key);
+                if (!raw) {
+                    continue;
+                }
+
+                try {
+                    const parsed = JSON.parse(raw);
+                    const candidate = String(parsed?.role ?? parsed?.userRole ?? "").trim().toLowerCase();
+                    if (candidate === "admin" || candidate === "user") {
+                        return candidate;
+                    }
+                } catch (_error) {
+                    // Ignore invalid JSON and continue checking other keys.
+                }
+            }
+
+            return "";
+        }
+
+        function getCurrentUserRole() {
+            const queryRole = String(new URLSearchParams(window.location.search).get("role") || "").trim().toLowerCase();
+            if (queryRole === "admin" || queryRole === "user") {
+                return queryRole;
+            }
+
+            const localRole = getSafeStorageRole(window.localStorage);
+            if (localRole) {
+                return localRole;
+            }
+
+            const sessionRole = getSafeStorageRole(window.sessionStorage);
+            if (sessionRole) {
+                return sessionRole;
+            }
+
+            return "admin";
+        }
+
+        const currentUserRole = getCurrentUserRole();
+
+        function applyRoleBasedFieldPermissions() {
+            const isUserRestrictedEdit = currentUserRole === "user" && Boolean(editingDeviceId);
+            roleEditHint.classList.toggle("d-none", !isUserRestrictedEdit);
+
+            editableInputs.forEach((input) => {
+                if (!input) {
+                    return;
+                }
+
+                const isAllowedForUserEdit = userAllowedEditInputIds.has(input.id);
+                const shouldDisable = isUserRestrictedEdit && !isAllowedForUserEdit;
+
+                if (input === hystoryLogInput) {
+                    input.readOnly = true;
+                } else if (input === daysLeaseInput) {
+                    input.readOnly = true;
+                } else if ("readOnly" in input) {
+                    input.readOnly = shouldDisable;
+                }
+
+                input.disabled = shouldDisable;
+            });
+
+            if (!isUserRestrictedEdit) {
+                hystoryLogInput.readOnly = true;
+                daysLeaseInput.readOnly = true;
+                statusInput.disabled = false;
+                refreshStatusByDaysLease();
+            }
+        }
 
         function showAlert(message, type) {
             alertBox.className = `alert alert-${type}`;
@@ -522,6 +731,12 @@
         }
 
         function refreshStatusByDaysLease() {
+            const isUserRestrictedEdit = currentUserRole === "user" && Boolean(editingDeviceId);
+            if (isUserRestrictedEdit) {
+                statusInput.disabled = true;
+                return;
+            }
+
             const daysLeaseValue = Number(daysLeaseInput.value);
             const hasDaysLeaseValue = daysLeaseInput.value !== "" && Number.isFinite(daysLeaseValue);
             const isExpired = hasDaysLeaseValue && daysLeaseValue <= 0;
@@ -572,6 +787,7 @@
             removeExpiredStatusOption();
             populatePicOptionsByJobCode();
             refreshDaysLease();
+            applyRoleBasedFieldPermissions();
         }
 
         function getPayload() {
@@ -658,8 +874,8 @@
 
         async function loadMasterData() {
             const [jobCodeRes, masterUserRes] = await Promise.all([
-                fetch(`${API_BASE}/master-job-codes`),
-                fetch(`${API_BASE}/master-users`)
+                apiFetch(`${API_BASE}/master-job-codes`),
+                apiFetch(`${API_BASE}/master-users`)
             ]);
 
             const jobCodeJson = await jobCodeRes.json();
@@ -733,7 +949,7 @@
                 </tr>
             `;
 
-            const response = await fetch(`${API_BASE}/device-records`);
+            const response = await apiFetch(`${API_BASE}/device-records`);
             const result = await response.json();
             if (!response.ok) {
                 throw new Error(result.message || "Gagal memuat data perangkat.");
@@ -752,33 +968,68 @@
             return text ? text : "-";
         }
 
+        function parseHistoryLogLines(value) {
+            return String(value ?? "")
+                .split(/\r?\n/)
+                .map((line) => line.trim())
+                .filter(Boolean);
+        }
+
+        function closeHistoryLogOverlay() {
+            historyLogOverlay.classList.remove("open");
+            historyLogOverlay.setAttribute("aria-hidden", "true");
+        }
+
+        function openHistoryLogOverlay() {
+            const lines = parseHistoryLogLines(currentDrawerHistoryLog);
+            if (!lines.length) {
+                historyLogBody.innerHTML = '<p class="history-log-empty">Belum ada history log.</p>';
+            } else {
+                historyLogBody.innerHTML = `
+                    <ol class="history-log-list">
+                        ${lines.map((line) => `<li>${escapeHtml(line)}</li>`).join("")}
+                    </ol>
+                `;
+            }
+
+            historyLogOverlay.classList.add("open");
+            historyLogOverlay.setAttribute("aria-hidden", "false");
+        }
+
         function openViewDrawer(row) {
+            const historyLines = parseHistoryLogLines(row["Hystory Log"]);
+            currentDrawerHistoryLog = historyLines.join("\n");
+            viewDrawerHistoryButton.textContent = historyLines.length
+                ? `History Log (${historyLines.length})`
+                : "History Log (0)";
+            closeHistoryLogOverlay();
+
             const detailFields = [
-                ["NO", "NO"],
-                ["Job Code", "Job Code"],
-                ["PIC Name", "PIC Name"],
-                ["Serial No.", "Serial No."],
-                ["Category", "Category"],
-                ["Model", "Model"],
-                ["Host Name", "Host Name"],
-                ["User Name", "User Name"],
-                ["User Email", "User Email"],
-                ["Status", "Status"],
-                ["Days Lease", "Days Lease"],
-                ["Lease Status", "Lease Status"],
-                ["Location", "Location"],
-                ["IP List", "IP List"],
-                ["Start Date", "Start Date"],
-                ["End Date", "End Date"],
-                ["Hystory Log", "Hystory Log"],
-                ["Keterangan", "Keterangan"],
-                ["Bitlocker Key", "Bitlocker Key"]
+                ["NO", row["NO"]],
+                ["Job Code", row["Job Code"]],
+                ["PIC Name", row["PIC Name"]],
+                ["Serial No.", row["Serial No."]],
+                ["Category", row["Category"]],
+                ["Model", row["Model"]],
+                ["Host Name", row["Host Name"]],
+                ["User Name", row["User Name"]],
+                ["User Email", row["User Email"]],
+                ["Status", row["Status"]],
+                ["Days Lease", row["Days Lease"]],
+                ["Lease Status", row["Lease Status"]],
+                ["Location", row["Location"]],
+                ["IP List", row["IP List"]],
+                ["Start Date", row["Start Date"]],
+                ["End Date", row["End Date"]],
+                ["Hystory Log", historyLines[historyLines.length - 1] || "-"],
+                ["Keterangan", row["Keterangan"]],
+                ["Bitlocker Key", row["Bitlocker Key"]]
             ];
 
-            viewDrawerBody.innerHTML = detailFields.map(([label, key]) => `
+            viewDrawerBody.innerHTML = detailFields.map(([label, value]) => `
                 <div class="view-drawer-item">
                     <div class="view-drawer-label">${escapeHtml(label)}</div>
-                    <div class="view-drawer-value">${escapeHtml(toDisplayValue(row[key]))}</div>
+                    <div class="view-drawer-value">${escapeHtml(toDisplayValue(value))}</div>
                 </div>
             `).join("");
 
@@ -788,9 +1039,12 @@
         }
 
         function closeViewDrawer() {
+            closeHistoryLogOverlay();
             viewDrawerOverlay.classList.remove("open");
             viewDrawerOverlay.setAttribute("aria-hidden", "true");
             document.body.style.overflow = "";
+            currentDrawerHistoryLog = "";
+            viewDrawerHistoryButton.textContent = "History Log";
         }
 
         function viewRow(row) {
@@ -826,6 +1080,7 @@
             editingDeviceId = row.id;
             formCardTitle.textContent = "Edit Data Perangkat";
             submitButton.textContent = "Update Data";
+            applyRoleBasedFieldPermissions();
             setFormVisibility(true, true);
         }
 
@@ -837,7 +1092,7 @@
 
             hideAlert();
 
-            const response = await fetch(`${API_BASE}/device-records/${row.id}`, {
+            const response = await apiFetch(`${API_BASE}/device-records/${row.id}`, {
                 method: "DELETE"
             });
 
@@ -905,9 +1160,12 @@
                 const payload = getPayload();
                 const isEdit = Boolean(editingDeviceId);
                 const endpoint = isEdit ? `${API_BASE}/device-records/${editingDeviceId}` : `${API_BASE}/device-records`;
-                const response = await fetch(endpoint, {
+                const response = await apiFetch(endpoint, {
                     method: isEdit ? "PUT" : "POST",
-                    headers: { "Content-Type": "application/json" },
+                    headers: {
+                        "Content-Type": "application/json",
+                        "x-user-role": currentUserRole
+                    },
                     body: JSON.stringify(payload)
                 });
 
@@ -975,12 +1233,24 @@
         });
         refreshButton.addEventListener("click", initialize);
         viewDrawerCloseButton.addEventListener("click", closeViewDrawer);
+        viewDrawerHistoryButton.addEventListener("click", openHistoryLogOverlay);
+        historyLogCloseButton.addEventListener("click", closeHistoryLogOverlay);
+        historyLogOverlay.addEventListener("click", (event) => {
+            if (event.target === historyLogOverlay) {
+                closeHistoryLogOverlay();
+            }
+        });
         viewDrawerOverlay.addEventListener("click", (event) => {
             if (event.target === viewDrawerOverlay) {
                 closeViewDrawer();
             }
         });
         document.addEventListener("keydown", (event) => {
+            if (event.key === "Escape" && historyLogOverlay.classList.contains("open")) {
+                closeHistoryLogOverlay();
+                return;
+            }
+
             if (event.key === "Escape" && viewDrawerOverlay.classList.contains("open")) {
                 closeViewDrawer();
             }

@@ -1,0 +1,153 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="utf-8">
+    <meta http-equiv="x-ua-compatible" content="IE=edge">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Login - Computer Inventory</title>
+    <link rel="shortcut icon" type="image/x-icon" href="assets/images/favicon.ico">
+    <link rel="stylesheet" type="text/css" href="assets/css/bootstrap.min.css">
+    <link rel="stylesheet" type="text/css" href="assets/vendors/css/vendors.min.css">
+    <link rel="stylesheet" type="text/css" href="assets/css/theme.min.css">
+    <script src="assets/js/auth-client.js"></script>
+    <style>
+        .login-shell {
+            min-height: 100vh;
+            display: grid;
+            place-items: center;
+            padding: 24px;
+            background: radial-gradient(circle at top left, #dbeafe 0%, #f8fafc 46%, #ecfeff 100%);
+        }
+
+        .login-card {
+            width: min(460px, 100%);
+            border: 0;
+            border-radius: 18px;
+            box-shadow: 0 16px 42px rgba(15, 23, 42, 0.16);
+        }
+
+        .login-brand {
+            font-weight: 800;
+            letter-spacing: 0.04em;
+            color: #0f172a;
+        }
+    </style>
+</head>
+
+<body>
+    <main class="login-shell">
+        <div class="card login-card">
+            <div class="card-body p-4 p-md-5">
+                <h2 class="login-brand mb-1">DURALUX</h2>
+                <p class="text-muted mb-4">Login untuk mengakses Computer Inventory.</p>
+
+                <div id="alertBox" class="alert d-none" role="alert"></div>
+
+                <form id="loginForm">
+                    <div class="mb-3">
+                        <label for="email" class="form-label">Email</label>
+                        <input type="email" class="form-control" id="email" placeholder="email@company.com" required>
+                    </div>
+
+                    <div class="mb-3">
+                        <label for="password" class="form-label">Password</label>
+                        <input type="password" class="form-control" id="password" placeholder="Masukkan password" required>
+                    </div>
+
+                    <div class="form-check mb-4">
+                        <input class="form-check-input" type="checkbox" value="1" id="rememberMe" checked>
+                        <label class="form-check-label" for="rememberMe">
+                            Tetap login di perangkat ini
+                        </label>
+                    </div>
+
+                    <button type="submit" class="btn btn-primary w-100" id="submitButton">Login</button>
+                </form>
+            </div>
+        </div>
+    </main>
+
+    <script>
+        const API_BASE = "http://localhost:3001/api";
+        const loginForm = document.getElementById("loginForm");
+        const alertBox = document.getElementById("alertBox");
+        const submitButton = document.getElementById("submitButton");
+        const emailInput = document.getElementById("email");
+        const passwordInput = document.getElementById("password");
+        const rememberMeInput = document.getElementById("rememberMe");
+
+        function showAlert(message, type) {
+            alertBox.className = `alert alert-${type}`;
+            alertBox.textContent = message;
+            alertBox.classList.remove("d-none");
+        }
+
+        function hideAlert() {
+            alertBox.classList.add("d-none");
+            alertBox.textContent = "";
+        }
+
+        function getNextPath() {
+            const params = new URLSearchParams(window.location.search);
+            const next = String(params.get("next") || "").trim();
+            if (window.AuthClient && window.AuthClient.isSafeInternalPath(next)) {
+                return next;
+            }
+
+            return "index.html";
+        }
+
+        async function submitLogin(event) {
+            event.preventDefault();
+            hideAlert();
+
+            const email = emailInput.value.trim().toLowerCase();
+            const password = passwordInput.value;
+            const rememberMe = rememberMeInput.checked;
+
+            if (!email || !password) {
+                showAlert("Email dan password wajib diisi.", "danger");
+                return;
+            }
+
+            submitButton.disabled = true;
+            submitButton.textContent = "Memproses...";
+
+            try {
+                const response = await fetch(`${API_BASE}/auth/login`, {
+                    method: "POST",
+                    headers: { "Content-Type": "application/json" },
+                    body: JSON.stringify({ email, password })
+                });
+
+                const result = await response.json().catch(() => ({}));
+                if (!response.ok) {
+                    throw new Error(result.message || "Login gagal.");
+                }
+
+                const token = result?.data?.token;
+                const user = result?.data?.user;
+                if (!window.AuthClient || !token || !user) {
+                    throw new Error("Sesi login tidak valid.");
+                }
+
+                window.AuthClient.setSession(token, user, rememberMe);
+                window.location.href = getNextPath();
+            } catch (error) {
+                showAlert(error.message || "Login gagal.", "danger");
+            } finally {
+                submitButton.disabled = false;
+                submitButton.textContent = "Login";
+            }
+        }
+
+        if (window.AuthClient) {
+            window.AuthClient.redirectIfAuthenticated("index.html");
+        }
+
+        loginForm.addEventListener("submit", submitLogin);
+    </script>
+</body>
+
+</html>

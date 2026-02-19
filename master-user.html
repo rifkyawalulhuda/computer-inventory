@@ -10,6 +10,13 @@
     <link rel="stylesheet" type="text/css" href="assets/css/bootstrap.min.css">
     <link rel="stylesheet" type="text/css" href="assets/vendors/css/vendors.min.css">
     <link rel="stylesheet" type="text/css" href="assets/css/theme.min.css">
+    <script src="assets/js/auth-client.js"></script>
+    <script>
+        if (window.AuthClient) {
+            window.AuthClient.requireAuth();
+            window.AuthClient.validateSession("http://localhost:3001/api");
+        }
+    </script>
     <style>
         .page-shell {
             min-height: 100vh;
@@ -146,6 +153,13 @@
 
     <script>
         const API_BASE = "http://localhost:3001/api";
+        async function apiFetch(url, options = {}) {
+            if (window.AuthClient) {
+                return window.AuthClient.fetchWithAuth(url, options);
+            }
+
+            return fetch(url, options);
+        }
         const tableBody = document.getElementById("tableBody");
         const alertBox = document.getElementById("alertBox");
         const form = document.getElementById("masterUserForm");
@@ -278,7 +292,7 @@
         }
 
         async function loadJobCodes() {
-            const response = await fetch(`${API_BASE}/master-job-codes`);
+            const response = await apiFetch(`${API_BASE}/master-job-codes`);
             const result = await response.json();
 
             if (!response.ok) {
@@ -296,7 +310,7 @@
                 </tr>
             `;
 
-            const response = await fetch(`${API_BASE}/master-users`);
+            const response = await apiFetch(`${API_BASE}/master-users`);
             const result = await response.json();
             if (!response.ok) {
                 throw new Error(result.message || "Gagal memuat data user.");
@@ -334,7 +348,7 @@
                     delete payload.password;
                 }
 
-                const response = await fetch(
+                const response = await apiFetch(
                     isEdit ? `${API_BASE}/master-users/${id}` : `${API_BASE}/master-users`,
                     {
                         method: isEdit ? "PUT" : "POST",
@@ -363,7 +377,7 @@
             hideAlert();
 
             try {
-                const response = await fetch(`${API_BASE}/master-users/${id}`, { method: "DELETE" });
+                const response = await apiFetch(`${API_BASE}/master-users/${id}`, { method: "DELETE" });
                 if (!response.ok) {
                     const result = await response.json().catch(() => ({}));
                     throw new Error(result.message || "Gagal menghapus data.");

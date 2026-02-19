@@ -12,6 +12,13 @@
     <!--! BEGIN: Apps Title-->
     <title>Computer Inventory || Dashboard</title>
     <!--! END:  Apps Title-->
+    <script src="assets/js/auth-client.js"></script>
+    <script>
+        if (window.AuthClient) {
+            window.AuthClient.requireAuth();
+            window.AuthClient.validateSession("http://localhost:3001/api");
+        }
+    </script>
     <!--! BEGIN: Favicon-->
     <link rel="shortcut icon" type="image/x-icon" href="assets/images/favicon.ico" />
     <!--! END: Favicon-->
