@@ -252,6 +252,16 @@ function appendHistoryEntries(
   return base ? `${base}\n${cleanEntries.join("\n")}` : cleanEntries.join("\n");
 }
 
+function toCompactHistoryValue(value: string | number | null | undefined): string {
+  const text = toHistoryDisplayValue(value);
+  const maxLength = 28;
+  if (text.length <= maxLength) {
+    return text;
+  }
+
+  return `${text.slice(0, maxLength - 3)}...`;
+}
+
 function getChangedFieldMessages(changes: HistoryFieldChange[]): string[] {
   return changes
     .filter(
@@ -260,7 +270,7 @@ function getChangedFieldMessages(changes: HistoryFieldChange[]): string[] {
     )
     .map(
       ({ label, before, after }) =>
-        `${label}: "${toHistoryDisplayValue(before)}" -> "${toHistoryDisplayValue(after)}"`,
+        `${label}:${toCompactHistoryValue(before)}->${toCompactHistoryValue(after)}`,
     );
 }
 
@@ -281,6 +291,16 @@ function parseEditorRole(req: Request): EditorRole {
   const body = req.body as Record<string, unknown> | null | undefined;
   const rawRole = cleanText(req.header("x-user-role") ?? body?.editorRole).toLowerCase();
   return rawRole === "user" ? "user" : "admin";
+}
+
+function getHistoryActorName(req: Request, fallbackName?: string): string {
+  const authName = cleanText(req.authUser?.name);
+  if (authName) {
+    return authName;
+  }
+
+  const fallback = cleanText(fallbackName);
+  return fallback || "Unknown";
 }
 
 function splitIpList(ipList: string | null): string[] {
@@ -513,6 +533,7 @@ deviceRecordRouter.get("/device-records", async (_req, res, next) => {
 deviceRecordRouter.post("/device-records", async (req, res, next) => {
   try {
     const payload = parsePayload(req.body);
+    const actorName = getHistoryActorName(req);
 
     const created = await prisma.$transaction(async (tx) => {
       const picUser = await validateJobAndPic(tx, payload);
@@ -544,7 +565,7 @@ deviceRecordRouter.post("/device-records", async (req, res, next) => {
       await syncDeviceIps(tx, device.id, payload.ipList);
       const createdHistoryLog = appendHistoryEntries(payload.hystoryLog, [
         buildHistoryEntry(
-          `Data perangkat dibuat oleh ${picUser.name}${payload.serialNo ? ` (Serial No: ${payload.serialNo})` : ""
+          `Data perangkat dibuat oleh ${actorName || picUser.name}${payload.serialNo ? ` (Serial No: ${payload.serialNo})` : ""
           }.`,
         ),
       ]);
@@ -580,6 +601,7 @@ deviceRecordRouter.put("/device-records/:id", async (req, res, next) => {
 
     const editorRole = parseEditorRole(req);
     const payload = parsePayload(req.body);
+    const actorName = getHistoryActorName(req);
 
     const updated = await prisma.$transaction(async (tx) => {
       const existing = await tx.device.findUnique({
@@ -788,8 +810,9 @@ deviceRecordRouter.put("/device-records/:id", async (req, res, next) => {
       ]);
       const historyEntries = changedFieldMessages.length
         ? [
-          buildHistoryEntry(`Data perangkat diubah oleh ${picUser.name}.`),
-          ...changedFieldMessages.map((message) => buildHistoryEntry(message)),
+          buildHistoryEntry(
+            `Data perangkat diubah oleh ${actorName}: ${changedFieldMessages.join("; ")}`,
+          ),
         ]
         : [];
       const updatedHistoryLog = appendHistoryEntries(latestLease?.historyLog, historyEntries);
@@ -875,4 +898,3 @@ deviceRecordRouter.delete("/device-records/:id", async (req, res, next) => {
     next(error);
   }
 });
-
