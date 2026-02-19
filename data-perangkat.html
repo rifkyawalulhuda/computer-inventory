@@ -1659,9 +1659,11 @@
                             <button type="button" class="btn btn-light border text-primary" data-action="edit" data-id="${escapeHtml(row.id)}" title="Edit">
                                 <i class="feather-edit-2"></i>
                             </button>
+                            ${currentUserRole !== "user" ? `
                             <button type="button" class="btn btn-light border text-danger" data-action="delete" data-id="${escapeHtml(row.id)}" title="Hapus">
                                 <i class="feather-trash-2"></i>
                             </button>
+                            ` : ""}
                         </div>
                     </td>
                 </tr>
@@ -1872,7 +1874,10 @@
             hideAlert();
 
             const response = await apiFetch(`${API_BASE}/device-records/${row.id}`, {
-                method: "DELETE"
+                method: "DELETE",
+                headers: {
+                    "x-user-role": currentUserRole
+                }
             });
 
             if (!response.ok) {
@@ -1923,6 +1928,11 @@
                 }
 
                 if (action === "delete") {
+                    if (currentUserRole === "user") {
+                        showAlert("Role user tidak diizinkan menghapus data perangkat.", "danger");
+                        return;
+                    }
+
                     await deleteRow(row);
                 }
             } catch (error) {
