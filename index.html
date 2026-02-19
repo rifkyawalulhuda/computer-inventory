@@ -2013,8 +2013,9 @@
                                 <div class="d-flex align-items-center">
                                     <img src="assets/images/avatar/1.png" alt="user-image" class="img-fluid user-avtar" id="dropdownUserAvatar" />
                                     <div>
-                                        <h6 class="text-dark mb-0"><span id="dropdownUserName">Alexandra Della</span> <span class="badge bg-soft-success text-success ms-1">PRO</span></h6>
+                                        <h6 class="text-dark mb-0"><span id="dropdownUserName">Alexandra Della</span> <span class="badge bg-soft-success text-success ms-1" id="dropdownUserRoleBadge">USER</span></h6>
                                         <span class="fs-12 fw-medium text-muted" id="dropdownUserEmail">alex@example.com</span>
+                                        <div class="fs-12 fw-semibold text-muted mt-1" id="dropdownUserJobCodeStatus">Job Code: -</div>
                                     </div>
                                 </div>
                             </div>
@@ -3439,6 +3440,8 @@
             const dropdownUserAvatar = document.getElementById("dropdownUserAvatar");
             const dropdownUserName = document.getElementById("dropdownUserName");
             const dropdownUserEmail = document.getElementById("dropdownUserEmail");
+            const dropdownUserRoleBadge = document.getElementById("dropdownUserRoleBadge");
+            const dropdownUserJobCodeStatus = document.getElementById("dropdownUserJobCodeStatus");
             const inlineContainer = document.getElementById("masterInlineContainer");
             const inlineFrame = document.getElementById("masterInlineFrame");
             const mainContent = document.querySelector(".main-content");
@@ -3513,6 +3516,12 @@
                     : (rawAvatarSrc || DEFAULT_AVATAR);
                 const userName = String(user.name || "").trim() || "User";
                 const userEmail = String(user.email || "").trim() || "-";
+                const role = String(user.role || "").trim().toLowerCase() === "admin" ? "admin" : "user";
+                const jobCodeCode = String(user.jobCode?.code || "").trim();
+                const jobCodeSiteName = String(user.jobCode?.siteName || "").trim();
+                const jobCodeStatus = jobCodeCode
+                    ? `Job Code: ${jobCodeCode}${jobCodeSiteName ? ` - ${jobCodeSiteName}` : ""}`
+                    : "Job Code: -";
 
                 if (headerUserAvatar) {
                     headerUserAvatar.src = avatarSrc;
@@ -3528,6 +3537,21 @@
 
                 if (dropdownUserEmail) {
                     dropdownUserEmail.textContent = userEmail;
+                }
+
+                if (dropdownUserJobCodeStatus) {
+                    dropdownUserJobCodeStatus.textContent = jobCodeStatus;
+                }
+
+                if (dropdownUserRoleBadge) {
+                    dropdownUserRoleBadge.textContent = role.toUpperCase();
+                    dropdownUserRoleBadge.classList.remove("bg-soft-success", "text-success", "bg-soft-primary", "text-primary");
+
+                    if (role === "admin") {
+                        dropdownUserRoleBadge.classList.add("bg-soft-success", "text-success");
+                    } else {
+                        dropdownUserRoleBadge.classList.add("bg-soft-primary", "text-primary");
+                    }
                 }
             }
 

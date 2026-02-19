@@ -63,6 +63,12 @@ authRouter.post("/auth/login", async (req, res, next) => {
         jobCodeId: true,
         contact: true,
         rank: true,
+        jobCode: {
+          select: {
+            code: true,
+            siteName: true,
+          },
+        },
       },
     });
 
@@ -93,6 +99,7 @@ authRouter.post("/auth/login", async (req, res, next) => {
           role: user.role,
           email: user.email,
           jobCodeId: user.jobCodeId,
+          jobCode: user.jobCode,
           contact: user.contact,
           rank: user.rank,
           profilePhotoUrl,
@@ -121,6 +128,12 @@ authRouter.get("/auth/me", requireAuth, async (req, res, next) => {
         jobCodeId: true,
         contact: true,
         rank: true,
+        jobCode: {
+          select: {
+            code: true,
+            siteName: true,
+          },
+        },
       },
     });
 
@@ -162,6 +175,12 @@ authRouter.patch("/auth/profile", requireAuth, async (req, res, next) => {
         jobCodeId: true,
         contact: true,
         rank: true,
+        jobCode: {
+          select: {
+            code: true,
+            siteName: true,
+          },
+        },
       },
     });
 
