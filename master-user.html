@@ -16,7 +16,7 @@
             if (!window.AuthClient.requireRole("admin", "index.html")) {
                 // Redirect handled by AuthClient.
             } else {
-                window.AuthClient.validateSession("http://localhost:3001/api");
+                window.AuthClient.validateSession(`${window.location.protocol === "https:" ? "https:" : "http:"}//${window.location.hostname || "localhost"}:3001/api`);
             }
         }
     </script>
@@ -321,7 +321,7 @@
     </div>
 
     <script>
-        const API_BASE = "http://localhost:3001/api";
+        const API_BASE = `${window.location.protocol === "https:" ? "https:" : "http:"}//${window.location.hostname || "localhost"}:3001/api`;
         async function apiFetch(url, options = {}) {
             if (window.AuthClient) {
                 return window.AuthClient.fetchWithAuth(url, options);

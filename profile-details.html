@@ -14,7 +14,7 @@
     <script>
         if (window.AuthClient) {
             window.AuthClient.requireAuth();
-            window.AuthClient.validateSession("http://localhost:3001/api");
+            window.AuthClient.validateSession(`${window.location.protocol === "https:" ? "https:" : "http:"}//${window.location.hostname || "localhost"}:3001/api`);
         }
     </script>
     <style>
@@ -103,7 +103,7 @@
     </main>
 
     <script>
-        const API_BASE = "http://localhost:3001/api";
+        const API_BASE = `${window.location.protocol === "https:" ? "https:" : "http:"}//${window.location.hostname || "localhost"}:3001/api`;
         const DEFAULT_AVATAR = "assets/images/avatar/1.png";
 
         const alertBox = document.getElementById("alertBox");
@@ -140,7 +140,7 @@
             }
 
             if (value.startsWith("/")) {
-                return `http://localhost:3001${value}`;
+                return `${window.location.protocol === "https:" ? "https:" : "http:"}//${window.location.hostname || "localhost"}:3001${value}`;
             }
 
             return value;

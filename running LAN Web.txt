@@ -1,0 +1,40 @@
+Script LAN sudah saya buat di root project: package.json.
+
+Isi script yang ditambahkan:
+
+dev:lan: jalankan backend + frontend LAN sekaligus
+dev:api: jalankan backend saja
+dev:web:lan: jalankan frontend static server saja
+File yang dibuat:
+
+package.json
+package-lock.json
+Cara pakai:
+
+Buka terminal di D:\Github\computer-inventory
+Jalankan:
+
+npm run dev:lan
+
+Akses dari device lain di jaringan yang sama:
+http://<IP-PC-ANDA>:8080/auth-login.html
+Stop service:
+
+Tekan Ctrl + C di terminal.
+
+Mengganti port Server =
+
+Edit di file root: computer-inventory\package.json.
+
+Yang diubah:
+
+Script dev:lan bagian http-server ... -p 8080 ...
+Script dev:web:lan bagian http-server ... -p 8080 ...
+Contoh ganti ke 8090:
+
+"dev:lan": "concurrently -k -n API,WEB -c blue,green \"npm --prefix backend run dev\" \"http-server . -p 8090 -a 0.0.0.0 -c-1\"",
+"dev:web:lan": "http-server . -p 8090 -a 0.0.0.0 -c-1"
+Setelah itu jalankan lagi:
+
+npm run dev:lan
+dan akses via http://IP-PC:8090/auth-login.html.

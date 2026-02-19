@@ -16,7 +16,7 @@
     <script>
         if (window.AuthClient) {
             window.AuthClient.requireAuth();
-            window.AuthClient.validateSession("http://localhost:3001/api");
+            window.AuthClient.validateSession(`${window.location.protocol === "https:" ? "https:" : "http:"}//${window.location.hostname || "localhost"}:3001/api`);
         }
     </script>
     <!--! BEGIN: Favicon-->
@@ -3222,12 +3222,12 @@
         <!-- [ Footer ] start -->
         <footer class="footer">
             <p class="fs-11 text-muted fw-medium text-uppercase mb-0 copyright">
-                <span>Copyright ©</span>
+                <span>Copyright &copy;</span>
                 <script>
                     document.write(new Date().getFullYear());
                 </script>
             </p>
-            <p><span>By: <a target="_blank" href="https://sankyuidn.co.id" target="_blank">Sankyu Indonesia</a></span> • <span>Distributed by: <a target="_blank" href="https://themewagon.com" target="_blank">ThemeWagon</a></span></p>
+            <p><span>By: <a target="_blank" href="https://sankyuidn.co.id" target="_blank">Sankyu Indonesia</a></span> &bull; <span>Distributed by: <a target="_blank" href="https://themewagon.com" target="_blank">ThemeWagon</a></span></p>
             <div class="d-flex align-items-center gap-4">
                 <a href="javascript:void(0);" class="fs-11 fw-semibold text-uppercase">Help</a>
                 <a href="javascript:void(0);" class="fs-11 fw-semibold text-uppercase">Terms</a>
@@ -3515,7 +3515,7 @@
                 const user = window.AuthClient.getUser() || {};
                 const rawAvatarSrc = String(user.profilePhotoUrl || user.profilePhotoDataUrl || "").trim();
                 const avatarSrc = rawAvatarSrc.startsWith("/")
-                    ? `http://localhost:3001${rawAvatarSrc}`
+                    ? `${window.location.protocol === "https:" ? "https:" : "http:"}//${window.location.hostname || "localhost"}:3001${rawAvatarSrc}`
                     : (rawAvatarSrc || DEFAULT_AVATAR);
                 const userName = String(user.name || "").trim() || "User";
                 const userEmail = String(user.email || "").trim() || "-";
@@ -3619,6 +3619,7 @@
 </body>
 
 </html>
+
 
 
 

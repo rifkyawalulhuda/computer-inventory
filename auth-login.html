@@ -274,7 +274,7 @@
     </main>
 
     <script>
-        const API_BASE = "http://localhost:3001/api";
+        const API_BASE = `${window.location.protocol === "https:" ? "https:" : "http:"}//${window.location.hostname || "localhost"}:3001/api`;
         const loginForm = document.getElementById("loginForm");
         const alertBox = document.getElementById("alertBox");
         const submitButton = document.getElementById("submitButton");
