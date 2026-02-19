@@ -1,6 +1,10 @@
 import bcrypt from "bcryptjs";
 import { Router } from "express";
 import { createAuthToken } from "../lib/auth";
+import {
+  getUserProfilePhotoRelativePath,
+  saveUserProfilePhoto,
+} from "../lib/profile-photo";
 import { prisma } from "../lib/prisma";
 import { requireAuth } from "../middleware/auth";
 
@@ -8,6 +12,35 @@ export const authRouter = Router();
 
 function cleanText(value: unknown): string {
   return String(value ?? "").trim();
+}
+
+function parseProfilePayload(payload: unknown): {
+  contact: string;
+  rank: string;
+  profilePhotoDataUrl: string | null;
+} {
+  if (!payload || typeof payload !== "object") {
+    throw new Error("Payload tidak valid.");
+  }
+
+  const body = payload as Record<string, unknown>;
+  const contact = cleanText(body.contact);
+  const rank = cleanText(body.rank);
+  const profilePhotoDataUrlRaw = cleanText(body.profilePhotoDataUrl);
+
+  if (!contact || contact.length > 50) {
+    throw new Error("Contact wajib diisi (maksimal 50 karakter).");
+  }
+
+  if (!rank || rank.length > 50) {
+    throw new Error("Rank wajib diisi (maksimal 50 karakter).");
+  }
+
+  return {
+    contact,
+    rank,
+    profilePhotoDataUrl: profilePhotoDataUrlRaw ? profilePhotoDataUrlRaw : null,
+  };
 }
 
 authRouter.post("/auth/login", async (req, res, next) => {
@@ -28,6 +61,8 @@ authRouter.post("/auth/login", async (req, res, next) => {
         email: true,
         passwordHash: true,
         jobCodeId: true,
+        contact: true,
+        rank: true,
       },
     });
 
@@ -47,6 +82,8 @@ authRouter.post("/auth/login", async (req, res, next) => {
       name: user.name,
     });
 
+    const profilePhotoUrl = await getUserProfilePhotoRelativePath(user.id);
+
     return res.json({
       data: {
         token,
@@ -56,6 +93,9 @@ authRouter.post("/auth/login", async (req, res, next) => {
           role: user.role,
           email: user.email,
           jobCodeId: user.jobCodeId,
+          contact: user.contact,
+          rank: user.rank,
+          profilePhotoUrl,
         },
       },
     });
@@ -79,6 +119,8 @@ authRouter.get("/auth/me", requireAuth, async (req, res, next) => {
         role: true,
         email: true,
         jobCodeId: true,
+        contact: true,
+        rank: true,
       },
     });
 
@@ -86,8 +128,59 @@ authRouter.get("/auth/me", requireAuth, async (req, res, next) => {
       return res.status(401).json({ message: "Unauthorized." });
     }
 
-    return res.json({ data: user });
+    const profilePhotoUrl = await getUserProfilePhotoRelativePath(user.id);
+    return res.json({
+      data: {
+        ...user,
+        profilePhotoUrl,
+      },
+    });
   } catch (error) {
+    next(error);
+  }
+});
+
+authRouter.patch("/auth/profile", requireAuth, async (req, res, next) => {
+  try {
+    const userId = cleanText(req.authUser?.id);
+    if (!userId) {
+      return res.status(401).json({ message: "Unauthorized." });
+    }
+
+    const payload = parseProfilePayload(req.body);
+    const updated = await prisma.masterUser.update({
+      where: { id: userId },
+      data: {
+        contact: payload.contact,
+        rank: payload.rank,
+      },
+      select: {
+        id: true,
+        name: true,
+        role: true,
+        email: true,
+        jobCodeId: true,
+        contact: true,
+        rank: true,
+      },
+    });
+
+    let profilePhotoUrl = await getUserProfilePhotoRelativePath(userId);
+    if (payload.profilePhotoDataUrl) {
+      profilePhotoUrl = await saveUserProfilePhoto(userId, payload.profilePhotoDataUrl);
+    }
+
+    return res.json({
+      data: {
+        ...updated,
+        profilePhotoUrl,
+      },
+    });
+  } catch (error) {
+    if (error instanceof Error) {
+      return res.status(400).json({ message: error.message });
+    }
+
     next(error);
   }
 });

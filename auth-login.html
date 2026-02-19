@@ -132,6 +132,19 @@
                     throw new Error("Sesi login tidak valid.");
                 }
 
+                const previousUser = window.AuthClient.getUser() || {};
+                const previousEmail = String(previousUser.email || "").trim().toLowerCase();
+                const nextEmail = String(user.email || "").trim().toLowerCase();
+                if (previousEmail && nextEmail && previousEmail === nextEmail) {
+                    if (!user.profilePhotoUrl && previousUser.profilePhotoUrl) {
+                        user.profilePhotoUrl = previousUser.profilePhotoUrl;
+                    }
+
+                    if (!user.profilePhotoDataUrl && previousUser.profilePhotoDataUrl) {
+                        user.profilePhotoDataUrl = previousUser.profilePhotoDataUrl;
+                    }
+                }
+
                 window.AuthClient.setSession(token, user, rememberMe);
                 window.location.href = getNextPath();
             } catch (error) {

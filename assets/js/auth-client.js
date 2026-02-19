@@ -55,6 +55,20 @@
         return getUserFromStorage(getSafeStorage("local")) || getUserFromStorage(getSafeStorage("session"));
     }
 
+    function getActiveSessionStorage() {
+        var localStorageRef = getSafeStorage("local");
+        if (getTokenFromStorage(localStorageRef)) {
+            return localStorageRef;
+        }
+
+        var sessionStorageRef = getSafeStorage("session");
+        if (getTokenFromStorage(sessionStorageRef)) {
+            return sessionStorageRef;
+        }
+
+        return null;
+    }
+
     function getUserRole() {
         var user = getUser();
         var role = String((user && user.role) || "").trim().toLowerCase();
@@ -104,6 +118,26 @@
         targetStorage.setItem(USER_KEY, JSON.stringify(user));
         if (roleText === "admin" || roleText === "user") {
             targetStorage.setItem(ROLE_KEY, roleText);
+        }
+    }
+
+    function setUser(user) {
+        if (!user || typeof user !== "object") {
+            return;
+        }
+
+        var storage = getActiveSessionStorage();
+        if (!storage) {
+            return;
+        }
+
+        var currentUser = getUserFromStorage(storage) || {};
+        var nextUser = Object.assign({}, currentUser, user);
+        var roleText = String(nextUser.role || "").trim().toLowerCase();
+
+        storage.setItem(USER_KEY, JSON.stringify(nextUser));
+        if (roleText === "admin" || roleText === "user") {
+            storage.setItem(ROLE_KEY, roleText);
         }
     }
 
@@ -191,6 +225,11 @@
                 return false;
             }
 
+            var result = await response.json().catch(function () { return {}; });
+            if (result && result.data) {
+                setUser(result.data);
+            }
+
             return true;
         } catch (_error) {
             clearSession();
@@ -205,6 +244,7 @@
         getUserRole: getUserRole,
         isAuthenticated: isAuthenticated,
         setSession: setSession,
+        setUser: setUser,
         clearSession: clearSession,
         requireAuth: requireAuth,
         redirectToLogin: redirectToLogin,
