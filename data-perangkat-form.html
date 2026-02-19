@@ -528,7 +528,6 @@
                                     </div>
                                     <div class="d-flex gap-2 device-form-actions">
                                         <button type="submit" class="btn btn-primary" id="submitButton">Simpan Data</button>
-                                        <button type="button" class="btn btn-light border" id="resetButton">Reset</button>
                                     </div>
                                 </div>
                             </div>
@@ -662,7 +661,6 @@
         const hystoryLogInput = document.getElementById("hystoryLog");
         const keteranganInput = document.getElementById("keterangan");
         const bitlockerKeyInput = document.getElementById("bitlockerKey");
-        const resetButton = document.getElementById("resetButton");
         const closeFormButton = document.getElementById("closeFormButton");
         const roleEditHint = document.getElementById("roleEditHint");
         const addDataButton = document.getElementById("addDataButton");
@@ -1521,10 +1519,6 @@
 
         tableBody.addEventListener("click", handleTableAction);
         form.addEventListener("submit", submitForm);
-        resetButton.addEventListener("click", () => {
-            hideAlert();
-            resetForm();
-        });
         addDataButton.addEventListener("click", () => {
             if (currentUserRole === "user") {
                 showAlert("Role user tidak diizinkan menambah data perangkat.", "danger");
