@@ -1034,6 +1034,20 @@
                 .replaceAll("'", "&#39;");
         }
 
+        function renderLeaseStatusBadge(value) {
+            const label = toDisplayValue(value);
+            const normalizedValue = String(value ?? "").trim().toUpperCase();
+
+            let badgeClass = "bg-soft-primary text-primary";
+            if (normalizedValue === "ACTIVE") {
+                badgeClass = "bg-soft-success text-success";
+            } else if (normalizedValue === "EXPIRED") {
+                badgeClass = "bg-soft-danger text-danger";
+            }
+
+            return `<span class="badge ${badgeClass}">${escapeHtml(label)}</span>`;
+        }
+
         function getFilteredUsersByJobCode(jobCodeId) {
             if (!Number.isInteger(jobCodeId) || jobCodeId < 1) {
                 return [];
@@ -1636,7 +1650,7 @@
                     <td title="${escapeHtml(row["User Email"])}">${escapeHtml(row["User Email"])}</td>
                     <td>${escapeHtml(row["Status"])}</td>
                     <td>${escapeHtml(row["Days Lease"])}</td>
-                    <td>${escapeHtml(row["Lease Status"])}</td>
+                    <td>${renderLeaseStatusBadge(row["Lease Status"])}</td>
                     <td>
                         <div class="btn-group btn-group-sm table-action-group" role="group" aria-label="Aksi Data Perangkat">
                             <button type="button" class="btn btn-light border text-info" data-action="view" data-id="${escapeHtml(row.id)}" title="Lihat">
