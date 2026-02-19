@@ -655,7 +655,7 @@
                     </div>
                     <div class="device-table-filters mb-3">
                         <div class="row g-2 align-items-end">
-                            <div class="col-12 col-xl-5">
+                            <div class="col-12 col-xl-4">
                                 <label for="tableSearchInput" class="form-label">Pencarian Data</label>
                                 <div class="input-group filter-search-group">
                                     <span class="input-group-text"><i class="feather-search"></i></span>
@@ -665,7 +665,7 @@
                                     </button>
                                 </div>
                             </div>
-                            <div class="col-12 col-md-6 col-xl-3">
+                            <div class="col-12 col-md-6 col-xl-2">
                                 <label class="form-label">Filter Job Code</label>
                                 <div class="dropdown w-100">
                                     <button class="btn btn-light border dropdown-toggle w-100 text-start filter-dropdown-button" type="button" id="jobCodeFilterButton" aria-expanded="false">
@@ -674,7 +674,7 @@
                                     <div class="dropdown-menu w-100 p-2 filter-dropdown-menu" id="jobCodeFilterMenu" data-filter-type="jobCode"></div>
                                 </div>
                             </div>
-                            <div class="col-12 col-md-6 col-xl-3">
+                            <div class="col-12 col-md-6 col-xl-2">
                                 <label class="form-label">Filter Status</label>
                                 <div class="dropdown w-100">
                                     <button class="btn btn-light border dropdown-toggle w-100 text-start filter-dropdown-button" type="button" id="statusFilterButton" aria-expanded="false">
@@ -683,7 +683,16 @@
                                     <div class="dropdown-menu w-100 p-2 filter-dropdown-menu" id="statusFilterMenu" data-filter-type="status"></div>
                                 </div>
                             </div>
-                            <div class="col-12 col-xl-1">
+                            <div class="col-12 col-md-6 col-xl-2">
+                                <label class="form-label">Filter Lease Status</label>
+                                <div class="dropdown w-100">
+                                    <button class="btn btn-light border dropdown-toggle w-100 text-start filter-dropdown-button" type="button" id="leaseStatusFilterButton" aria-expanded="false">
+                                        Semua Lease Status
+                                    </button>
+                                    <div class="dropdown-menu w-100 p-2 filter-dropdown-menu" id="leaseStatusFilterMenu" data-filter-type="leaseStatus"></div>
+                                </div>
+                            </div>
+                            <div class="col-12 col-xl-2">
                                 <button type="button" class="btn btn-light border w-100" id="clearTableFilterButton">Reset</button>
                             </div>
                         </div>
@@ -814,11 +823,14 @@
         const clearTableFilterButton = document.getElementById("clearTableFilterButton");
         const jobCodeFilterButton = document.getElementById("jobCodeFilterButton");
         const statusFilterButton = document.getElementById("statusFilterButton");
+        const leaseStatusFilterButton = document.getElementById("leaseStatusFilterButton");
         const jobCodeFilterMenu = document.getElementById("jobCodeFilterMenu");
         const statusFilterMenu = document.getElementById("statusFilterMenu");
+        const leaseStatusFilterMenu = document.getElementById("leaseStatusFilterMenu");
         const filterDropdownControls = [
             { button: jobCodeFilterButton, menu: jobCodeFilterMenu },
-            { button: statusFilterButton, menu: statusFilterMenu }
+            { button: statusFilterButton, menu: statusFilterMenu },
+            { button: leaseStatusFilterButton, menu: leaseStatusFilterMenu }
         ];
         const viewDrawerOverlay = document.getElementById("viewDrawerOverlay");
         const viewDrawerBody = document.getElementById("viewDrawerBody");
@@ -883,6 +895,7 @@
         let currentSearchQuery = "";
         const activeJobCodeFilters = new Set();
         const activeStatusFilters = new Set();
+        const activeLeaseStatusFilters = new Set();
         const editableInputs = [
             jobCodeIdInput,
             picUserIdInput,
@@ -1481,6 +1494,7 @@
         function refreshTableFilterOptions() {
             const availableJobCodes = getUniqueSortedColumnValues(deviceRows, "Job Code");
             const availableStatuses = getUniqueSortedColumnValues(deviceRows, "Status");
+            const availableLeaseStatuses = getUniqueSortedColumnValues(deviceRows, "Lease Status");
 
             [...activeJobCodeFilters].forEach((value) => {
                 if (!availableJobCodes.includes(value)) {
@@ -1494,10 +1508,18 @@
                 }
             });
 
+            [...activeLeaseStatusFilters].forEach((value) => {
+                if (!availableLeaseStatuses.includes(value)) {
+                    activeLeaseStatusFilters.delete(value);
+                }
+            });
+
             renderMultiSelectFilterMenu(jobCodeFilterMenu, availableJobCodes, activeJobCodeFilters, "jobCode");
             renderMultiSelectFilterMenu(statusFilterMenu, availableStatuses, activeStatusFilters, "status");
+            renderMultiSelectFilterMenu(leaseStatusFilterMenu, availableLeaseStatuses, activeLeaseStatusFilters, "leaseStatus");
             updateFilterDropdownLabel(jobCodeFilterButton, "Job Code", activeJobCodeFilters);
             updateFilterDropdownLabel(statusFilterButton, "Status", activeStatusFilters);
+            updateFilterDropdownLabel(leaseStatusFilterButton, "Lease Status", activeLeaseStatusFilters);
         }
 
         function getSearchScore(row, query, tokens) {
@@ -1561,11 +1583,13 @@
             const filteredRows = sourceRows.filter((row) => {
                 const rowJobCode = normalizeFilterValue(row?.["Job Code"]);
                 const rowStatus = normalizeFilterValue(row?.["Status"]);
+                const rowLeaseStatus = normalizeFilterValue(row?.["Lease Status"]);
 
                 const passJobCode = activeJobCodeFilters.size === 0 || activeJobCodeFilters.has(rowJobCode);
                 const passStatus = activeStatusFilters.size === 0 || activeStatusFilters.has(rowStatus);
+                const passLeaseStatus = activeLeaseStatusFilters.size === 0 || activeLeaseStatusFilters.has(rowLeaseStatus);
 
-                return passJobCode && passStatus;
+                return passJobCode && passStatus && passLeaseStatus;
             });
 
             if (!currentSearchQuery) {
@@ -1590,7 +1614,7 @@
             const displayRows = getDisplayRows(rows);
 
             if (!displayRows.length) {
-                const isFiltering = Boolean(currentSearchQuery) || activeJobCodeFilters.size > 0 || activeStatusFilters.size > 0;
+                const isFiltering = Boolean(currentSearchQuery) || activeJobCodeFilters.size > 0 || activeStatusFilters.size > 0 || activeLeaseStatusFilters.size > 0;
                 tableBody.innerHTML = `
                     <tr>
                         <td colspan="13" class="text-center text-muted py-4">${isFiltering ? "Tidak ada data yang cocok dengan filter/pencarian." : "Belum ada data."}</td>
@@ -2056,6 +2080,27 @@
             renderRows(deviceRows);
         });
 
+        leaseStatusFilterMenu.addEventListener("change", (event) => {
+            const target = event.target;
+            if (!(target instanceof HTMLInputElement) || target.type !== "checkbox") {
+                return;
+            }
+
+            const value = normalizeFilterValue(target.value);
+            if (!value) {
+                return;
+            }
+
+            if (target.checked) {
+                activeLeaseStatusFilters.add(value);
+            } else {
+                activeLeaseStatusFilters.delete(value);
+            }
+
+            updateFilterDropdownLabel(leaseStatusFilterButton, "Lease Status", activeLeaseStatusFilters);
+            renderRows(deviceRows);
+        });
+
         tableSearchInput.addEventListener("input", () => {
             currentSearchQuery = normalizeSearchValue(tableSearchInput.value);
             renderRows(deviceRows);
@@ -2070,6 +2115,7 @@
         clearTableFilterButton.addEventListener("click", () => {
             activeJobCodeFilters.clear();
             activeStatusFilters.clear();
+            activeLeaseStatusFilters.clear();
             tableSearchInput.value = "";
             currentSearchQuery = "";
             refreshTableFilterOptions();
@@ -2145,4 +2191,3 @@ if (event.key === "Escape" && confirmModalOverlay.classList.contains("open")) {
 </body>
 
 </html>
-
