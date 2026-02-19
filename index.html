@@ -2015,7 +2015,7 @@
                                     <div>
                                         <h6 class="text-dark mb-0"><span id="dropdownUserName">Alexandra Della</span> <span class="badge bg-soft-success text-success ms-1" id="dropdownUserRoleBadge">USER</span></h6>
                                         <span class="fs-12 fw-medium text-muted" id="dropdownUserEmail">alex@example.com</span>
-                                        <div class="fs-12 fw-semibold text-muted mt-1" id="dropdownUserJobCodeStatus">Job Code: -</div>
+                                        <div class="fs-12 fw-semibold text-muted mt-1" id="dropdownUserJobCodeStatus">-</div>
                                     </div>
                                 </div>
                             </div>
@@ -3520,8 +3520,8 @@
                 const jobCodeCode = String(user.jobCode?.code || "").trim();
                 const jobCodeSiteName = String(user.jobCode?.siteName || "").trim();
                 const jobCodeStatus = jobCodeCode
-                    ? `Job Code: ${jobCodeCode}${jobCodeSiteName ? ` - ${jobCodeSiteName}` : ""}`
-                    : "Job Code: -";
+                    ? `${jobCodeCode}${jobCodeSiteName ? `-${jobCodeSiteName}` : ""}`
+                    : "-";
 
                 if (headerUserAvatar) {
                     headerUserAvatar.src = avatarSrc;
