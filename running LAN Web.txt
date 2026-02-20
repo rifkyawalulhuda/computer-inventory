@@ -24,6 +24,8 @@ Tekan Ctrl + C di terminal.
 
 Mengganti port Server =
 
+Cek dahulu port yang kosong/tidak dipakai di terminal : netstat -aon
+
 Edit di file root: computer-inventory\package.json.
 
 Yang diubah:

@@ -2,8 +2,8 @@
   "name": "computer-inventory-workspace",
   "private": true,
   "scripts": {
-    "dev:lan": "concurrently -k -n API,WEB -c blue,green \"npm --prefix backend run dev\" \"http-server . -p 81 -a 0.0.0.0 -c-1\"",
-    "dev:web:lan": "http-server . -p 81 -a 0.0.0.0 -c-1",
+    "dev:lan": "concurrently -k -n API,WEB -c blue,green \"npm --prefix backend run dev\" \"http-server . -p 88 -a 0.0.0.0 -c-1\"",
+    "dev:web:lan": "http-server . -p 88 -a 0.0.0.0 -c-1",
     "dev:api": "npm --prefix backend run dev"
   },
   "devDependencies": {
