@@ -203,12 +203,19 @@
                     <div class="d-flex align-items-center justify-content-between flex-wrap gap-2 mb-3">
                         <h5 class="card-title mb-0">Data Master Job Code</h5>
                         <div class="d-flex gap-2">
+                            <button type="button" class="btn btn-sm btn-outline-success" id="downloadTemplateButton">
+                                <i class="feather-download me-1"></i>Download Template
+                            </button>
+                            <button type="button" class="btn btn-sm btn-success" id="importExcelButton">
+                                <i class="feather-upload me-1"></i>Import Excel
+                            </button>
                             <button type="button" class="btn btn-sm btn-primary" id="addDataButton">
                                 <i class="feather-plus me-1"></i>Tambah Data
                             </button>
                             <button type="button" class="btn btn-sm btn-outline-primary" id="refreshButton">Refresh</button>
                         </div>
                     </div>
+                    <input type="file" id="importExcelInput" class="d-none" accept=".xlsx,.xls">
 
                     <div class="table-responsive">
                         <table class="table table-hover align-middle mb-0">
@@ -318,6 +325,9 @@
         const cancelButton = document.getElementById("cancelButton");
         const refreshButton = document.getElementById("refreshButton");
         const addDataButton = document.getElementById("addDataButton");
+        const downloadTemplateButton = document.getElementById("downloadTemplateButton");
+        const importExcelButton = document.getElementById("importExcelButton");
+        const importExcelInput = document.getElementById("importExcelInput");
         const formModalOverlay = document.getElementById("formModalOverlay");
         const formModalTitle = document.getElementById("formModalTitle");
         const formCloseButton = document.getElementById("formCloseButton");
@@ -327,6 +337,8 @@
         const confirmCloseButton = document.getElementById("confirmCloseButton");
         const confirmCancelButton = document.getElementById("confirmCancelButton");
         const confirmConfirmButton = document.getElementById("confirmConfirmButton");
+        const importButtonDefaultHtml = importExcelButton.innerHTML;
+        const downloadButtonDefaultHtml = downloadTemplateButton.innerHTML;
 
         function showAlert(message, type) {
             alertBox.className = `alert alert-${type}`;
@@ -479,6 +491,109 @@
                         <td colspan="6" class="text-center text-danger py-4">Gagal memuat data.</td>
                     </tr>
                 `;
+            }
+        }
+
+        function setImportState(isLoading) {
+            importExcelButton.disabled = isLoading;
+            downloadTemplateButton.disabled = isLoading;
+            addDataButton.disabled = isLoading;
+            refreshButton.disabled = isLoading;
+
+            if (isLoading) {
+                importExcelButton.innerHTML = "<span class=\"spinner-border spinner-border-sm me-1\" role=\"status\" aria-hidden=\"true\"></span>Importing...";
+                return;
+            }
+
+            importExcelButton.innerHTML = importButtonDefaultHtml;
+            downloadTemplateButton.innerHTML = downloadButtonDefaultHtml;
+        }
+
+        async function downloadTemplate() {
+            hideAlert();
+            downloadTemplateButton.disabled = true;
+            downloadTemplateButton.innerHTML = "<span class=\"spinner-border spinner-border-sm me-1\" role=\"status\" aria-hidden=\"true\"></span>Downloading...";
+
+            try {
+                const response = await apiFetch(`${API_BASE}/master-job-codes/template`);
+                if (!response.ok) {
+                    const result = await response.json().catch(() => ({}));
+                    throw new Error(result.message || "Gagal mengunduh template.");
+                }
+
+                const blob = await response.blob();
+                const disposition = response.headers.get("Content-Disposition") || "";
+                const filenameMatch = disposition.match(/filename=\"?([^\";]+)\"?/i);
+                const filename = filenameMatch && filenameMatch[1] ? filenameMatch[1] : "template-master-job-code.xlsx";
+                const blobUrl = window.URL.createObjectURL(blob);
+                const link = document.createElement("a");
+                link.href = blobUrl;
+                link.download = filename;
+                document.body.appendChild(link);
+                link.click();
+                link.remove();
+                window.URL.revokeObjectURL(blobUrl);
+            } catch (error) {
+                showAlert(error.message, "danger");
+            } finally {
+                downloadTemplateButton.disabled = false;
+                downloadTemplateButton.innerHTML = downloadButtonDefaultHtml;
+            }
+        }
+
+        function openImportFilePicker() {
+            hideAlert();
+            importExcelInput.value = "";
+            importExcelInput.click();
+        }
+
+        async function importFromExcel(event) {
+            const file = event.target.files && event.target.files[0];
+            if (!file) {
+                return;
+            }
+
+            const yes = await openConfirmModal({
+                title: "Konfirmasi Import Excel",
+                message: `Import file "${file.name}"? Job Code yang sama akan otomatis diupdate.`,
+                confirmText: "Import",
+                confirmClass: "btn-success",
+                confirmIcon: "feather-upload"
+            });
+
+            if (!yes) {
+                importExcelInput.value = "";
+                return;
+            }
+
+            setImportState(true);
+            hideAlert();
+
+            try {
+                const formData = new FormData();
+                formData.append("file", file);
+
+                const response = await apiFetch(`${API_BASE}/master-job-codes/import`, {
+                    method: "POST",
+                    body: formData
+                });
+
+                const result = await response.json().catch(() => ({}));
+                if (!response.ok) {
+                    throw new Error(result.message || "Gagal import data.");
+                }
+
+                const stats = result.data || {};
+                showAlert(
+                    `Import selesai. Total ${stats.total || 0} baris, ${stats.created || 0} ditambahkan, ${stats.updated || 0} diperbarui.`,
+                    "success"
+                );
+                await loadRows();
+            } catch (error) {
+                showAlert(error.message, "danger");
+            } finally {
+                setImportState(false);
+                importExcelInput.value = "";
             }
         }
 
@@ -652,6 +767,9 @@
                 closeConfirmModal(false);
             }
         });
+        downloadTemplateButton.addEventListener("click", downloadTemplate);
+        importExcelButton.addEventListener("click", openImportFilePicker);
+        importExcelInput.addEventListener("change", importFromExcel);
         refreshButton.addEventListener("click", loadRows);
 
         resetForm();
