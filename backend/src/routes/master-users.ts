@@ -72,9 +72,34 @@ function parsePassword(raw: unknown, isRequired: boolean): string | null {
   return password;
 }
 
-masterUserRouter.get("/master-users", async (_req, res, next) => {
+masterUserRouter.get("/master-users", async (req, res, next) => {
   try {
+    const requestedJobCodeIdRaw = String(req.query.jobCodeId ?? "").trim();
+    const requestedJobCodeId = requestedJobCodeIdRaw ? Number(requestedJobCodeIdRaw) : null;
+
+    if (requestedJobCodeIdRaw && (!Number.isInteger(requestedJobCodeId) || (requestedJobCodeId as number) < 1)) {
+      return res.status(400).json({ message: "Job Code filter tidak valid." });
+    }
+
+    let effectiveJobCodeId: number | null = Number.isInteger(requestedJobCodeId) && (requestedJobCodeId as number) > 0
+      ? (requestedJobCodeId as number)
+      : null;
+
+    if (req.authUser?.role === "user") {
+      const currentUser = await prisma.masterUser.findUnique({
+        where: { id: req.authUser.id },
+        select: { jobCodeId: true },
+      });
+
+      if (!currentUser) {
+        return res.status(404).json({ message: "User login tidak ditemukan." });
+      }
+
+      effectiveJobCodeId = currentUser.jobCodeId;
+    }
+
     const rows = await prisma.masterUser.findMany({
+      where: effectiveJobCodeId ? { jobCodeId: effectiveJobCodeId } : undefined,
       orderBy: { createdAt: "desc" },
       include: {
         jobCode: true,

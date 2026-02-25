@@ -9,6 +9,8 @@
     <link rel="shortcut icon" type="image/x-icon" href="assets/images/favicon.ico">
     <link rel="stylesheet" type="text/css" href="assets/css/bootstrap.min.css">
     <link rel="stylesheet" type="text/css" href="assets/vendors/css/vendors.min.css">
+    <link rel="stylesheet" type="text/css" href="assets/vendors/css/select2.min.css">
+    <link rel="stylesheet" type="text/css" href="assets/vendors/css/select2-theme.min.css">
     <link rel="stylesheet" type="text/css" href="assets/css/theme.min.css">
     <script src="assets/js/auth-client.js"></script>
     <script>
@@ -48,10 +50,44 @@
             color: #334155;
             margin-bottom: 0.4rem;
         }
-
+        
         .device-form-layout .form-control,
         .device-form-layout .form-select {
             min-height: 42px;
+        }
+
+        
+
+        .device-form-layout .select2-container {
+            width: 100% !important;
+        }
+
+        .device-form-layout .select2-container--default .select2-selection--single {
+            min-height: 42px;
+            height: 42px;
+            border: 1px solid #d0d7de;
+            border-radius: 0.375rem;
+            display: flex;
+            align-items: center;
+            background-color: #fff;
+        }
+
+        .device-form-layout .select2-container--default .select2-selection--single .select2-selection__rendered {
+            line-height: 40px;
+            padding-left: 12px;
+            padding-right: 36px;
+            color: #334155;
+        }
+
+        .device-form-layout .select2-container--default .select2-selection--single .select2-selection__arrow {
+            height: 40px;
+            right: 8px;
+        }
+
+        .device-form-layout .select2-container--default.select2-container--disabled .select2-selection--single {
+            background-color: #e9ecef;
+            border-color: #d0d7de;
+            color: #6c757d;
         }
 
         .device-form-layout textarea.form-control {
@@ -627,6 +663,8 @@
         </div>
     </div>
 
+    <script src="assets/vendors/js/jquery.min.js"></script>
+    <script src="assets/vendors/js/select2.min.js"></script>
     <script>
         const API_BASE = `${window.location.protocol === "https:" ? "https:" : "http:"}//${window.location.hostname || "localhost"}:3001/api`;
         async function apiFetch(url, options = {}) {
@@ -686,6 +724,7 @@
         let lastManualStatus = "";
         let lastManualLeaseStatus = "ACTIVE";
         let currentDrawerHistoryLog = "";
+        let isLoadingPicOptions = false;
         const editableInputs = [
             jobCodeIdInput,
             picUserIdInput,
@@ -706,6 +745,72 @@
             bitlockerKeyInput
         ];
         const userAllowedEditInputIds = new Set(["userName", "userEmail", "location", "ipList", "keterangan"]);
+        const searchableSelectInputs = [jobCodeIdInput, picUserIdInput, categoryInput, statusInput, leaseStatusInput].filter(Boolean);
+
+        function canUseSelect2() {
+            return Boolean(window.jQuery && window.jQuery.fn && typeof window.jQuery.fn.select2 === "function");
+        }
+
+        function getSearchableSelectConfig(input) {
+            return {
+                width: "100%",
+                minimumResultsForSearch: 0,
+                placeholder: input.options?.[0]?.textContent || ""
+            };
+        }
+
+        function initializeSearchableSelects() {
+            if (!canUseSelect2()) {
+                return;
+            }
+
+            searchableSelectInputs.forEach((input) => {
+                const $input = window.jQuery(input);
+                if ($input.data("select2")) {
+                    $input.select2("destroy");
+                }
+
+                $input.select2(getSearchableSelectConfig(input));
+            });
+
+            syncSearchableSelectStates();
+        }
+
+        function syncSearchableSelect(input, shouldRebuild = false) {
+            if (!input || !canUseSelect2()) {
+                return;
+            }
+
+            const $input = window.jQuery(input);
+            const hasSelect2 = Boolean($input.data("select2"));
+
+            if (hasSelect2 && shouldRebuild) {
+                $input.select2("destroy");
+            }
+
+            if (!hasSelect2 || shouldRebuild) {
+                $input.select2(getSearchableSelectConfig(input));
+            }
+
+            $input.prop("disabled", Boolean(input.disabled));
+            $input.trigger("change");
+        }
+
+        function syncSearchableSelectStates() {
+            if (!canUseSelect2()) {
+                return;
+            }
+
+            searchableSelectInputs.forEach((input) => {
+                const $input = window.jQuery(input);
+                if (!$input.data("select2")) {
+                    return;
+                }
+
+                $input.prop("disabled", Boolean(input.disabled));
+                $input.trigger("change");
+            });
+        }
 
         function getSafeStorageRole(storage) {
             if (!storage) {
@@ -804,6 +909,8 @@
                 refreshStatusByDaysLease();
                 refreshLeaseStatusByEndDate();
             }
+
+            syncSearchableSelectStates();
         }
 
         function showAlert(message, type) {
@@ -830,27 +937,87 @@
                 .replaceAll("'", "&#39;");
         }
 
-        function getFilteredUsersByJobCode(jobCodeId) {
-            if (!Number.isInteger(jobCodeId) || jobCodeId < 1) {
+        function resolveUserJobCodeId(user) {
+            const directJobCodeId = String(user?.jobCodeId ?? "").trim();
+            if (directJobCodeId) {
+                return directJobCodeId;
+            }
+
+            const nestedJobCodeId = String(user?.jobCode?.id ?? "").trim();
+            if (nestedJobCodeId) {
+                return nestedJobCodeId;
+            }
+
+            return "";
+        }
+
+        function resolveUserJobCodeCode(user) {
+            const directJobCodeCode = String(user?.jobCodeCode ?? "").trim().toUpperCase();
+            if (directJobCodeCode) {
+                return directJobCodeCode;
+            }
+
+            const nestedJobCodeCode = String(user?.jobCode?.code ?? "").trim().toUpperCase();
+            if (nestedJobCodeCode) {
+                return nestedJobCodeCode;
+            }
+
+            return "";
+        }
+
+        function resolveSelectedJobCodeCode() {
+            const selectedOption = jobCodeIdInput.options?.[jobCodeIdInput.selectedIndex];
+            if (!selectedOption) {
+                return "";
+            }
+
+            const label = String(selectedOption.textContent ?? "").trim();
+            if (!label) {
+                return "";
+            }
+
+            return label.split("-")[0].trim().toUpperCase();
+        }
+
+        function getFilteredUsersByJobCode(jobCodeIdValue, jobCodeCodeValue) {
+            const normalizedJobCodeId = String(jobCodeIdValue ?? "").trim();
+            const normalizedJobCodeCode = String(jobCodeCodeValue ?? "").trim().toUpperCase();
+            if (!normalizedJobCodeId && !normalizedJobCodeCode) {
                 return [];
             }
 
-            return masterUsers.filter((user) => Number(user.jobCodeId) === jobCodeId);
+            return masterUsers.filter((user) => {
+                const userJobCodeId = resolveUserJobCodeId(user);
+                const userJobCodeCode = resolveUserJobCodeCode(user);
+
+                if (normalizedJobCodeId && userJobCodeId && userJobCodeId === normalizedJobCodeId) {
+                    return true;
+                }
+
+                if (normalizedJobCodeCode && userJobCodeCode && userJobCodeCode === normalizedJobCodeCode) {
+                    return true;
+                }
+
+                return false;
+            });
         }
 
         function populatePicOptionsByJobCode() {
-            const selectedJobCodeId = Number(jobCodeIdInput.value);
-            const filteredUsers = getFilteredUsersByJobCode(selectedJobCodeId);
+            const selectedJobCodeId = String(jobCodeIdInput.value ?? "").trim();
+            const selectedJobCodeCode = resolveSelectedJobCodeCode();
+            const filteredUsers = getFilteredUsersByJobCode(selectedJobCodeId, selectedJobCodeCode);
 
-            if (!Number.isInteger(selectedJobCodeId) || selectedJobCodeId < 1) {
+            if (!selectedJobCodeId && !selectedJobCodeCode) {
                 picUserIdInput.innerHTML = '<option value="">Pilih Job Code dulu</option>';
                 picUserIdInput.value = "";
+                syncSearchableSelect(picUserIdInput, true);
                 return;
             }
 
             if (!filteredUsers.length) {
                 picUserIdInput.innerHTML = '<option value="">Tidak ada PIC untuk Job Code ini</option>';
                 picUserIdInput.value = "";
+                syncSearchableSelect(picUserIdInput, true);
                 return;
             }
 
@@ -858,6 +1025,7 @@
                 '<option value="">Pilih PIC Name</option>',
                 ...filteredUsers.map((row) => `<option value="${escapeHtml(row.id)}">${escapeHtml(row.name)} (${escapeHtml(row.email)})</option>`)
             ].join("");
+            syncSearchableSelect(picUserIdInput, true);
         }
 
         function calculateDaysLeaseValue(startDateValue, endDateValue) {
@@ -905,6 +1073,7 @@
             const isUserRestrictedEdit = currentUserRole === "user" && Boolean(editingDeviceId);
             if (isUserRestrictedEdit) {
                 statusInput.disabled = true;
+                syncSearchableSelect(statusInput);
                 return;
             }
 
@@ -920,6 +1089,7 @@
                 ensureExpiredStatusOption();
                 statusInput.value = "EXPIRED";
                 statusInput.disabled = true;
+                syncSearchableSelect(statusInput);
                 return;
             }
 
@@ -930,6 +1100,8 @@
             if (shouldRestoreManualStatus) {
                 statusInput.value = lastManualStatus || "";
             }
+
+            syncSearchableSelect(statusInput);
         }
 
         function isLeaseExpiredByEndDate(endDateValue) {
@@ -963,11 +1135,13 @@
 
                 leaseStatusInput.value = parsedEndDate.getTime() <= today.getTime() ? "EXPIRED" : "ACTIVE";
                 leaseStatusInput.disabled = true;
+                syncSearchableSelect(leaseStatusInput);
                 return;
             }
 
             if (isUserRestrictedEdit) {
                 leaseStatusInput.disabled = true;
+                syncSearchableSelect(leaseStatusInput);
                 return;
             }
 
@@ -975,6 +1149,8 @@
             if (!leaseStatusInput.value || leaseStatusInput.value === "EXPIRED" || leaseStatusInput.value === "ACTIVE") {
                 leaseStatusInput.value = lastManualLeaseStatus || "ACTIVE";
             }
+
+            syncSearchableSelect(leaseStatusInput);
         }
 
         function refreshDaysLease() {
@@ -1043,7 +1219,7 @@
             }
 
             const selectedUser = masterUsers.find((user) => String(user.id) === String(payload.picUserId));
-            if (!selectedUser || Number(selectedUser.jobCodeId) !== payload.jobCodeId) {
+            if (!selectedUser || resolveUserJobCodeId(selectedUser) !== String(payload.jobCodeId)) {
                 throw new Error("PIC Name harus sesuai dengan Job Code yang dipilih.");
             }
 
@@ -1107,6 +1283,49 @@
             return match ? String(match.id) : "";
         }
 
+
+        async function reloadMasterUsers() {
+            const response = await apiFetch(`${API_BASE}/master-users`);
+            const result = await response.json().catch(() => ({}));
+            if (!response.ok) {
+                throw new Error(result.message || "Gagal memuat Master User.");
+            }
+
+            masterUsers = Array.isArray(result.data) ? result.data : [];
+            return masterUsers;
+        }
+
+        async function reloadMasterUsersByJobCode(jobCodeIdValue) {
+            const normalizedJobCodeId = String(jobCodeIdValue ?? "").trim();
+            if (!normalizedJobCodeId) {
+                return reloadMasterUsers();
+            }
+
+            const response = await apiFetch(`${API_BASE}/master-users?jobCodeId=${encodeURIComponent(normalizedJobCodeId)}`);
+            const result = await response.json().catch(() => ({}));
+            if (!response.ok) {
+                throw new Error(result.message || "Gagal memuat PIC berdasarkan Job Code.");
+            }
+
+            masterUsers = Array.isArray(result.data) ? result.data : [];
+            return masterUsers;
+        }
+
+        async function handleJobCodeSelectionChange() {
+            if (isLoadingPicOptions) {
+                return;
+            }
+
+            isLoadingPicOptions = true;
+            try {
+                await reloadMasterUsersByJobCode(jobCodeIdInput.value);
+            } catch (_error) {
+                // Keep using cached master users when refresh fails.
+            } finally {
+                populatePicOptionsByJobCode();
+                isLoadingPicOptions = false;
+            }
+        }
         function selectPicByName(picName) {
             const target = String(picName ?? "").trim().toLowerCase();
             if (!target) {
@@ -1120,6 +1339,7 @@
 
             if (matchedOption) {
                 picUserIdInput.value = matchedOption.value;
+                syncSearchableSelect(picUserIdInput, true);
             }
         }
 
@@ -1140,8 +1360,8 @@
                 throw new Error(masterUserJson.message || "Gagal memuat Master User.");
             }
 
-            masterJobCodes = jobCodeJson.data || [];
-            masterUsers = masterUserJson.data || [];
+            masterJobCodes = Array.isArray(jobCodeJson.data) ? jobCodeJson.data : [];
+            masterUsers = Array.isArray(masterUserJson.data) ? masterUserJson.data : [];
 
             jobCodeIdInput.innerHTML = [
                 '<option value="">Pilih Job Code</option>',
@@ -1150,6 +1370,10 @@
 
             populatePicOptionsByJobCode();
             refreshDaysLease();
+            syncSearchableSelect(jobCodeIdInput, true);
+            syncSearchableSelect(categoryInput);
+            syncSearchableSelect(statusInput);
+            syncSearchableSelect(leaseStatusInput);
         }
 
         function renderRows(rows) {
@@ -1368,6 +1592,12 @@
                 statusInput.value = row["Status"] || "";
             }
 
+            syncSearchableSelect(jobCodeIdInput, true);
+            syncSearchableSelect(picUserIdInput, true);
+            syncSearchableSelect(categoryInput);
+            syncSearchableSelect(statusInput);
+            syncSearchableSelect(leaseStatusInput);
+
             editingDeviceId = row.id;
             formCardTitle.textContent = "Edit Data Perangkat";
             submitButton.textContent = "Update Data";
@@ -1526,9 +1756,7 @@
             }
         }
 
-        jobCodeIdInput.addEventListener("change", () => {
-            populatePicOptionsByJobCode();
-        });
+        jobCodeIdInput.addEventListener("change", handleJobCodeSelectionChange);
         startDateInput.addEventListener("change", refreshDaysLease);
         endDateInput.addEventListener("change", refreshDaysLease);
         statusInput.addEventListener("change", () => {
@@ -1598,8 +1826,19 @@
                 closeViewDrawer();
             }
         });
+        initializeSearchableSelects();
+        if (canUseSelect2()) {
+            const $jobCodeSelect = window.jQuery(jobCodeIdInput);
+            $jobCodeSelect.on("select2:select", handleJobCodeSelectionChange);
+            $jobCodeSelect.on("select2:clear", handleJobCodeSelectionChange);
+        }
         initialize();
     </script>
 </body>
 
 </html>
+
+
+
+
+
