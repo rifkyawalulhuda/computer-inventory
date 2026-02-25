@@ -2110,9 +2110,9 @@
                 return;
             }
 
-            tableBody.innerHTML = displayRows.map((row) => `
+            tableBody.innerHTML = displayRows.map((row, index) => `
                 <tr>
-                    <td>${escapeHtml(row["NO"])}</td>
+                    <td>${index + 1}</td>
                     <td>${escapeHtml(row["Job Code"])}</td>
                     <td>${escapeHtml(row["PIC Name"])}</td>
                     <td>${escapeHtml(row["Serial No."])}</td>
@@ -2243,7 +2243,6 @@
             closeHistoryLogOverlay();
 
             const detailFields = [
-                ["NO", row["NO"]],
                 ["Job Code", row["Job Code"]],
                 ["PIC Name", row["PIC Name"]],
                 ["Serial No.", row["Serial No."]],
@@ -2709,6 +2708,7 @@ if (event.key === "Escape" && confirmModalOverlay.classList.contains("open")) {
 </body>
 
 </html>
+
 
 
 
