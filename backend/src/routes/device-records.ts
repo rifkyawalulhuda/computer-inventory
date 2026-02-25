@@ -1,5 +1,6 @@
 import { Prisma } from "@prisma/client";
 import { type Request, Router } from "express";
+import XLSX from "xlsx";
 import { prisma } from "../lib/prisma";
 
 export const deviceRecordRouter = Router();
@@ -24,6 +25,10 @@ type DeviceRecordPayload = {
   hystoryLog: string | null;
   keterangan: string | null;
   bitlockerKey: string | null;
+};
+
+type DeviceExportPayload = {
+  ids?: unknown;
 };
 
 type HistoryFieldChange = {
@@ -423,6 +428,105 @@ function mapDeviceToExcelRecord(row: MappedDeviceRow, fallbackNo?: number) {
   };
 }
 
+const deviceExportColumns = [
+  "NO",
+  "Job Code",
+  "PIC Name",
+  "Serial No.",
+  "Category",
+  "Model",
+  "Host Name",
+  "User Name",
+  "User Email",
+  "Status",
+  "Days Lease",
+  "Lease Status",
+  "Location",
+  "IP List",
+  "Start Date",
+  "End Date",
+  "Hystory Log",
+  "Keterangan",
+  "Bitlocker Key",
+] as const;
+
+type DeviceExcelRecord = ReturnType<typeof mapDeviceToExcelRecord>;
+type DeviceExportRow = Record<(typeof deviceExportColumns)[number], string | number>;
+
+function toExportRow(row: DeviceExcelRecord): DeviceExportRow {
+  return {
+    NO: row["NO"],
+    "Job Code": row["Job Code"],
+    "PIC Name": row["PIC Name"],
+    "Serial No.": row["Serial No."],
+    Category: row.Category,
+    Model: row.Model,
+    "Host Name": row["Host Name"],
+    "User Name": row["User Name"],
+    "User Email": row["User Email"],
+    Status: row.Status,
+    "Days Lease": row["Days Lease"],
+    "Lease Status": row["Lease Status"],
+    Location: row.Location,
+    "IP List": row["IP List"],
+    "Start Date": row["Start Date"],
+    "End Date": row["End Date"],
+    "Hystory Log": row["Hystory Log"],
+    Keterangan: row.Keterangan,
+    "Bitlocker Key": row["Bitlocker Key"],
+  };
+}
+
+function parseExportRequestIds(payload: unknown): string[] {
+  if (!payload || typeof payload !== "object") {
+    return [];
+  }
+
+  const { ids } = payload as DeviceExportPayload;
+  if (ids === undefined || ids === null) {
+    return [];
+  }
+
+  if (!Array.isArray(ids)) {
+    throw new Error("Format export tidak valid. Field ids harus berupa array.");
+  }
+
+  if (ids.length > 5000) {
+    throw new Error("Maksimal 5000 data per export.");
+  }
+
+  const normalized = ids
+    .map((value) => cleanText(value))
+    .filter(Boolean);
+
+  return [...new Set(normalized)];
+}
+
+function formatExportTimestamp(date = new Date()): string {
+  const year = String(date.getFullYear());
+  const month = String(date.getMonth() + 1).padStart(2, "0");
+  const day = String(date.getDate()).padStart(2, "0");
+  const hours = String(date.getHours()).padStart(2, "0");
+  const minutes = String(date.getMinutes()).padStart(2, "0");
+  const seconds = String(date.getSeconds()).padStart(2, "0");
+  return `${year}${month}${day}-${hours}${minutes}${seconds}`;
+}
+
+function reorderRowsByRequestedIds(rows: DeviceExcelRecord[], requestedIds: string[]): DeviceExcelRecord[] {
+  if (requestedIds.length === 0) {
+    return rows;
+  }
+
+  const orderMap = new Map(requestedIds.map((id, index) => [id, index]));
+  return rows
+    .filter((row) => orderMap.has(row.id))
+    .sort((left, right) => {
+      const leftOrder = orderMap.get(left.id) ?? Number.MAX_SAFE_INTEGER;
+      const rightOrder = orderMap.get(right.id) ?? Number.MAX_SAFE_INTEGER;
+      return leftOrder - rightOrder;
+    });
+}
+
 async function validateJobAndPic(
   tx: Prisma.TransactionClient,
   payload: DeviceRecordPayload,
@@ -562,6 +666,82 @@ deviceRecordRouter.get("/device-records", async (req, res, next) => {
   } catch (error) {
     if (error instanceof Error && error.message === "ROLE_USER_JOB_CODE_NOT_FOUND") {
       return res.status(403).json({ message: "Job Code user tidak ditemukan. Hubungi admin." });
+    }
+
+    next(error);
+  }
+});
+
+deviceRecordRouter.post("/device-records/export", async (req, res, next) => {
+  try {
+    const scope = await resolveDataScope(req);
+    const requestedIds = parseExportRequestIds(req.body);
+
+    const where: Prisma.DeviceWhereInput =
+      scope.editorRole === "user"
+        ? { jobCodeId: scope.userJobCodeId ?? undefined }
+        : {};
+
+    if (requestedIds.length > 0) {
+      where.id = { in: requestedIds };
+    }
+
+    const rows = await prisma.device.findMany({
+      where,
+      orderBy: { createdAt: "desc" },
+      include: deviceRecordInclude,
+    });
+
+    const mappedRows = rows.map((row, index) =>
+      mapDeviceToExcelRecord(row as unknown as MappedDeviceRow, index + 1),
+    );
+    const orderedRows = reorderRowsByRequestedIds(mappedRows, requestedIds);
+    const exportRows = orderedRows.map((row) => toExportRow(row));
+
+    const worksheet = XLSX.utils.json_to_sheet(exportRows, {
+      header: [...deviceExportColumns],
+    });
+    worksheet["!cols"] = [
+      { wch: 7 },
+      { wch: 12 },
+      { wch: 18 },
+      { wch: 18 },
+      { wch: 14 },
+      { wch: 14 },
+      { wch: 16 },
+      { wch: 16 },
+      { wch: 28 },
+      { wch: 10 },
+      { wch: 12 },
+      { wch: 14 },
+      { wch: 18 },
+      { wch: 24 },
+      { wch: 12 },
+      { wch: 12 },
+      { wch: 44 },
+      { wch: 26 },
+      { wch: 30 },
+    ];
+
+    const workbook = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(workbook, worksheet, "Data Perangkat");
+
+    const fileBuffer = XLSX.write(workbook, { bookType: "xlsx", type: "buffer" });
+    const fileName = `data-perangkat-${formatExportTimestamp()}.xlsx`;
+
+    res.setHeader(
+      "Content-Type",
+      "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+    );
+    res.setHeader("Content-Disposition", `attachment; filename="${fileName}"`);
+    res.send(fileBuffer);
+  } catch (error) {
+    if (error instanceof Error && error.message === "ROLE_USER_JOB_CODE_NOT_FOUND") {
+      return res.status(403).json({ message: "Job Code user tidak ditemukan. Hubungi admin." });
+    }
+
+    if (error instanceof Error) {
+      return res.status(400).json({ message: error.message });
     }
 
     next(error);

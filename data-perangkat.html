@@ -649,6 +649,9 @@
                     <div class="d-flex flex-wrap justify-content-between align-items-center gap-2 mb-3">
                         <h5 class="card-title mb-0">Daftar Data Perangkat</h5>
                         <div class="d-flex gap-2">
+                            <button type="button" class="btn btn-outline-success" id="exportExcelButton">
+                                <i class="feather-download me-1"></i>Export Excel
+                            </button>
                             <button type="button" class="btn btn-primary" id="addDataButton">Tambah Data</button>
                             <button type="button" class="btn btn-outline-primary" id="refreshButton">Refresh Data</button>
                         </div>
@@ -816,6 +819,7 @@
         const resetButton = document.getElementById("resetButton");
         const closeFormButton = document.getElementById("closeFormButton");
         const roleEditHint = document.getElementById("roleEditHint");
+        const exportExcelButton = document.getElementById("exportExcelButton");
         const addDataButton = document.getElementById("addDataButton");
         const refreshButton = document.getElementById("refreshButton");
         const tableSearchInput = document.getElementById("tableSearchInput");
@@ -896,6 +900,7 @@
         const activeJobCodeFilters = new Set();
         const activeStatusFilters = new Set();
         const activeLeaseStatusFilters = new Set();
+        let isExportingExcel = false;
         const editableInputs = [
             jobCodeIdInput,
             picUserIdInput,
@@ -1019,6 +1024,63 @@
         function hideAlert() {
             alertBox.classList.add("d-none");
             alertBox.textContent = "";
+        }
+
+        function getExportTimestamp(date = new Date()) {
+            const year = String(date.getFullYear());
+            const month = String(date.getMonth() + 1).padStart(2, "0");
+            const day = String(date.getDate()).padStart(2, "0");
+            const hours = String(date.getHours()).padStart(2, "0");
+            const minutes = String(date.getMinutes()).padStart(2, "0");
+            const seconds = String(date.getSeconds()).padStart(2, "0");
+            return `${year}${month}${day}-${hours}${minutes}${seconds}`;
+        }
+
+        function getDefaultExportFileName() {
+            return `data-perangkat-${getExportTimestamp()}.xlsx`;
+        }
+
+        function sanitizeDownloadFileName(value) {
+            const filename = String(value || "").trim();
+            if (!filename) {
+                return "";
+            }
+
+            return filename.replace(/[\\/:*?"<>|]+/g, "_");
+        }
+
+        function parseFileNameFromDisposition(disposition) {
+            const value = String(disposition || "");
+            if (!value) {
+                return "";
+            }
+
+            const encodedMatch = value.match(/filename\*=UTF-8''([^;]+)/i);
+            if (encodedMatch && encodedMatch[1]) {
+                try {
+                    return sanitizeDownloadFileName(decodeURIComponent(encodedMatch[1]));
+                } catch (_error) {
+                    return sanitizeDownloadFileName(encodedMatch[1]);
+                }
+            }
+
+            const basicMatch = value.match(/filename="?([^";]+)"?/i);
+            if (!basicMatch || !basicMatch[1]) {
+                return "";
+            }
+
+            return sanitizeDownloadFileName(basicMatch[1]);
+        }
+
+        function downloadBlobFile(blob, fileName) {
+            const downloadUrl = URL.createObjectURL(blob);
+            const anchor = document.createElement("a");
+            anchor.href = downloadUrl;
+            anchor.download = sanitizeDownloadFileName(fileName) || getDefaultExportFileName();
+            document.body.append(anchor);
+            anchor.click();
+            anchor.remove();
+            URL.revokeObjectURL(downloadUrl);
         }
 
         function sanitizeIpListValue(value) {
@@ -1624,6 +1686,65 @@
                 .map((entry) => entry.row);
         }
 
+        async function exportCurrentRowsToExcel() {
+            if (isExportingExcel) {
+                return;
+            }
+
+            hideAlert();
+
+            const displayRows = getDisplayRows(deviceRows);
+            if (!displayRows.length) {
+                showAlert("Tidak ada data untuk diexport.", "warning");
+                return;
+            }
+
+            const exportIds = displayRows
+                .map((row) => String(row?.id || "").trim())
+                .filter(Boolean);
+
+            if (!exportIds.length) {
+                showAlert("Data export tidak valid.", "danger");
+                return;
+            }
+
+            isExportingExcel = true;
+            const defaultButtonHtml = exportExcelButton.innerHTML;
+            exportExcelButton.disabled = true;
+            exportExcelButton.innerHTML = '<i class="feather-loader me-1"></i>Exporting...';
+
+            try {
+                const response = await apiFetch(`${API_BASE}/device-records/export`, {
+                    method: "POST",
+                    headers: {
+                        "Content-Type": "application/json",
+                        "x-user-role": currentUserRole
+                    },
+                    body: JSON.stringify({ ids: exportIds })
+                });
+
+                if (!response.ok) {
+                    const result = await response.json().catch(() => ({}));
+                    throw new Error(result.message || "Gagal export Excel data perangkat.");
+                }
+
+                const fileBlob = await response.blob();
+                if (!(fileBlob instanceof Blob) || fileBlob.size <= 0) {
+                    throw new Error("File Excel kosong.");
+                }
+
+                const serverFileName = parseFileNameFromDisposition(response.headers.get("content-disposition"));
+                downloadBlobFile(fileBlob, serverFileName || getDefaultExportFileName());
+                showAlert(`Export Excel berhasil (${displayRows.length} data).`, "success");
+            } catch (error) {
+                showAlert(error.message || "Gagal export Excel data perangkat.", "danger");
+            } finally {
+                isExportingExcel = false;
+                exportExcelButton.disabled = false;
+                exportExcelButton.innerHTML = defaultButtonHtml;
+            }
+        }
+
         function renderRows(rows) {
             const displayRows = getDisplayRows(rows);
 
@@ -2167,6 +2288,7 @@
 
             window.location.href = "data-perangkat-form.html";
         });
+        exportExcelButton.addEventListener("click", exportCurrentRowsToExcel);
         closeFormButton.addEventListener("click", () => {
             hideAlert();
             resetForm();
