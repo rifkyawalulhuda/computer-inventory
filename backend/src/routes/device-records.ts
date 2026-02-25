@@ -1,7 +1,10 @@
 import { Prisma } from "@prisma/client";
-import { type Request, Router } from "express";
+import multer from "multer";
+import { type Request, type Response, Router } from "express";
 import XLSX from "xlsx";
+import ExcelJS from "exceljs";
 import { prisma } from "../lib/prisma";
+import { requireRole } from "../middleware/auth";
 
 export const deviceRecordRouter = Router();
 
@@ -31,6 +34,31 @@ type DeviceExportPayload = {
   ids?: unknown;
 };
 
+type DeviceImportFileRow = {
+  rowNumber: number;
+  jobCode: string;
+  picName: string;
+  serialNo: string;
+  category: string;
+  model: string;
+  hostName: string;
+  userName: string;
+  userEmail: string;
+  status: string;
+  location: string;
+  ipList: string;
+  startDate: string;
+  endDate: string;
+  leaseStatus: string;
+  keterangan: string;
+  bitlockerKey: string;
+};
+
+type PreparedImportRow = {
+  rowNumber: number;
+  payload: DeviceRecordPayload;
+};
+
 type HistoryFieldChange = {
   label: string;
   before: string | number | null | undefined;
@@ -38,6 +66,46 @@ type HistoryFieldChange = {
 };
 
 type EditorRole = "admin" | "user";
+
+const DEVICE_IMPORT_TEMPLATE_HEADERS = [
+  "Job Code",
+  "PIC Name",
+  "Serial No.",
+  "Category",
+  "Model",
+  "Host Name",
+  "User Name",
+  "User Email",
+  "Status",
+  "Location",
+  "IP List",
+  "Start Date",
+  "End Date",
+  "Lease Status",
+  "Keterangan",
+  "Bitlocker Key",
+] as const;
+
+const MAX_DEVICE_IMPORT_FILE_SIZE = 5 * 1024 * 1024;
+const DEVICE_IMPORT_DROPDOWN_MAX_ROWS = 1000;
+
+const deviceImportUpload = multer({
+  storage: multer.memoryStorage(),
+  limits: {
+    fileSize: MAX_DEVICE_IMPORT_FILE_SIZE,
+  },
+  fileFilter: (_req, file, callback) => {
+    const filename = String(file.originalname || "").toLowerCase();
+    const isExcelFile = filename.endsWith(".xlsx") || filename.endsWith(".xls");
+
+    if (!isExcelFile) {
+      callback(new Error("Format file harus .xlsx atau .xls."));
+      return;
+    }
+
+    callback(null, true);
+  },
+});
 
 function cleanText(value: unknown): string {
   return String(value ?? "").trim();
@@ -527,6 +595,511 @@ function reorderRowsByRequestedIds(rows: DeviceExcelRecord[], requestedIds: stri
     });
 }
 
+function normalizeImportHeaderText(value: unknown): string {
+  return String(value ?? "")
+    .trim()
+    .toUpperCase()
+    .replace(/\s+/g, " ");
+}
+
+function ensureDeviceImportTemplateHeader(headerRow: unknown[]): void {
+  const expected = DEVICE_IMPORT_TEMPLATE_HEADERS.map((header) => normalizeImportHeaderText(header));
+  const actual = headerRow
+    .slice(0, DEVICE_IMPORT_TEMPLATE_HEADERS.length)
+    .map((header) => normalizeImportHeaderText(header));
+
+  const isMatch = expected.every((header, index) => header === actual[index]);
+  if (!isMatch) {
+    throw new Error(
+      `Header template tidak sesuai. Gunakan urutan: ${DEVICE_IMPORT_TEMPLATE_HEADERS.join(", ")}`,
+    );
+  }
+}
+
+function formatDateParts(year: number, month: number, day: number): string {
+  const safeYear = String(year).padStart(4, "0");
+  const safeMonth = String(month).padStart(2, "0");
+  const safeDay = String(day).padStart(2, "0");
+  return `${safeYear}-${safeMonth}-${safeDay}`;
+}
+
+function normalizeImportDateValue(value: unknown): string {
+  if (value === null || value === undefined) {
+    return "";
+  }
+
+  if (value instanceof Date) {
+    if (Number.isNaN(value.getTime())) {
+      return "";
+    }
+
+    return formatDateParts(value.getFullYear(), value.getMonth() + 1, value.getDate());
+  }
+
+  if (typeof value === "number" && Number.isFinite(value)) {
+    const parsedDate = XLSX.SSF.parse_date_code(value);
+    if (!parsedDate || !parsedDate.y || !parsedDate.m || !parsedDate.d) {
+      return "";
+    }
+
+    return formatDateParts(parsedDate.y, parsedDate.m, parsedDate.d);
+  }
+
+  const text = cleanText(value);
+  if (!text) {
+    return "";
+  }
+
+  const yyyyMmDdMatch = text.match(/^(\d{4})-(\d{2})-(\d{2})$/);
+  if (yyyyMmDdMatch) {
+    return text;
+  }
+
+  const slashOrDashMatch = text.match(/^(\d{1,2})[\/-](\d{1,2})[\/-](\d{4})$/);
+  if (slashOrDashMatch) {
+    const day = Number(slashOrDashMatch[1]);
+    const month = Number(slashOrDashMatch[2]);
+    const year = Number(slashOrDashMatch[3]);
+
+    if (
+      Number.isInteger(day)
+      && Number.isInteger(month)
+      && Number.isInteger(year)
+      && day >= 1
+      && day <= 31
+      && month >= 1
+      && month <= 12
+      && year >= 1900
+    ) {
+      return formatDateParts(year, month, day);
+    }
+  }
+
+  const date = new Date(text);
+  if (Number.isNaN(date.getTime())) {
+    return text;
+  }
+
+  return formatDate(date);
+}
+
+function normalizeImportLeaseStatus(value: unknown): string {
+  const text = cleanText(value);
+  if (!text) {
+    return "";
+  }
+
+  const normalizedUpper = text.toUpperCase();
+  if (normalizedUpper === "ACTIVE") {
+    return "ACTIVE";
+  }
+
+  if (normalizedUpper === "EXPIRED") {
+    return "EXPIRED";
+  }
+
+  if (normalizedUpper === "BACK TO KDDI" || normalizedUpper === "BACK_TO_KDDI") {
+    return "Back To KDDI";
+  }
+
+  throw new Error('Lease Status hanya boleh "ACTIVE", "EXPIRED", atau "Back To KDDI".');
+}
+
+function parseDeviceImportRows(sheet: XLSX.WorkSheet): DeviceImportFileRow[] {
+  const rows = XLSX.utils.sheet_to_json<unknown[]>(sheet, {
+    header: 1,
+    defval: "",
+    raw: true,
+    blankrows: false,
+  });
+
+  if (!rows.length) {
+    throw new Error("File Excel kosong.");
+  }
+
+  const [firstRow, ...dataRows] = rows;
+  const headerRow = Array.isArray(firstRow) ? firstRow : [];
+  ensureDeviceImportTemplateHeader(headerRow);
+
+  const parsedRows: DeviceImportFileRow[] = [];
+
+  dataRows.forEach((rawRow, index) => {
+    if (!Array.isArray(rawRow)) {
+      return;
+    }
+
+    const rowNumber = index + 2;
+    const values = Array.from({ length: DEVICE_IMPORT_TEMPLATE_HEADERS.length }, (_value, idx) => rawRow[idx]);
+    const isEmptyRow = values.every((value) => cleanText(value) === "");
+
+    if (isEmptyRow) {
+      return;
+    }
+
+    parsedRows.push({
+      rowNumber,
+      jobCode: cleanText(values[0]).toUpperCase(),
+      picName: cleanText(values[1]),
+      serialNo: cleanText(values[2]),
+      category: cleanText(values[3]),
+      model: cleanText(values[4]),
+      hostName: cleanText(values[5]),
+      userName: cleanText(values[6]),
+      userEmail: cleanText(values[7]),
+      status: cleanText(values[8]).toUpperCase(),
+      location: cleanText(values[9]),
+      ipList: cleanText(values[10]),
+      startDate: normalizeImportDateValue(values[11]),
+      endDate: normalizeImportDateValue(values[12]),
+      leaseStatus: cleanText(values[13]),
+      keterangan: cleanText(values[14]),
+      bitlockerKey: cleanText(values[15]),
+    });
+  });
+
+  if (!parsedRows.length) {
+    throw new Error("Tidak ada data yang bisa diimport.");
+  }
+
+  return parsedRows;
+}
+
+async function createDeviceImportTemplateWorkbookBuffer(): Promise<Buffer> {
+  const workbook = new ExcelJS.Workbook();
+  const templateSheet = workbook.addWorksheet("Template");
+  const instructionSheet = workbook.addWorksheet("Instruksi");
+  const referenceSheet = workbook.addWorksheet("Referensi");
+
+  const [jobCodes, picUsers] = await Promise.all([
+    prisma.jobCode.findMany({
+      orderBy: { code: "asc" },
+      select: {
+        code: true,
+      },
+    }),
+    prisma.masterUser.findMany({
+      orderBy: [{ name: "asc" }, { email: "asc" }],
+      select: {
+        name: true,
+        email: true,
+      },
+    }),
+  ]);
+
+  templateSheet.addRow([...DEVICE_IMPORT_TEMPLATE_HEADERS]);
+  templateSheet.addRow([
+    jobCodes[0]?.code ?? "",
+    picUsers[0] ? `${picUsers[0].name} (${picUsers[0].email})` : "",
+    "SN-001",
+    "Laptop",
+    "DELL 5420",
+    "L-ID-22-030",
+    "Kipli",
+    "rifki@sankyu.co.id",
+    "ON",
+    "Cikarang",
+    "192.168.1.10",
+    "2026-02-01",
+    "2026-12-31",
+    "ACTIVE",
+    "Data awal",
+    "",
+  ]);
+
+  templateSheet.columns = [
+    { width: 12 },
+    { width: 30 },
+    { width: 18 },
+    { width: 14 },
+    { width: 16 },
+    { width: 18 },
+    { width: 18 },
+    { width: 28 },
+    { width: 10 },
+    { width: 18 },
+    { width: 18 },
+    { width: 14 },
+    { width: 14 },
+    { width: 16 },
+    { width: 24 },
+    { width: 24 },
+  ];
+
+  const headerRow = templateSheet.getRow(1);
+  headerRow.font = { bold: true };
+  headerRow.alignment = { horizontal: "center", vertical: "middle" };
+
+  referenceSheet.columns = [
+    { width: 28 },
+    { width: 42 },
+    { width: 16 },
+    { width: 12 },
+    { width: 16 },
+  ];
+
+  referenceSheet.getCell("A1").value = "Job Code";
+  referenceSheet.getCell("B1").value = "PIC Name";
+  referenceSheet.getCell("C1").value = "Category";
+  referenceSheet.getCell("D1").value = "Status";
+  referenceSheet.getCell("E1").value = "Lease Status";
+
+  const categoryOptions = ["Laptop", "Desktop"];
+  const statusOptions = ["ON", "OFF"];
+  const leaseStatusOptions = ["ACTIVE", "EXPIRED", "Back To KDDI"];
+
+  const jobCodeValues = jobCodes.length > 0 ? jobCodes.map((row) => row.code) : [""];
+  const picValues = picUsers.length > 0
+    ? picUsers.map((user) => `${user.name} (${user.email})`)
+    : [""];
+
+  const fillColumn = (column: "A" | "B" | "C" | "D" | "E", values: string[]) => {
+    values.forEach((value, index) => {
+      referenceSheet.getCell(`${column}${index + 2}`).value = value;
+    });
+  };
+
+  fillColumn("A", jobCodeValues);
+  fillColumn("B", picValues);
+  fillColumn("C", categoryOptions);
+  fillColumn("D", statusOptions);
+  fillColumn("E", leaseStatusOptions);
+
+  const addListValidation = (
+    column: number,
+    formula: string,
+    allowBlank = true,
+    errorMessage = "Pilih nilai dari dropdown.",
+  ) => {
+    for (let row = 2; row <= DEVICE_IMPORT_DROPDOWN_MAX_ROWS; row += 1) {
+      templateSheet.getCell(row, column).dataValidation = {
+        type: "list",
+        allowBlank,
+        formulae: [formula],
+        showErrorMessage: true,
+        errorStyle: "error",
+        errorTitle: "Pilihan tidak valid",
+        error: errorMessage,
+      };
+    }
+  };
+
+  const jobCodeLastRow = Math.max(2, jobCodeValues.length + 1);
+  const picLastRow = Math.max(2, picValues.length + 1);
+
+  addListValidation(1, `=Referensi!$A$2:$A$${jobCodeLastRow}`, false, "Job Code wajib dipilih dari dropdown.");
+  addListValidation(2, `=Referensi!$B$2:$B$${picLastRow}`, false, "PIC Name wajib dipilih dari dropdown.");
+  addListValidation(4, "=Referensi!$C$2:$C$3");
+  addListValidation(9, "=Referensi!$D$2:$D$3");
+  addListValidation(14, "=Referensi!$E$2:$E$4");
+
+  for (let row = 2; row <= DEVICE_IMPORT_DROPDOWN_MAX_ROWS; row += 1) {
+    templateSheet.getCell(row, 12).dataValidation = {
+      type: "date",
+      operator: "greaterThanOrEqual",
+      allowBlank: true,
+      formulae: ["DATE(1900,1,1)"],
+      showErrorMessage: true,
+      errorStyle: "error",
+      errorTitle: "Tanggal tidak valid",
+      error: "Gunakan format tanggal yang valid (YYYY-MM-DD).",
+    };
+
+    templateSheet.getCell(row, 13).dataValidation = {
+      type: "date",
+      operator: "greaterThanOrEqual",
+      allowBlank: true,
+      formulae: ["DATE(1900,1,1)"],
+      showErrorMessage: true,
+      errorStyle: "error",
+      errorTitle: "Tanggal tidak valid",
+      error: "Gunakan format tanggal yang valid (YYYY-MM-DD).",
+    };
+  }
+
+  instructionSheet.addRows([
+    ["Panduan Import Data Perangkat"],
+    ["1. Isi data mulai baris ke-2 di sheet Template."],
+    ["2. Kolom NO tidak perlu diisi karena otomatis generate oleh sistem."],
+    ["3. Kolom dropdown: Job Code, PIC Name, Category, Status, Lease Status."],
+    ["4. Job Code harus sudah ada di Master Job Code."],
+    ["5. PIC Name harus user yang terdaftar di Master User."],
+    ["6. Format tanggal yang disarankan: YYYY-MM-DD (contoh 2026-02-28)."],
+    ["7. Status: ON/OFF. EXPIRED akan dihitung otomatis jika lease habis."],
+    ["8. Lease Status: ACTIVE, EXPIRED, atau Back To KDDI."],
+    ["9. Jika Serial No sudah ada, data akan diupdate. Jika belum ada, data baru dibuat."],
+  ]);
+  instructionSheet.getColumn(1).width = 120;
+  instructionSheet.getRow(1).font = { bold: true };
+
+  referenceSheet.state = "veryHidden";
+
+  const buffer = await workbook.xlsx.writeBuffer();
+  return Buffer.isBuffer(buffer) ? buffer : Buffer.from(buffer);
+}
+function runDeviceImportUpload(req: Request, res: Response): Promise<void> {
+  const uploadMiddleware = deviceImportUpload.single("file");
+
+  return new Promise((resolve, reject) => {
+    uploadMiddleware(req, res, (error) => {
+      if (error) {
+        reject(error);
+        return;
+      }
+
+      resolve();
+    });
+  });
+}
+
+function resolvePicUserFromImport(
+  users: Array<{ id: string; name: string; email: string }>,
+  picReference: string,
+): { id: string; name: string; email: string } {
+  const target = cleanText(picReference).toLowerCase();
+  if (!target) {
+    throw new Error("PIC Name wajib diisi.");
+  }
+
+  const idReference = cleanText(picReference);
+  const byId = users.find((user) => cleanText(user.id) === idReference);
+  if (byId) {
+    return byId;
+  }
+
+  const byEmail = users.find((user) => cleanText(user.email).toLowerCase() === target);
+  if (byEmail) {
+    return byEmail;
+  }
+
+  const emailInsideParentheses = target.match(/\(([^()\s]+@[^()\s]+)\)\s*$/);
+  if (emailInsideParentheses && emailInsideParentheses[1]) {
+    const emailText = emailInsideParentheses[1].toLowerCase();
+    const byEmailFromDisplay = users.find((user) => cleanText(user.email).toLowerCase() === emailText);
+    if (byEmailFromDisplay) {
+      return byEmailFromDisplay;
+    }
+  }
+
+  const plainTargetName = target.replace(/\s+\(.+\)$/g, "").trim();
+  const byName = users.filter((user) => cleanText(user.name).toLowerCase() === plainTargetName);
+  if (byName.length === 1) {
+    return byName[0];
+  }
+
+  if (byName.length > 1) {
+    throw new Error("PIC Name duplikat pada Job Code ini. Gunakan email PIC agar spesifik.");
+  }
+
+  throw new Error("PIC Name tidak ditemukan untuk Job Code ini.");
+}
+
+async function prepareDeviceImportRows(rows: DeviceImportFileRow[]): Promise<PreparedImportRow[]> {
+  const uniqueJobCodes = [...new Set(rows.map((row) => cleanText(row.jobCode).toUpperCase()).filter(Boolean))];
+
+  const jobCodes = await prisma.jobCode.findMany({
+    where: {
+      code: {
+        in: uniqueJobCodes,
+      },
+    },
+    select: {
+      id: true,
+      code: true,
+    },
+  });
+
+  const jobCodeByCode = new Map(jobCodes.map((row) => [cleanText(row.code).toUpperCase(), row]));
+
+  const users = await prisma.masterUser.findMany({
+    where: {
+      jobCodeId: {
+        in: jobCodes.map((row) => row.id),
+      },
+    },
+    select: {
+      id: true,
+      name: true,
+      email: true,
+      jobCodeId: true,
+    },
+  });
+
+  const usersByJobCode = new Map<number, Array<{ id: string; name: string; email: string }>>();
+  users.forEach((user) => {
+    const list = usersByJobCode.get(user.jobCodeId) || [];
+    list.push({ id: user.id, name: user.name, email: user.email });
+    usersByJobCode.set(user.jobCodeId, list);
+  });
+
+  const preparedRows: PreparedImportRow[] = [];
+  const rowErrors: string[] = [];
+  const seenSerialNo = new Set<string>();
+
+  rows.forEach((row) => {
+    try {
+      const jobCodeText = cleanText(row.jobCode).toUpperCase();
+      if (!jobCodeText) {
+        throw new Error("Job Code wajib diisi.");
+      }
+
+      const jobCode = jobCodeByCode.get(jobCodeText);
+      if (!jobCode) {
+        throw new Error(`Job Code "${jobCodeText}" tidak ditemukan di master.`);
+      }
+
+      const serialNo = cleanText(row.serialNo);
+      if (serialNo) {
+        const serialKey = serialNo.toUpperCase();
+        if (seenSerialNo.has(serialKey)) {
+          throw new Error(`Serial No. "${serialNo}" duplikat di file import.`);
+        }
+
+        seenSerialNo.add(serialKey);
+      }
+
+      const jobCodeUsers = usersByJobCode.get(jobCode.id) || [];
+      const picUser = resolvePicUserFromImport(jobCodeUsers, row.picName);
+
+      const payload = parsePayload({
+        jobCodeId: jobCode.id,
+        picUserId: picUser.id,
+        userName: row.userName,
+        userEmail: row.userEmail,
+        serialNo,
+        category: row.category,
+        model: row.model,
+        hostName: row.hostName,
+        status: row.status,
+        location: row.location,
+        ipList: row.ipList,
+        startDate: row.startDate,
+        endDate: row.endDate,
+        leaseStatus: normalizeImportLeaseStatus(row.leaseStatus),
+        hystoryLog: "",
+        keterangan: row.keterangan,
+        bitlockerKey: row.bitlockerKey,
+      });
+
+      preparedRows.push({
+        rowNumber: row.rowNumber,
+        payload,
+      });
+    } catch (error) {
+      const message = error instanceof Error ? error.message : "Data tidak valid.";
+      rowErrors.push(`Baris ${row.rowNumber}: ${message}`);
+    }
+  });
+
+  if (rowErrors.length > 0) {
+    throw new Error(`Validasi import gagal.\n${rowErrors.join("\n")}`);
+  }
+
+  if (!preparedRows.length) {
+    throw new Error("Tidak ada data valid yang bisa diimport.");
+  }
+
+  return preparedRows;
+}
 async function validateJobAndPic(
   tx: Prisma.TransactionClient,
   payload: DeviceRecordPayload,
@@ -672,6 +1245,288 @@ deviceRecordRouter.get("/device-records", async (req, res, next) => {
   }
 });
 
+
+deviceRecordRouter.get("/device-records/import-template", requireRole("admin"), async (_req, res, next) => {
+  try {
+    const buffer = await createDeviceImportTemplateWorkbookBuffer();
+    const fileName = "template-data-perangkat.xlsx";
+
+    res.setHeader(
+      "Content-Type",
+      "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+    );
+    res.setHeader("Content-Disposition", `attachment; filename="${fileName}"`);
+    res.send(buffer);
+  } catch (error) {
+    next(error);
+  }
+});
+
+deviceRecordRouter.post("/device-records/import", requireRole("admin"), async (req, res, next) => {
+  try {
+    await runDeviceImportUpload(req, res);
+
+    if (!req.file) {
+      return res.status(400).json({ message: "File Excel wajib diupload." });
+    }
+
+    let workbook: XLSX.WorkBook;
+    try {
+      workbook = XLSX.read(req.file.buffer, { type: "buffer", raw: true });
+    } catch (_error) {
+      return res.status(400).json({ message: "File Excel tidak dapat dibaca." });
+    }
+
+    const firstSheetName = workbook.SheetNames[0];
+    if (!firstSheetName) {
+      return res.status(400).json({ message: "Sheet template tidak ditemukan." });
+    }
+
+    const firstSheet = workbook.Sheets[firstSheetName];
+    if (!firstSheet) {
+      return res.status(400).json({ message: "Sheet template tidak ditemukan." });
+    }
+
+    const importRows = parseDeviceImportRows(firstSheet);
+    const preparedRows = await prepareDeviceImportRows(importRows);
+    const actorName = getHistoryActorName(req);
+
+    let created = 0;
+    let updated = 0;
+
+    await prisma.$transaction(async (tx) => {
+      let nextLegacyNo = (await tx.device.aggregate({ _max: { legacyNo: true } }))._max.legacyNo ?? 0;
+
+      for (const row of preparedRows) {
+        const payload = row.payload;
+        const picUser = await validateJobAndPic(tx, payload);
+        const { categoryId, modelId, locationId } = await resolveLookupIds(tx, payload);
+
+        const existing = payload.serialNo
+          ? await tx.device.findUnique({
+            where: { serialNumber: payload.serialNo },
+            select: {
+              id: true,
+              legacyNo: true,
+              serialNumber: true,
+              hostName: true,
+              userNameRaw: true,
+              userEmailRaw: true,
+              statusRaw: true,
+              locationRaw: true,
+              ipListRaw: true,
+              picNameRaw: true,
+              notes: true,
+              bitlockerKey: true,
+              jobCode: {
+                select: { code: true },
+              },
+              category: {
+                select: { name: true },
+              },
+              model: {
+                select: { name: true },
+              },
+              leaseContracts: {
+                orderBy: { createdAt: "desc" },
+                take: 1,
+                select: {
+                  id: true,
+                  startDate: true,
+                  endDate: true,
+                  leaseStatus: true,
+                  historyLog: true,
+                },
+              },
+            },
+          })
+          : null;
+
+        if (!existing) {
+          nextLegacyNo += 1;
+
+          const device = await tx.device.create({
+            data: {
+              legacyNo: nextLegacyNo,
+              serialNumber: payload.serialNo,
+              hostName: payload.hostName,
+              userNameRaw: payload.userName,
+              userEmailRaw: payload.userEmail,
+              statusRaw: payload.status,
+              locationRaw: payload.location,
+              ipListRaw: payload.ipList,
+              picNameRaw: picUser.name,
+              notes: payload.keterangan,
+              bitlockerKey: payload.bitlockerKey,
+              jobCodeId: payload.jobCodeId,
+              categoryId,
+              modelId,
+              locationId,
+            },
+          });
+
+          await syncDeviceIps(tx, device.id, payload.ipList);
+
+          const createdHistoryLog = appendHistoryEntries(payload.hystoryLog, [
+            buildHistoryEntry(
+              `Data perangkat diimport oleh ${actorName} (baris ${row.rowNumber})${payload.serialNo ? ` (Serial No: ${payload.serialNo})` : ""
+              }.`,
+            ),
+          ]);
+
+          await syncLatestLease(tx, device.id, {
+            ...payload,
+            hystoryLog: createdHistoryLog,
+          });
+
+          created += 1;
+          continue;
+        }
+
+        const latestLease = existing.leaseContracts[0] ?? null;
+
+        const changedFieldMessages = getChangedFieldMessages([
+          {
+            label: "Job Code",
+            before: existing.jobCode?.code ?? null,
+            after: picUser.jobCodeCode,
+          },
+          {
+            label: "PIC Name",
+            before: existing.picNameRaw,
+            after: picUser.name,
+          },
+          {
+            label: "Category",
+            before: existing.category?.name ?? null,
+            after: payload.category,
+          },
+          {
+            label: "Model",
+            before: existing.model?.name ?? null,
+            after: payload.model,
+          },
+          {
+            label: "Host Name",
+            before: existing.hostName,
+            after: payload.hostName,
+          },
+          {
+            label: "User Name",
+            before: existing.userNameRaw,
+            after: payload.userName,
+          },
+          {
+            label: "User Email",
+            before: existing.userEmailRaw,
+            after: payload.userEmail,
+          },
+          {
+            label: "Status",
+            before: existing.statusRaw,
+            after: payload.status,
+          },
+          {
+            label: "Location",
+            before: existing.locationRaw,
+            after: payload.location,
+          },
+          {
+            label: "IP List",
+            before: existing.ipListRaw,
+            after: payload.ipList,
+          },
+          {
+            label: "Start Date",
+            before: formatDate(latestLease?.startDate),
+            after: formatDate(payload.startDate),
+          },
+          {
+            label: "End Date",
+            before: formatDate(latestLease?.endDate),
+            after: formatDate(payload.endDate),
+          },
+          {
+            label: "Lease Status",
+            before: latestLease?.leaseStatus,
+            after: payload.leaseStatus,
+          },
+          {
+            label: "Keterangan",
+            before: existing.notes,
+            after: payload.keterangan,
+          },
+          {
+            label: "Bitlocker Key",
+            before: existing.bitlockerKey,
+            after: payload.bitlockerKey,
+          },
+        ]);
+
+        const importMessage = changedFieldMessages.length
+          ? `Data perangkat diimport oleh ${actorName} (baris ${row.rowNumber}): ${changedFieldMessages.join("; ")}`
+          : `Import Excel oleh ${actorName} (baris ${row.rowNumber}) tanpa perubahan data.`;
+        const updatedHistoryLog = appendHistoryEntries(latestLease?.historyLog, [
+          buildHistoryEntry(importMessage),
+        ]);
+
+        await tx.device.update({
+          where: { id: existing.id },
+          data: {
+            legacyNo: existing.legacyNo,
+            serialNumber: payload.serialNo,
+            hostName: payload.hostName,
+            userNameRaw: payload.userName,
+            userEmailRaw: payload.userEmail,
+            statusRaw: payload.status,
+            locationRaw: payload.location,
+            ipListRaw: payload.ipList,
+            picNameRaw: picUser.name,
+            notes: payload.keterangan,
+            bitlockerKey: payload.bitlockerKey,
+            jobCodeId: payload.jobCodeId,
+            categoryId,
+            modelId,
+            locationId,
+          },
+        });
+
+        await syncDeviceIps(tx, existing.id, payload.ipList);
+        await syncLatestLease(tx, existing.id, {
+          ...payload,
+          hystoryLog: updatedHistoryLog,
+        }, latestLease?.id);
+
+        updated += 1;
+      }
+    });
+
+    res.json({
+      message: "Import Data Perangkat berhasil.",
+      data: {
+        total: preparedRows.length,
+        created,
+        updated,
+      },
+    });
+  } catch (error) {
+    if (error instanceof multer.MulterError && error.code === "LIMIT_FILE_SIZE") {
+      return res.status(400).json({
+        message: `Ukuran file maksimal ${Math.floor(MAX_DEVICE_IMPORT_FILE_SIZE / (1024 * 1024))} MB.`,
+      });
+    }
+
+    if (error instanceof Prisma.PrismaClientKnownRequestError && error.code === "P2002") {
+      return res.status(409).json({ message: "Serial No. sudah terdaftar." });
+    }
+
+    if (error instanceof Error) {
+      return res.status(400).json({ message: error.message });
+    }
+
+    next(error);
+  }
+});
 deviceRecordRouter.post("/device-records/export", async (req, res, next) => {
   try {
     const scope = await resolveDataScope(req);

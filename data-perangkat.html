@@ -649,6 +649,12 @@
                     <div class="d-flex flex-wrap justify-content-between align-items-center gap-2 mb-3">
                         <h5 class="card-title mb-0">Daftar Data Perangkat</h5>
                         <div class="d-flex gap-2">
+                            <button type="button" class="btn btn-outline-secondary" id="downloadTemplateButton">
+                                <i class="feather-file-text me-1"></i>Template Excel
+                            </button>
+                            <button type="button" class="btn btn-success" id="importExcelButton">
+                                <i class="feather-upload me-1"></i>Import Excel
+                            </button>
                             <button type="button" class="btn btn-outline-success" id="exportExcelButton">
                                 <i class="feather-download me-1"></i>Export Excel
                             </button>
@@ -656,6 +662,7 @@
                             <button type="button" class="btn btn-outline-primary" id="refreshButton">Refresh Data</button>
                         </div>
                     </div>
+                    <input type="file" id="importExcelInput" class="d-none" accept=".xlsx,.xls">
                     <div class="device-table-filters mb-3">
                         <div class="row g-2 align-items-end">
                             <div class="col-12 col-xl-4">
@@ -819,6 +826,9 @@
         const resetButton = document.getElementById("resetButton");
         const closeFormButton = document.getElementById("closeFormButton");
         const roleEditHint = document.getElementById("roleEditHint");
+        const downloadTemplateButton = document.getElementById("downloadTemplateButton");
+        const importExcelButton = document.getElementById("importExcelButton");
+        const importExcelInput = document.getElementById("importExcelInput");
         const exportExcelButton = document.getElementById("exportExcelButton");
         const addDataButton = document.getElementById("addDataButton");
         const refreshButton = document.getElementById("refreshButton");
@@ -901,6 +911,9 @@
         const activeStatusFilters = new Set();
         const activeLeaseStatusFilters = new Set();
         let isExportingExcel = false;
+        let isImportingExcel = false;
+        const importButtonDefaultHtml = importExcelButton.innerHTML;
+        const downloadTemplateButtonDefaultHtml = downloadTemplateButton.innerHTML;
         const editableInputs = [
             jobCodeIdInput,
             picUserIdInput,
@@ -981,6 +994,8 @@
 
         if (currentUserRole === "user") {
             addDataButton.classList.add("d-none");
+            importExcelButton.classList.add("d-none");
+            downloadTemplateButton.classList.add("d-none");
         }
 
         function applyRoleBasedFieldPermissions() {
@@ -1686,6 +1701,121 @@
                 .map((entry) => entry.row);
         }
 
+        function setImportState(isLoading) {
+            isImportingExcel = Boolean(isLoading);
+            importExcelButton.disabled = isImportingExcel;
+            addDataButton.disabled = isImportingExcel;
+            refreshButton.disabled = isImportingExcel;
+
+            if (isImportingExcel) {
+                importExcelButton.innerHTML = '<span class="spinner-border spinner-border-sm me-1" role="status" aria-hidden="true"></span>Importing...';
+                return;
+            }
+
+            importExcelButton.innerHTML = importButtonDefaultHtml;
+        }
+
+        async function downloadImportTemplate() {
+            if (currentUserRole === "user") {
+                showAlert("Role user tidak diizinkan mengakses template import.", "danger");
+                return;
+            }
+
+            hideAlert();
+            downloadTemplateButton.disabled = true;
+            downloadTemplateButton.innerHTML = '<span class="spinner-border spinner-border-sm me-1" role="status" aria-hidden="true"></span>Downloading...';
+
+            try {
+                const response = await apiFetch(`${API_BASE}/device-records/import-template`);
+                if (!response.ok) {
+                    const result = await response.json().catch(() => ({}));
+                    throw new Error(result.message || "Gagal mengunduh template import.");
+                }
+
+                const fileBlob = await response.blob();
+                if (!(fileBlob instanceof Blob) || fileBlob.size <= 0) {
+                    throw new Error("Template Excel kosong.");
+                }
+
+                const serverFileName = parseFileNameFromDisposition(response.headers.get("content-disposition"));
+                downloadBlobFile(fileBlob, serverFileName || "template-data-perangkat.xlsx");
+            } catch (error) {
+                showAlert(error.message || "Gagal mengunduh template import.", "danger");
+            } finally {
+                downloadTemplateButton.disabled = false;
+                downloadTemplateButton.innerHTML = downloadTemplateButtonDefaultHtml;
+            }
+        }
+
+        function openImportFilePicker() {
+            if (currentUserRole === "user") {
+                showAlert("Role user tidak diizinkan import data perangkat.", "danger");
+                return;
+            }
+
+            hideAlert();
+            importExcelInput.value = "";
+            importExcelInput.click();
+        }
+
+        async function importFromExcel(event) {
+            const file = event.target.files && event.target.files[0];
+            if (!file) {
+                return;
+            }
+
+            if (currentUserRole === "user") {
+                showAlert("Role user tidak diizinkan import data perangkat.", "danger");
+                importExcelInput.value = "";
+                return;
+            }
+
+            const yes = await openConfirmModal({
+                title: "Konfirmasi Import Excel",
+                message: `Import file "${file.name}"? Serial No yang sudah ada akan diupdate otomatis.`,
+                confirmText: "Import",
+                confirmClass: "btn-success",
+                confirmIcon: "feather-upload"
+            });
+
+            if (!yes) {
+                importExcelInput.value = "";
+                return;
+            }
+
+            hideAlert();
+            setImportState(true);
+
+            try {
+                const formData = new FormData();
+                formData.append("file", file);
+
+                const response = await apiFetch(`${API_BASE}/device-records/import`, {
+                    method: "POST",
+                    headers: {
+                        "x-user-role": currentUserRole
+                    },
+                    body: formData
+                });
+
+                const result = await response.json().catch(() => ({}));
+                if (!response.ok) {
+                    throw new Error(result.message || "Gagal import data perangkat.");
+                }
+
+                const stats = result.data || {};
+                showAlert(
+                    `Import selesai. Total ${stats.total || 0} baris, ${stats.created || 0} ditambahkan, ${stats.updated || 0} diperbarui.`,
+                    "success"
+                );
+                await loadRows();
+            } catch (error) {
+                showAlert(error.message || "Gagal import data perangkat.", "danger");
+            } finally {
+                setImportState(false);
+                importExcelInput.value = "";
+            }
+        }
         async function exportCurrentRowsToExcel() {
             if (isExportingExcel) {
                 return;
@@ -2288,6 +2418,9 @@
 
             window.location.href = "data-perangkat-form.html";
         });
+        downloadTemplateButton.addEventListener("click", downloadImportTemplate);
+        importExcelButton.addEventListener("click", openImportFilePicker);
+        importExcelInput.addEventListener("change", importFromExcel);
         exportExcelButton.addEventListener("click", exportCurrentRowsToExcel);
         closeFormButton.addEventListener("click", () => {
             hideAlert();
