@@ -88,6 +88,7 @@ const DEVICE_IMPORT_TEMPLATE_HEADERS = [
 
 const MAX_DEVICE_IMPORT_FILE_SIZE = 5 * 1024 * 1024;
 const DEVICE_IMPORT_DROPDOWN_MAX_ROWS = 1000;
+const LEGACY_NO_LOCK_KEY = 8042026;
 
 const deviceImportUpload = multer({
   storage: multer.memoryStorage(),
@@ -213,7 +214,7 @@ function parsePayload(payload: unknown): DeviceRecordPayload {
 
   const body = payload as Record<string, unknown>;
 
-  const no = parseInteger(body.no, "NO", { min: 0 });
+  const no = null;
   const jobCodeId = Number(body.jobCodeId);
   const picUserId = cleanText(body.picUserId);
   const userName = toNullableText(body.userName);
@@ -276,6 +277,15 @@ function parsePayload(payload: unknown): DeviceRecordPayload {
     keterangan,
     bitlockerKey,
   };
+}
+
+async function lockLegacyNoSequence(tx: Prisma.TransactionClient): Promise<void> {
+  await tx.$executeRawUnsafe("SELECT pg_advisory_xact_lock(" + LEGACY_NO_LOCK_KEY + ")");
+}
+
+async function getNextLegacyNo(tx: Prisma.TransactionClient): Promise<number> {
+  const maxLegacyNo = (await tx.device.aggregate({ _max: { legacyNo: true } }))._max.legacyNo ?? 0;
+  return maxLegacyNo + 1;
 }
 
 function formatDate(date: Date | null | undefined): string {
@@ -494,6 +504,22 @@ function mapDeviceToExcelRecord(row: MappedDeviceRow, fallbackNo?: number) {
     Keterangan: row.notes ?? "",
     "Bitlocker Key": row.bitlockerKey ?? "",
   };
+}
+
+function mapDevicesWithResolvedNo(rows: MappedDeviceRow[]) {
+  let nextFallbackNo = rows.reduce((maxNo, row) => {
+    const value = typeof row.legacyNo === "number" && Number.isFinite(row.legacyNo) ? row.legacyNo : 0;
+    return value > maxNo ? value : maxNo;
+  }, 0);
+
+  return rows.map((row) => {
+    if (typeof row.legacyNo === "number" && Number.isFinite(row.legacyNo) && row.legacyNo > 0) {
+      return mapDeviceToExcelRecord(row);
+    }
+
+    nextFallbackNo += 1;
+    return mapDeviceToExcelRecord(row, nextFallbackNo);
+  });
 }
 
 const deviceExportColumns = [
@@ -1233,9 +1259,8 @@ deviceRecordRouter.get("/device-records", async (req, res, next) => {
       include: deviceRecordInclude,
     });
 
-    res.json({
-      data: rows.map((row, index) => mapDeviceToExcelRecord(row as unknown as MappedDeviceRow, index + 1)),
-    });
+    const mappedRows = mapDevicesWithResolvedNo(rows as unknown as MappedDeviceRow[]);
+    res.json({ data: mappedRows });
   } catch (error) {
     if (error instanceof Error && error.message === "ROLE_USER_JOB_CODE_NOT_FOUND") {
       return res.status(403).json({ message: "Job Code user tidak ditemukan. Hubungi admin." });
@@ -1295,6 +1320,7 @@ deviceRecordRouter.post("/device-records/import", requireRole("admin"), async (r
     let updated = 0;
 
     await prisma.$transaction(async (tx) => {
+      await lockLegacyNoSequence(tx);
       let nextLegacyNo = (await tx.device.aggregate({ _max: { legacyNo: true } }))._max.legacyNo ?? 0;
 
       for (const row of preparedRows) {
@@ -1547,9 +1573,7 @@ deviceRecordRouter.post("/device-records/export", async (req, res, next) => {
       include: deviceRecordInclude,
     });
 
-    const mappedRows = rows.map((row, index) =>
-      mapDeviceToExcelRecord(row as unknown as MappedDeviceRow, index + 1),
-    );
+    const mappedRows = mapDevicesWithResolvedNo(rows as unknown as MappedDeviceRow[]);
     const orderedRows = reorderRowsByRequestedIds(mappedRows, requestedIds);
     const exportRows = orderedRows.map((row) => toExportRow(row));
 
@@ -1616,9 +1640,8 @@ deviceRecordRouter.post("/device-records", async (req, res, next) => {
     const created = await prisma.$transaction(async (tx) => {
       const picUser = await validateJobAndPic(tx, payload);
       const { categoryId, modelId, locationId } = await resolveLookupIds(tx, payload);
-
-      const nextLegacyNo =
-        payload.no ?? (((await tx.device.aggregate({ _max: { legacyNo: true } }))._max.legacyNo ?? 0) + 1);
+      await lockLegacyNoSequence(tx);
+      const nextLegacyNo = await getNextLegacyNo(tx);
 
       const device = await tx.device.create({
         data: {
@@ -1734,12 +1757,18 @@ deviceRecordRouter.put("/device-records/:id", async (req, res, next) => {
       const { categoryId, modelId, locationId } = await resolveLookupIds(tx, payload);
       const latestLease = existing.leaseContracts[0] ?? null;
 
+      let resolvedLegacyNo = existing.legacyNo;
+      if (!(typeof resolvedLegacyNo === "number" && Number.isFinite(resolvedLegacyNo) && resolvedLegacyNo > 0)) {
+        await lockLegacyNoSequence(tx);
+        resolvedLegacyNo = await getNextLegacyNo(tx);
+      }
+
       if (editorRole === "user") {
         const restrictedChangedLabels = getChangedFieldLabels([
           {
             label: "NO",
             before: existing.legacyNo,
-            after: payload.no ?? existing.legacyNo,
+            after: resolvedLegacyNo,
           },
           {
             label: "Job Code",
@@ -1807,7 +1836,7 @@ deviceRecordRouter.put("/device-records/:id", async (req, res, next) => {
         {
           label: "NO",
           before: existing.legacyNo,
-          after: payload.no ?? existing.legacyNo,
+          after: resolvedLegacyNo,
         },
         {
           label: "Job Code",
@@ -1902,7 +1931,7 @@ deviceRecordRouter.put("/device-records/:id", async (req, res, next) => {
       await tx.device.update({
         where: { id },
         data: {
-          legacyNo: payload.no ?? existing.legacyNo,
+          legacyNo: resolvedLegacyNo,
           serialNumber: payload.serialNo,
           hostName: payload.hostName,
           userNameRaw: payload.userName,
@@ -2009,3 +2038,4 @@ deviceRecordRouter.delete("/device-records/:id", async (req, res, next) => {
     next(error);
   }
 });
+
