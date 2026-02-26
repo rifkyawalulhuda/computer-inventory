@@ -191,7 +191,7 @@
             <div class="d-flex align-items-center justify-content-between flex-wrap gap-3 mb-4">
                 <div>
                     <h1 class="page-title">Department</h1>
-                    <p class="page-subtitle">Menyimpan data Job Code, Site Name, Address, dan Telp. Number.</p>
+                    <p class="page-subtitle">Menyimpan data Site Code, Site Name, Address, dan Telp. Number.</p>
                 </div>
             </div>
 
@@ -222,7 +222,7 @@
                             <thead>
                                 <tr>
                                     <th>No</th>
-                                    <th>Job Code</th>
+                                    <th>Site Code</th>
                                     <th>Site Name</th>
                                     <th>Address</th>
                                     <th>Telp. Number</th>
@@ -254,7 +254,7 @@
                     <input type="hidden" id="rowId">
 
                     <div class="mb-3">
-                        <label for="jobCode" class="form-label">Job Code</label>
+                        <label for="jobCode" class="form-label">Site Code</label>
                         <input type="text" class="form-control" id="jobCode" maxlength="5" placeholder="Contoh: CLC" required>
                         <small class="text-muted">Maksimal 5 huruf.</small>
                     </div>
@@ -417,7 +417,7 @@
             };
 
             if (!/^[A-Z]{1,5}$/.test(payload.code)) {
-                throw new Error("Job Code wajib 1-5 huruf (A-Z).");
+                throw new Error("Site Code wajib 1-5 huruf (A-Z).");
             }
 
             if (payload.siteName.length < 1 || payload.siteName.length > 30) {
@@ -555,7 +555,7 @@
 
             const yes = await openConfirmModal({
                 title: "Konfirmasi Import Excel",
-                message: `Import file "${file.name}"? Job Code yang sama akan otomatis diupdate.`,
+                message: `Import file "${file.name}"? Site Code yang sama akan otomatis diupdate.`,
                 confirmText: "Import",
                 confirmClass: "btn-success",
                 confirmIcon: "feather-upload"

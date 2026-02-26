@@ -219,7 +219,7 @@
                                     <th>Role</th>
                                     <th>Email</th>
                                     <th>Password</th>
-                                    <th>Job Code</th>
+                                    <th>Site Code</th>
                                     <th>Contact</th>
                                     <th>Rank</th>
                                     <th style="width: 180px;">Action</th>
@@ -275,7 +275,7 @@
                     </div>
 
                     <div class="mb-3">
-                        <label for="jobCodeId" class="form-label">Job Code</label>
+                        <label for="jobCodeId" class="form-label">Site Code</label>
                         <select class="form-select" id="jobCodeId" required>
                             <option value="">Loading...</option>
                         </select>
@@ -431,12 +431,12 @@
 
         function populateJobCodes() {
             if (!jobCodes.length) {
-                jobCodeIdInput.innerHTML = "<option value=\"\">Belum ada data Job Code</option>";
+                jobCodeIdInput.innerHTML = "<option value=\"\">Belum ada data Site Code</option>";
                 return;
             }
 
             jobCodeIdInput.innerHTML = [
-                "<option value=\"\">Pilih Job Code</option>",
+                "<option value=\"\">Pilih Site Code</option>",
                 ...jobCodes.map((row) => `<option value=\"${row.id}\">${row.code} - ${row.siteName}</option>`)
             ].join("");
         }
@@ -465,7 +465,7 @@
             }
 
             if (!Number.isInteger(payload.jobCodeId) || payload.jobCodeId < 1) {
-                throw new Error("Job Code wajib dipilih.");
+                throw new Error("Site Code wajib dipilih.");
             }
 
             if (!payload.contact || payload.contact.length > 50) {
@@ -531,7 +531,7 @@
             const result = await response.json();
 
             if (!response.ok) {
-                throw new Error(result.message || "Gagal memuat Job Code.");
+                throw new Error(result.message || "Gagal memuat Site Code.");
             }
 
             jobCodes = result.data || [];

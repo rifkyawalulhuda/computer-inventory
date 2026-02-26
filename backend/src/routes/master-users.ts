@@ -49,7 +49,7 @@ function parseBasePayload(payload: unknown): BaseUserPayload {
   }
 
   if (!Number.isInteger(jobCodeId) || jobCodeId < 1) {
-    throw new Error("Job Code wajib dipilih.");
+    throw new Error("Site Code wajib dipilih.");
   }
 
   return { name, role: role as "admin" | "user", email, contact, rank, jobCodeId };
@@ -78,7 +78,7 @@ masterUserRouter.get("/master-users", async (req, res, next) => {
     const requestedJobCodeId = requestedJobCodeIdRaw ? Number(requestedJobCodeIdRaw) : null;
 
     if (requestedJobCodeIdRaw && (!Number.isInteger(requestedJobCodeId) || (requestedJobCodeId as number) < 1)) {
-      return res.status(400).json({ message: "Job Code filter tidak valid." });
+      return res.status(400).json({ message: "Site Code filter tidak valid." });
     }
 
     let effectiveJobCodeId: number | null = Number.isInteger(requestedJobCodeId) && (requestedJobCodeId as number) > 0
@@ -132,7 +132,7 @@ masterUserRouter.post("/master-users", requireRole("admin"), async (req, res, ne
 
     const jobCode = await prisma.department.findUnique({ where: { id: payload.jobCodeId } });
     if (!jobCode) {
-      return res.status(400).json({ message: "Job Code tidak ditemukan." });
+      return res.status(400).json({ message: "Site Code tidak ditemukan." });
     }
 
     const passwordHash = await bcrypt.hash(password as string, 10);
@@ -186,7 +186,7 @@ masterUserRouter.put("/master-users/:id", requireRole("admin"), async (req, res,
 
     const jobCode = await prisma.department.findUnique({ where: { id: payload.jobCodeId } });
     if (!jobCode) {
-      return res.status(400).json({ message: "Job Code tidak ditemukan." });
+      return res.status(400).json({ message: "Site Code tidak ditemukan." });
     }
 
     const dataToUpdate: {

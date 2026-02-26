@@ -9,7 +9,7 @@ datasource db {
 
 model Department {
   id          Int      @id @default(autoincrement())
-  code        String   @unique @db.VarChar(5)
+  code        String   @unique @map("site_code") @db.VarChar(5)
   siteName    String   @map("site_name") @db.VarChar(30)
   address     String   @db.Text
   phoneNumber String   @map("phone_number") @db.VarChar(30)
@@ -30,14 +30,14 @@ model MasterUser {
   passwordHash String  @map("password_hash") @db.VarChar(255)
   contact      String  @db.VarChar(50)
   rank         String  @db.VarChar(50)
-  jobCodeId    Int     @map("job_code_id")
+  jobCodeId    Int     @map("site_code_id")
 
   jobCode Department @relation(fields: [jobCodeId], references: [id], onDelete: Restrict)
 
   createdAt DateTime @default(now()) @map("created_at")
   updatedAt DateTime @updatedAt @map("updated_at")
 
-  @@index([jobCodeId], map: "idx_master_users_job_code_id")
+  @@index([jobCodeId], map: "idx_master_users_site_code_id")
   @@map("master_users")
 }
 
@@ -99,7 +99,7 @@ model Device {
   notes         String? @db.Text
   bitlockerKey  String? @map("bitlocker_key") @db.Text
 
-  jobCodeId   Int? @map("job_code_id")
+  jobCodeId   Int? @map("site_code_id")
   categoryId  Int? @map("category_id")
   modelId     Int? @map("model_id")
   locationId  Int? @map("location_id")
@@ -202,4 +202,3 @@ model RemoteAccessProfile {
   @@index([teamviewerId], map: "idx_remote_profiles_teamviewer_id")
   @@map("remote_access_profiles")
 }
-

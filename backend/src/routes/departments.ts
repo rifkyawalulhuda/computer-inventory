@@ -7,7 +7,7 @@ import { requireRole } from "../middleware/auth";
 
 export const departmentRouter = Router();
 
-const TEMPLATE_HEADERS = ["Job Code", "Site Name", "Address", "Telp. Number"] as const;
+const TEMPLATE_HEADERS = ["Site Code", "Site Name", "Address", "Telp. Number"] as const;
 const MAX_IMPORT_FILE_SIZE = 2 * 1024 * 1024;
 
 const importUpload = multer({
@@ -99,7 +99,7 @@ function parseImportRows(sheet: XLSX.WorkSheet): ParsedImportRow[] {
       });
 
       if (seenCodes.has(payload.code)) {
-        throw new Error("Job Code duplikat di file import.");
+        throw new Error("Site Code duplikat di file import.");
       }
 
       seenCodes.add(payload.code);
@@ -136,10 +136,10 @@ function createTemplateWorkbookBuffer(): Buffer {
   const instructionSheet = XLSX.utils.aoa_to_sheet([
     ["Panduan Import Department"],
     ["1. Isi data mulai baris ke-2 di sheet Template."],
-    ["2. Kolom wajib: Job Code, Site Name, Address, Telp. Number."],
-    ["3. Job Code harus 1-5 huruf (A-Z)."],
+    ["2. Kolom wajib: Site Code, Site Name, Address, Telp. Number."],
+    ["3. Site Code harus 1-5 huruf (A-Z)."],
     ["4. Site Name maksimal 30 karakter, Telp. Number maksimal 30 karakter."],
-    ["5. Jika Job Code sudah ada, data akan diupdate saat import."],
+    ["5. Jika Site Code sudah ada, data akan diupdate saat import."],
   ]);
 
   instructionSheet["!cols"] = [{ wch: 90 }];
@@ -177,7 +177,7 @@ function parsePayload(payload: unknown): DepartmentPayload {
   const phoneNumber = String(body.phoneNumber ?? "").trim();
 
   if (!/^[A-Z]{1,5}$/.test(code)) {
-    throw new Error("Job Code wajib 1-5 huruf (A-Z).");
+    throw new Error("Site Code wajib 1-5 huruf (A-Z).");
   }
 
   if (siteName.length < 1 || siteName.length > 30) {
@@ -324,7 +324,7 @@ departmentRouter.post("/departments", requireRole("admin"), async (req, res, nex
     res.status(201).json({ data: created });
   } catch (error) {
     if (error instanceof Prisma.PrismaClientKnownRequestError && error.code === "P2002") {
-      return res.status(409).json({ message: "Job Code sudah ada." });
+      return res.status(409).json({ message: "Site Code sudah ada." });
     }
 
     if (error instanceof Error) {
@@ -352,7 +352,7 @@ departmentRouter.put("/departments/:id", requireRole("admin"), async (req, res, 
     res.json({ data: updated });
   } catch (error) {
     if (error instanceof Prisma.PrismaClientKnownRequestError && error.code === "P2002") {
-      return res.status(409).json({ message: "Job Code sudah ada." });
+      return res.status(409).json({ message: "Site Code sudah ada." });
     }
 
     if (error instanceof Prisma.PrismaClientKnownRequestError && error.code === "P2025") {
@@ -391,7 +391,7 @@ departmentRouter.delete("/departments/:id", requireRole("admin"), async (req, re
 
     if (row._count.devices > 0) {
       return res.status(409).json({
-        message: "Job Code tidak bisa dihapus karena sudah dipakai data device.",
+        message: "Site Code tidak bisa dihapus karena sudah dipakai data device.",
       });
     }
 
