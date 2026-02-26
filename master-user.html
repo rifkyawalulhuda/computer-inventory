@@ -191,7 +191,7 @@
             <div class="d-flex align-items-center justify-content-between flex-wrap gap-3 mb-4">
                 <div>
                     <h1 class="page-title">Master User</h1>
-                    <p class="page-subtitle">Menyimpan user login dan relasi ke Master Job Code.</p>
+                    <p class="page-subtitle">Menyimpan user login dan relasi ke Department.</p>
                 </div>
             </div>
 
@@ -527,7 +527,7 @@
         }
 
         async function loadJobCodes() {
-            const response = await apiFetch(`${API_BASE}/master-job-codes`);
+            const response = await apiFetch(`${API_BASE}/departments`);
             const result = await response.json();
 
             if (!response.ok) {

@@ -66,7 +66,7 @@ type HistoryFieldChange = {
 type EditorRole = "admin" | "user";
 
 const DEVICE_IMPORT_TEMPLATE_HEADERS = [
-  "Job Code",
+  "Department",
   "PIC Name",
   "Serial No.",
   "Category",
@@ -218,7 +218,7 @@ function parsePayload(payload: unknown): DeviceRecordPayload {
   const bitlockerKey = toNullableText(body.bitlockerKey);
 
   if (!Number.isInteger(jobCodeId) || jobCodeId < 1) {
-    throw new Error("Job Code wajib dipilih.");
+    throw new Error("Department wajib dipilih.");
   }
 
   if (!picUserId) {
@@ -458,7 +458,7 @@ function mapDeviceToExcelRecord(row: MappedDeviceRow, fallbackNo?: number) {
   return {
     id: row.id,
     NO: row.legacyNo ?? fallbackNo ?? "",
-    "Job Code": row.jobCode?.code ?? "",
+    "Department": row.jobCode?.code ?? "",
     "PIC Name": row.picNameRaw ?? "",
     "Serial No.": row.serialNumber ?? "",
     Category: row.category?.name ?? "",
@@ -496,7 +496,7 @@ function mapDevicesWithResolvedNo(rows: MappedDeviceRow[]) {
 
 const deviceExportColumns = [
   "NO",
-  "Job Code",
+  "Department",
   "PIC Name",
   "Serial No.",
   "Category",
@@ -521,7 +521,7 @@ type DeviceExportRow = Record<(typeof deviceExportColumns)[number], string | num
 function toExportRow(row: DeviceExcelRecord): DeviceExportRow {
   return {
     NO: row["NO"],
-    "Job Code": row["Job Code"],
+    "Department": row["Department"],
     "PIC Name": row["PIC Name"],
     "Serial No.": row["Serial No."],
     Category: row.Category,
@@ -766,7 +766,7 @@ async function createDeviceImportTemplateWorkbookBuffer(): Promise<Buffer> {
   const referenceSheet = workbook.addWorksheet("Referensi");
 
   const [jobCodes, picUsers] = await Promise.all([
-    prisma.jobCode.findMany({
+    prisma.department.findMany({
       orderBy: { code: "asc" },
       select: {
         code: true,
@@ -829,7 +829,7 @@ async function createDeviceImportTemplateWorkbookBuffer(): Promise<Buffer> {
     { width: 16 },
   ];
 
-  referenceSheet.getCell("A1").value = "Job Code";
+  referenceSheet.getCell("A1").value = "Department";
   referenceSheet.getCell("B1").value = "PIC Name";
   referenceSheet.getCell("C1").value = "Category";
   referenceSheet.getCell("D1").value = "Lease Status";
@@ -875,7 +875,7 @@ async function createDeviceImportTemplateWorkbookBuffer(): Promise<Buffer> {
   const jobCodeLastRow = Math.max(2, jobCodeValues.length + 1);
   const picLastRow = Math.max(2, picValues.length + 1);
 
-  addListValidation(1, `=Referensi!$A$2:$A$${jobCodeLastRow}`, false, "Job Code wajib dipilih dari dropdown.");
+  addListValidation(1, `=Referensi!$A$2:$A$${jobCodeLastRow}`, false, "Department wajib dipilih dari dropdown.");
   addListValidation(2, `=Referensi!$B$2:$B$${picLastRow}`, false, "PIC Name wajib dipilih dari dropdown.");
   addListValidation(4, "=Referensi!$C$2:$C$3");
   addListValidation(13, "=Referensi!$D$2:$D$4");
@@ -908,8 +908,8 @@ async function createDeviceImportTemplateWorkbookBuffer(): Promise<Buffer> {
     ["Panduan Import Data Perangkat"],
     ["1. Isi data mulai baris ke-2 di sheet Template."],
     ["2. Kolom NO tidak perlu diisi karena otomatis generate oleh sistem."],
-    ["3. Kolom dropdown: Job Code, PIC Name, Category, Lease Status."],
-    ["4. Job Code harus sudah ada di Master Job Code."],
+    ["3. Kolom dropdown: Department, PIC Name, Category, Lease Status."],
+    ["4. Department harus sudah terdaftar di master Department."],
     ["5. PIC Name harus user yang terdaftar di Master User."],
     ["6. Format tanggal yang disarankan: YYYY-MM-DD (contoh 2026-02-28)."],
     ["7. Lease Status: ACTIVE, EXPIRED, atau Back To KDDI."],
@@ -974,16 +974,16 @@ function resolvePicUserFromImport(
   }
 
   if (byName.length > 1) {
-    throw new Error("PIC Name duplikat pada Job Code ini. Gunakan email PIC agar spesifik.");
+    throw new Error("PIC Name duplikat pada Department ini. Gunakan email PIC agar spesifik.");
   }
 
-  throw new Error("PIC Name tidak ditemukan untuk Job Code ini.");
+  throw new Error("PIC Name tidak ditemukan untuk Department ini.");
 }
 
 async function prepareDeviceImportRows(rows: DeviceImportFileRow[]): Promise<PreparedImportRow[]> {
   const uniqueJobCodes = [...new Set(rows.map((row) => cleanText(row.jobCode).toUpperCase()).filter(Boolean))];
 
-  const jobCodes = await prisma.jobCode.findMany({
+  const jobCodes = await prisma.department.findMany({
     where: {
       code: {
         in: uniqueJobCodes,
@@ -1026,12 +1026,12 @@ async function prepareDeviceImportRows(rows: DeviceImportFileRow[]): Promise<Pre
     try {
       const jobCodeText = cleanText(row.jobCode).toUpperCase();
       if (!jobCodeText) {
-        throw new Error("Job Code wajib diisi.");
+        throw new Error("Department wajib diisi.");
       }
 
       const jobCode = jobCodeByCode.get(jobCodeText);
       if (!jobCode) {
-        throw new Error(`Job Code "${jobCodeText}" tidak ditemukan di master.`);
+        throw new Error(`Department "${jobCodeText}" tidak ditemukan di master.`);
       }
 
       const serialNo = cleanText(row.serialNo);
@@ -1090,9 +1090,9 @@ async function validateJobAndPic(
   tx: Prisma.TransactionClient,
   payload: DeviceRecordPayload,
 ): Promise<{ name: string; jobCodeId: number; jobCodeCode: string }> {
-  const jobCode = await tx.jobCode.findUnique({ where: { id: payload.jobCodeId } });
+  const jobCode = await tx.department.findUnique({ where: { id: payload.jobCodeId } });
   if (!jobCode) {
-    throw new Error("Job Code tidak ditemukan.");
+    throw new Error("Department tidak ditemukan.");
   }
 
   const picUser = await tx.masterUser.findUnique({ where: { id: payload.picUserId } });
@@ -1101,7 +1101,7 @@ async function validateJobAndPic(
   }
 
   if (picUser.jobCodeId !== payload.jobCodeId) {
-    throw new Error("PIC Name tidak sesuai dengan Job Code yang dipilih.");
+    throw new Error("PIC Name tidak sesuai dengan Department yang dipilih.");
   }
 
   return { name: picUser.name, jobCodeId: picUser.jobCodeId, jobCodeCode: jobCode.code };
@@ -1223,7 +1223,7 @@ deviceRecordRouter.get("/device-records", async (req, res, next) => {
     res.json({ data: mappedRows });
   } catch (error) {
     if (error instanceof Error && error.message === "ROLE_USER_JOB_CODE_NOT_FOUND") {
-      return res.status(403).json({ message: "Job Code user tidak ditemukan. Hubungi admin." });
+      return res.status(403).json({ message: "Department user tidak ditemukan. Hubungi admin." });
     }
 
     next(error);
@@ -1371,7 +1371,7 @@ deviceRecordRouter.post("/device-records/import", requireRole("admin"), async (r
 
         const changedFieldMessages = getChangedFieldMessages([
           {
-            label: "Job Code",
+            label: "Department",
             before: existing.jobCode?.code ?? null,
             after: picUser.jobCodeCode,
           },
@@ -1568,7 +1568,7 @@ deviceRecordRouter.post("/device-records/export", async (req, res, next) => {
     res.send(fileBuffer);
   } catch (error) {
     if (error instanceof Error && error.message === "ROLE_USER_JOB_CODE_NOT_FOUND") {
-      return res.status(403).json({ message: "Job Code user tidak ditemukan. Hubungi admin." });
+      return res.status(403).json({ message: "Department user tidak ditemukan. Hubungi admin." });
     }
 
     if (error instanceof Error) {
@@ -1721,7 +1721,7 @@ deviceRecordRouter.put("/device-records/:id", async (req, res, next) => {
             after: resolvedLegacyNo,
           },
           {
-            label: "Job Code",
+            label: "Department",
             before: existing.jobCodeId,
             after: payload.jobCodeId,
           },
@@ -1784,7 +1784,7 @@ deviceRecordRouter.put("/device-records/:id", async (req, res, next) => {
           after: resolvedLegacyNo,
         },
         {
-          label: "Job Code",
+          label: "Department",
           before: existing.jobCode?.code ?? null,
           after: picUser.jobCodeCode,
         },
@@ -1917,11 +1917,11 @@ deviceRecordRouter.put("/device-records/:id", async (req, res, next) => {
     }
 
     if (error instanceof Error && error.message === "ROLE_USER_JOB_CODE_NOT_FOUND") {
-      return res.status(403).json({ message: "Job Code user tidak ditemukan. Hubungi admin." });
+      return res.status(403).json({ message: "Department user tidak ditemukan. Hubungi admin." });
     }
 
     if (error instanceof Error && error.message === "ROLE_USER_SCOPE_FORBIDDEN") {
-      return res.status(403).json({ message: "Role user tidak diizinkan mengakses data perangkat di Job Code lain." });
+      return res.status(403).json({ message: "Role user tidak diizinkan mengakses data perangkat di Department lain." });
     }
 
     if (error instanceof Error && error.message.startsWith("ROLE_USER_FORBIDDEN_FIELDS:")) {
@@ -1959,7 +1959,7 @@ deviceRecordRouter.delete("/device-records/:id", async (req, res, next) => {
       }
 
       if (target.jobCodeId !== userJobCodeId) {
-        return res.status(403).json({ message: "Role user tidak diizinkan menghapus data perangkat di Job Code lain." });
+        return res.status(403).json({ message: "Role user tidak diizinkan menghapus data perangkat di Department lain." });
       }
     }
 
@@ -1971,10 +1971,9 @@ deviceRecordRouter.delete("/device-records/:id", async (req, res, next) => {
     }
 
     if (error instanceof Error && error.message === "ROLE_USER_JOB_CODE_NOT_FOUND") {
-      return res.status(403).json({ message: "Job Code user tidak ditemukan. Hubungi admin." });
+      return res.status(403).json({ message: "Department user tidak ditemukan. Hubungi admin." });
     }
 
     next(error);
   }
 });
-

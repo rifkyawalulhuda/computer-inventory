@@ -130,7 +130,7 @@ masterUserRouter.post("/master-users", requireRole("admin"), async (req, res, ne
     const payload = parseBasePayload(req.body);
     const password = parsePassword((req.body as Record<string, unknown>)?.password, true);
 
-    const jobCode = await prisma.jobCode.findUnique({ where: { id: payload.jobCodeId } });
+    const jobCode = await prisma.department.findUnique({ where: { id: payload.jobCodeId } });
     if (!jobCode) {
       return res.status(400).json({ message: "Job Code tidak ditemukan." });
     }
@@ -184,7 +184,7 @@ masterUserRouter.put("/master-users/:id", requireRole("admin"), async (req, res,
     const payload = parseBasePayload(req.body);
     const password = parsePassword((req.body as Record<string, unknown>)?.password, false);
 
-    const jobCode = await prisma.jobCode.findUnique({ where: { id: payload.jobCodeId } });
+    const jobCode = await prisma.department.findUnique({ where: { id: payload.jobCodeId } });
     if (!jobCode) {
       return res.status(400).json({ message: "Job Code tidak ditemukan." });
     }

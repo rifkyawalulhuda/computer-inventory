@@ -5,7 +5,7 @@
     <meta charset="utf-8">
     <meta http-equiv="x-ua-compatible" content="IE=edge">
     <meta name="viewport" content="width=device-width, initial-scale=1">
-    <title>Master Job Code</title>
+    <title>Department</title>
     <link rel="shortcut icon" type="image/x-icon" href="assets/images/favicon.ico">
     <link rel="stylesheet" type="text/css" href="assets/css/bootstrap.min.css">
     <link rel="stylesheet" type="text/css" href="assets/vendors/css/vendors.min.css">
@@ -190,7 +190,7 @@
         <div class="container">
             <div class="d-flex align-items-center justify-content-between flex-wrap gap-3 mb-4">
                 <div>
-                    <h1 class="page-title">Master Job Code</h1>
+                    <h1 class="page-title">Department</h1>
                     <p class="page-subtitle">Menyimpan data Job Code, Site Name, Address, dan Telp. Number.</p>
                 </div>
             </div>
@@ -201,7 +201,7 @@
             <div class="card card-shadow">
                 <div class="card-body">
                     <div class="d-flex align-items-center justify-content-between flex-wrap gap-2 mb-3">
-                        <h5 class="card-title mb-0">Data Master Job Code</h5>
+                        <h5 class="card-title mb-0">Data Department</h5>
                         <div class="d-flex gap-2">
                             <button type="button" class="btn btn-sm btn-outline-success" id="downloadTemplateButton">
                                 <i class="feather-download me-1"></i>Download Template
@@ -244,7 +244,7 @@
     <div class="form-modal-overlay" id="formModalOverlay" aria-hidden="true">
         <div class="card card-shadow form-modal" role="dialog" aria-modal="true" aria-labelledby="formModalTitle">
             <div class="form-modal-header">
-                <h5 class="form-modal-title" id="formModalTitle">Tambah Master Job Code</h5>
+                <h5 class="form-modal-title" id="formModalTitle">Tambah Department</h5>
                 <button type="button" class="form-modal-close" id="formCloseButton" aria-label="Tutup Form">
                     <i class="feather-x"></i>
                 </button>
@@ -355,10 +355,10 @@
             rowId.value = "";
             form.reset();
             submitButton.textContent = "Simpan";
-            formModalTitle.textContent = "Tambah Master Job Code";
+            formModalTitle.textContent = "Tambah Department";
         }
 
-        function openFormModal(title = "Tambah Master Job Code") {
+        function openFormModal(title = "Tambah Department") {
             formModalTitle.textContent = title;
             formModalOverlay.classList.add("open");
             formModalOverlay.setAttribute("aria-hidden", "false");
@@ -478,7 +478,7 @@
             `;
 
             try {
-                const response = await apiFetch(`${API_BASE}/master-job-codes`);
+                const response = await apiFetch(`${API_BASE}/departments`);
                 const result = await response.json();
                 if (!response.ok) {
                     throw new Error(result.message || "Gagal mengambil data.");
@@ -515,7 +515,7 @@
             downloadTemplateButton.innerHTML = "<span class=\"spinner-border spinner-border-sm me-1\" role=\"status\" aria-hidden=\"true\"></span>Downloading...";
 
             try {
-                const response = await apiFetch(`${API_BASE}/master-job-codes/template`);
+                const response = await apiFetch(`${API_BASE}/departments/template`);
                 if (!response.ok) {
                     const result = await response.json().catch(() => ({}));
                     throw new Error(result.message || "Gagal mengunduh template.");
@@ -524,7 +524,7 @@
                 const blob = await response.blob();
                 const disposition = response.headers.get("Content-Disposition") || "";
                 const filenameMatch = disposition.match(/filename=\"?([^\";]+)\"?/i);
-                const filename = filenameMatch && filenameMatch[1] ? filenameMatch[1] : "template-master-job-code.xlsx";
+                const filename = filenameMatch && filenameMatch[1] ? filenameMatch[1] : "template-department.xlsx";
                 const blobUrl = window.URL.createObjectURL(blob);
                 const link = document.createElement("a");
                 link.href = blobUrl;
@@ -573,7 +573,7 @@
                 const formData = new FormData();
                 formData.append("file", file);
 
-                const response = await apiFetch(`${API_BASE}/master-job-codes/import`, {
+                const response = await apiFetch(`${API_BASE}/departments/import`, {
                     method: "POST",
                     body: formData
                 });
@@ -620,7 +620,7 @@
                 }
 
                 const response = await apiFetch(
-                    isEdit ? `${API_BASE}/master-job-codes/${id}` : `${API_BASE}/master-job-codes`,
+                    isEdit ? `${API_BASE}/departments/${id}` : `${API_BASE}/departments`,
                     {
                         method: isEdit ? "PUT" : "POST",
                         headers: { "Content-Type": "application/json" },
@@ -655,7 +655,7 @@
             hideAlert();
 
             try {
-                const response = await apiFetch(`${API_BASE}/master-job-codes/${id}`, {
+                const response = await apiFetch(`${API_BASE}/departments/${id}`, {
                     method: "DELETE"
                 });
 
@@ -674,7 +674,7 @@
 
         async function editRow(id) {
             try {
-                const response = await apiFetch(`${API_BASE}/master-job-codes`);
+                const response = await apiFetch(`${API_BASE}/departments`);
                 const result = await response.json();
                 if (!response.ok) {
                     throw new Error(result.message || "Gagal mengambil data.");
@@ -691,7 +691,7 @@
                 address.value = row.address || "";
                 phoneNumber.value = row.phoneNumber || "";
                 submitButton.textContent = "Update";
-                openFormModal("Edit Master Job Code");
+                openFormModal("Edit Department");
             } catch (error) {
                 showAlert(error.message, "danger");
             }
@@ -733,7 +733,7 @@
         addDataButton.addEventListener("click", () => {
             hideAlert();
             resetForm();
-            openFormModal("Tambah Master Job Code");
+            openFormModal("Tambah Department");
         });
         formCloseButton.addEventListener("click", () => {
             hideAlert();

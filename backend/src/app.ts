@@ -7,7 +7,7 @@ import { authRouter } from "./routes/auth";
 import { deviceRecordRouter } from "./routes/device-records";
 import { deviceRouter } from "./routes/devices";
 import { healthRouter } from "./routes/health";
-import { masterJobCodeRouter } from "./routes/master-job-codes";
+import { departmentRouter } from "./routes/departments";
 import { masterUserRouter } from "./routes/master-users";
 
 dotenv.config();
@@ -22,7 +22,7 @@ app.use("/api", healthRouter);
 app.use("/api", authRouter);
 app.use("/api", requireAuth, deviceRouter);
 app.use("/api", requireAuth, deviceRecordRouter);
-app.use("/api", requireAuth, masterJobCodeRouter);
+app.use("/api", requireAuth, departmentRouter);
 app.use("/api", requireAuth, masterUserRouter);
 
 app.use((req, res) => {

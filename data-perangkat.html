@@ -556,7 +556,7 @@
                                     <h6 class="device-form-section-title">Informasi Perangkat</h6>
                                     <div class="row g-3">
                                         <div class="col-xxl-3 col-lg-4 col-md-6">
-                                            <label for="jobCodeId" class="form-label">Job Code</label>
+                                            <label for="jobCodeId" class="form-label">Department</label>
                                             <select class="form-select" id="jobCodeId" required>
                                                 <option value="">Loading...</option>
                                             </select>
@@ -702,10 +702,10 @@
                                 </div>
                             </div>
                             <div class="col-12 col-md-6 col-xl-2">
-                                <label class="form-label">Filter Job Code</label>
+                                <label class="form-label">Filter Department</label>
                                 <div class="dropdown w-100">
                                     <button class="btn btn-light border dropdown-toggle w-100 text-start filter-dropdown-button" type="button" id="jobCodeFilterButton" aria-expanded="false">
-                                        Semua Job Code
+                                        Semua Department
                                     </button>
                                     <div class="dropdown-menu w-100 p-2 filter-dropdown-menu" id="jobCodeFilterMenu" data-filter-type="jobCode"></div>
                                 </div>
@@ -729,7 +729,7 @@
                             <thead>
                                 <tr>
                                     <th><button type="button" class="table-sort-btn" data-sort-key="NO" aria-label="Sort by NO">NO <span class="table-sort-indicator">-</span></button></th>
-                                    <th><button type="button" class="table-sort-btn" data-sort-key="Job Code" aria-label="Sort by Job Code">Job Code <span class="table-sort-indicator">-</span></button></th>
+                                    <th><button type="button" class="table-sort-btn" data-sort-key="Department" aria-label="Sort by Department">Department <span class="table-sort-indicator">-</span></button></th>
                                     <th><button type="button" class="table-sort-btn" data-sort-key="PIC Name" aria-label="Sort by PIC Name">PIC Name <span class="table-sort-indicator">-</span></button></th>
                                     <th><button type="button" class="table-sort-btn" data-sort-key="Serial No." aria-label="Sort by Serial No">Serial No. <span class="table-sort-indicator">-</span></button></th>
                                     <th><button type="button" class="table-sort-btn" data-sort-key="Category" aria-label="Sort by Category">Category <span class="table-sort-indicator">-</span></button></th>
@@ -887,7 +887,7 @@
         const sortNumericColumns = new Set(["NO", "Days Lease"]);
         const sortableColumns = new Set([
             "NO",
-            "Job Code",
+            "Department",
             "PIC Name",
             "Serial No.",
             "Category",
@@ -900,7 +900,7 @@
         ]);
         const searchableColumns = [
             "NO",
-            "Job Code",
+            "Department",
             "PIC Name",
             "Serial No.",
             "Category",
@@ -1272,14 +1272,14 @@
             const filteredUsers = getFilteredUsersByJobCode(selectedJobCodeId, selectedJobCodeCode);
 
             if (!selectedJobCodeId && !selectedJobCodeCode) {
-                picUserIdInput.innerHTML = '<option value="">Pilih Job Code dulu</option>';
+                picUserIdInput.innerHTML = '<option value="">Pilih Department dulu</option>';
                 picUserIdInput.value = "";
                 syncSearchableSelect(picUserIdInput, true);
                 return;
             }
 
             if (!filteredUsers.length) {
-                picUserIdInput.innerHTML = '<option value="">Tidak ada PIC untuk Job Code ini</option>';
+                picUserIdInput.innerHTML = '<option value="">Tidak ada PIC untuk Department ini</option>';
                 picUserIdInput.value = "";
                 syncSearchableSelect(picUserIdInput, true);
                 return;
@@ -1412,7 +1412,7 @@
             };
 
             if (!Number.isInteger(payload.jobCodeId) || payload.jobCodeId < 1) {
-                throw new Error("Job Code wajib dipilih.");
+                throw new Error("Department wajib dipilih.");
             }
 
             if (!payload.picUserId) {
@@ -1421,7 +1421,7 @@
 
             const selectedUser = masterUsers.find((user) => String(user.id) === String(payload.picUserId));
             if (!selectedUser || resolveUserJobCodeId(selectedUser) !== String(payload.jobCodeId)) {
-                throw new Error("PIC Name harus sesuai dengan Job Code yang dipilih.");
+                throw new Error("PIC Name harus sesuai dengan Department yang dipilih.");
             }
 
             if (payload.userEmail && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(payload.userEmail)) {
@@ -1474,7 +1474,7 @@
             const response = await apiFetch(`${API_BASE}/master-users?jobCodeId=${encodeURIComponent(normalizedJobCodeId)}`);
             const result = await response.json().catch(() => ({}));
             if (!response.ok) {
-                throw new Error(result.message || "Gagal memuat PIC berdasarkan Job Code.");
+                throw new Error(result.message || "Gagal memuat PIC berdasarkan Department.");
             }
 
             masterUsers = Array.isArray(result.data) ? result.data : [];
@@ -1515,7 +1515,7 @@
 
         async function loadMasterData() {
             const [jobCodeRes, masterUserRes] = await Promise.all([
-                apiFetch(`${API_BASE}/master-job-codes`),
+                apiFetch(`${API_BASE}/departments`),
                 apiFetch(`${API_BASE}/master-users`)
             ]);
 
@@ -1523,7 +1523,7 @@
             const masterUserJson = await masterUserRes.json();
 
             if (!jobCodeRes.ok) {
-                throw new Error(jobCodeJson.message || "Gagal memuat Master Job Code.");
+                throw new Error(jobCodeJson.message || "Gagal memuat Department.");
             }
 
             if (!masterUserRes.ok) {
@@ -1534,7 +1534,7 @@
             masterUsers = Array.isArray(masterUserJson.data) ? masterUserJson.data : [];
 
             jobCodeIdInput.innerHTML = [
-                '<option value="">Pilih Job Code</option>',
+                '<option value="">Pilih Department</option>',
                 ...masterJobCodes.map((row) => `<option value="${row.id}">${escapeHtml(row.code)} - ${escapeHtml(row.siteName)}</option>`)
             ].join("");
 
@@ -1712,7 +1712,7 @@
             }
         }
         function refreshTableFilterOptions() {
-            const availableJobCodes = getUniqueSortedColumnValues(deviceRows, "Job Code");
+            const availableJobCodes = getUniqueSortedColumnValues(deviceRows, "Department");
             const availableLeaseStatuses = getUniqueSortedColumnValues(deviceRows, "Lease Status");
 
             [...activeJobCodeFilters].forEach((value) => {
@@ -1728,7 +1728,7 @@
 
             renderMultiSelectFilterMenu(jobCodeFilterMenu, availableJobCodes, activeJobCodeFilters, "jobCode");
             renderMultiSelectFilterMenu(leaseStatusFilterMenu, availableLeaseStatuses, activeLeaseStatusFilters, "leaseStatus");
-            updateFilterDropdownLabel(jobCodeFilterButton, "Job Code", activeJobCodeFilters);
+            updateFilterDropdownLabel(jobCodeFilterButton, "Department", activeJobCodeFilters);
             updateFilterDropdownLabel(leaseStatusFilterButton, "Lease Status", activeLeaseStatusFilters);
         }
 
@@ -1791,7 +1791,7 @@
             const sourceRows = Array.isArray(rows) ? [...rows] : [];
 
             const filteredRows = sourceRows.filter((row) => {
-                const rowJobCode = normalizeFilterValue(row?.["Job Code"]);
+                const rowJobCode = normalizeFilterValue(row?.["Department"]);
                 const rowLeaseStatus = normalizeFilterValue(row?.["Lease Status"]);
 
                 const passJobCode = activeJobCodeFilters.size === 0 || activeJobCodeFilters.has(rowJobCode);
@@ -2008,7 +2008,7 @@
             tableBody.innerHTML = displayRows.map((row, index) => `
                 <tr>
                     <td>${index + 1}</td>
-                    <td>${escapeHtml(row["Job Code"])}</td>
+                    <td>${escapeHtml(row["Department"])}</td>
                     <td>${escapeHtml(row["PIC Name"])}</td>
                     <td>${escapeHtml(row["Serial No."])}</td>
                     <td>${escapeHtml(row["Category"])}</td>
@@ -2137,7 +2137,7 @@
             closeHistoryLogOverlay();
 
             const detailFields = [
-                ["Job Code", row["Job Code"]],
+                ["Department", row["Department"]],
                 ["PIC Name", row["PIC Name"]],
                 ["Serial No.", row["Serial No."]],
                 ["Category", row["Category"]],
@@ -2189,7 +2189,7 @@
         }
 
         function editRow(row) {
-            const resolvedJobCodeId = findJobCodeIdByCode(row["Job Code"]);
+            const resolvedJobCodeId = findJobCodeIdByCode(row["Department"]);
             jobCodeIdInput.value = resolvedJobCodeId;
             populatePicOptionsByJobCode();
             selectPicByName(row["PIC Name"]);
@@ -2445,7 +2445,7 @@
                 activeJobCodeFilters.delete(value);
             }
 
-            updateFilterDropdownLabel(jobCodeFilterButton, "Job Code", activeJobCodeFilters);
+            updateFilterDropdownLabel(jobCodeFilterButton, "Department", activeJobCodeFilters);
             renderRows(deviceRows);
         });
         leaseStatusFilterMenu.addEventListener("change", (event) => {

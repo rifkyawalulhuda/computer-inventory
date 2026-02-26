@@ -451,7 +451,7 @@
                                     <h6 class="device-form-section-title">Informasi Perangkat</h6>
                                     <div class="row g-3">
                                         <div class="col-xxl-3 col-lg-4 col-md-6">
-                                            <label for="jobCodeId" class="form-label">Job Code</label>
+                                            <label for="jobCodeId" class="form-label">Department</label>
                                             <select class="form-select" id="jobCodeId" required>
                                                 <option value="">Loading...</option>
                                             </select>
@@ -578,7 +578,7 @@
                             <thead>
                                 <tr>
                                     <th>NO</th>
-                                    <th>Job Code</th>
+                                    <th>Department</th>
                                     <th>PIC Name</th>
                                     <th>Serial No.</th>
                                     <th>Category</th>
@@ -994,14 +994,14 @@
             const filteredUsers = getFilteredUsersByJobCode(selectedJobCodeId, selectedJobCodeCode);
 
             if (!selectedJobCodeId && !selectedJobCodeCode) {
-                picUserIdInput.innerHTML = '<option value="">Pilih Job Code dulu</option>';
+                picUserIdInput.innerHTML = '<option value="">Pilih Department dulu</option>';
                 picUserIdInput.value = "";
                 syncSearchableSelect(picUserIdInput, true);
                 return;
             }
 
             if (!filteredUsers.length) {
-                picUserIdInput.innerHTML = '<option value="">Tidak ada PIC untuk Job Code ini</option>';
+                picUserIdInput.innerHTML = '<option value="">Tidak ada PIC untuk Department ini</option>';
                 picUserIdInput.value = "";
                 syncSearchableSelect(picUserIdInput, true);
                 return;
@@ -1136,7 +1136,7 @@
             };
 
             if (!Number.isInteger(payload.jobCodeId) || payload.jobCodeId < 1) {
-                throw new Error("Job Code wajib dipilih.");
+                throw new Error("Department wajib dipilih.");
             }
 
             if (!payload.picUserId) {
@@ -1145,7 +1145,7 @@
 
             const selectedUser = masterUsers.find((user) => String(user.id) === String(payload.picUserId));
             if (!selectedUser || resolveUserJobCodeId(selectedUser) !== String(payload.jobCodeId)) {
-                throw new Error("PIC Name harus sesuai dengan Job Code yang dipilih.");
+                throw new Error("PIC Name harus sesuai dengan Department yang dipilih.");
             }
 
             const isCreateMode = !editingDeviceId;
@@ -1225,7 +1225,7 @@
             const response = await apiFetch(`${API_BASE}/master-users?jobCodeId=${encodeURIComponent(normalizedJobCodeId)}`);
             const result = await response.json().catch(() => ({}));
             if (!response.ok) {
-                throw new Error(result.message || "Gagal memuat PIC berdasarkan Job Code.");
+                throw new Error(result.message || "Gagal memuat PIC berdasarkan Department.");
             }
 
             masterUsers = Array.isArray(result.data) ? result.data : [];
@@ -1266,7 +1266,7 @@
 
         async function loadMasterData() {
             const [jobCodeRes, masterUserRes] = await Promise.all([
-                apiFetch(`${API_BASE}/master-job-codes`),
+                apiFetch(`${API_BASE}/departments`),
                 apiFetch(`${API_BASE}/master-users`)
             ]);
 
@@ -1274,7 +1274,7 @@
             const masterUserJson = await masterUserRes.json();
 
             if (!jobCodeRes.ok) {
-                throw new Error(jobCodeJson.message || "Gagal memuat Master Job Code.");
+                throw new Error(jobCodeJson.message || "Gagal memuat Department.");
             }
 
             if (!masterUserRes.ok) {
@@ -1285,7 +1285,7 @@
             masterUsers = Array.isArray(masterUserJson.data) ? masterUserJson.data : [];
 
             jobCodeIdInput.innerHTML = [
-                '<option value="">Pilih Job Code</option>',
+                '<option value="">Pilih Department</option>',
                 ...masterJobCodes.map((row) => `<option value="${row.id}">${escapeHtml(row.code)} - ${escapeHtml(row.siteName)}</option>`)
             ].join("");
 
@@ -1309,7 +1309,7 @@
             tableBody.innerHTML = rows.map((row, index) => `
                 <tr>
                     <td>${index + 1}</td>
-                    <td>${escapeHtml(row["Job Code"])}</td>
+                    <td>${escapeHtml(row["Department"])}</td>
                     <td>${escapeHtml(row["PIC Name"])}</td>
                     <td>${escapeHtml(row["Serial No."])}</td>
                     <td>${escapeHtml(row["Category"])}</td>
@@ -1436,7 +1436,7 @@
             closeHistoryLogOverlay();
 
             const detailFields = [
-                ["Job Code", row["Job Code"]],
+                ["Department", row["Department"]],
                 ["PIC Name", row["PIC Name"]],
                 ["Serial No.", row["Serial No."]],
                 ["Category", row["Category"]],
@@ -1481,7 +1481,7 @@
         }
 
         function editRow(row) {
-            const resolvedJobCodeId = findJobCodeIdByCode(row["Job Code"]);
+            const resolvedJobCodeId = findJobCodeIdByCode(row["Department"]);
             jobCodeIdInput.value = resolvedJobCodeId;
             populatePicOptionsByJobCode();
             selectPicByName(row["PIC Name"]);

@@ -60,12 +60,12 @@ Contoh list perangkat:
 
 - `GET /api/devices`
 
-Master Job Code:
+Department:
 
-- `GET /api/master-job-codes`
-- `POST /api/master-job-codes`
-- `PUT /api/master-job-codes/:id`
-- `DELETE /api/master-job-codes/:id`
+- `GET /api/departments`
+- `POST /api/departments`
+- `PUT /api/departments/:id`
+- `DELETE /api/departments/:id`
 
 Master User:
 
@@ -87,7 +87,7 @@ Skema awal diturunkan dari file `PC CLC Data List.xlsx` (sheet `PC Lease Data` d
 - `device_categories`
 - `device_models`
 - `locations`
-- `job_codes`
+- `departments`
 - `employees`
 - `device_assignments`
 - `lease_contracts`

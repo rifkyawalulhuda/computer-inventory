@@ -7,7 +7,7 @@ datasource db {
   url      = env("DATABASE_URL")
 }
 
-model JobCode {
+model Department {
   id          Int      @id @default(autoincrement())
   code        String   @unique @db.VarChar(5)
   siteName    String   @map("site_name") @db.VarChar(30)
@@ -19,7 +19,7 @@ model JobCode {
   createdAt DateTime @default(now()) @map("created_at")
   updatedAt DateTime @updatedAt @map("updated_at")
 
-  @@map("job_codes")
+  @@map("departments")
 }
 
 model MasterUser {
@@ -32,7 +32,7 @@ model MasterUser {
   rank         String  @db.VarChar(50)
   jobCodeId    Int     @map("job_code_id")
 
-  jobCode JobCode @relation(fields: [jobCodeId], references: [id], onDelete: Restrict)
+  jobCode Department @relation(fields: [jobCodeId], references: [id], onDelete: Restrict)
 
   createdAt DateTime @default(now()) @map("created_at")
   updatedAt DateTime @updatedAt @map("updated_at")
@@ -104,7 +104,7 @@ model Device {
   modelId     Int? @map("model_id")
   locationId  Int? @map("location_id")
 
-  jobCode   JobCode?        @relation(fields: [jobCodeId], references: [id], onDelete: SetNull)
+  jobCode   Department?     @relation(fields: [jobCodeId], references: [id], onDelete: SetNull)
   category  DeviceCategory? @relation(fields: [categoryId], references: [id], onDelete: SetNull)
   model     DeviceModel?    @relation(fields: [modelId], references: [id], onDelete: SetNull)
   location  Location?       @relation(fields: [locationId], references: [id], onDelete: SetNull)

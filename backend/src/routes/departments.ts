@@ -5,7 +5,7 @@ import * as XLSX from "xlsx";
 import { prisma } from "../lib/prisma";
 import { requireRole } from "../middleware/auth";
 
-export const masterJobCodeRouter = Router();
+export const departmentRouter = Router();
 
 const TEMPLATE_HEADERS = ["Job Code", "Site Name", "Address", "Telp. Number"] as const;
 const MAX_IMPORT_FILE_SIZE = 2 * 1024 * 1024;
@@ -28,14 +28,14 @@ const importUpload = multer({
   },
 });
 
-type JobCodePayload = {
+type DepartmentPayload = {
   code: string;
   siteName: string;
   address: string;
   phoneNumber: string;
 };
 
-type ParsedImportRow = JobCodePayload & {
+type ParsedImportRow = DepartmentPayload & {
   rowNumber: number;
 };
 
@@ -134,7 +134,7 @@ function createTemplateWorkbookBuffer(): Buffer {
   templateSheet["!cols"] = [{ wch: 12 }, { wch: 30 }, { wch: 40 }, { wch: 22 }];
 
   const instructionSheet = XLSX.utils.aoa_to_sheet([
-    ["Panduan Import Master Job Code"],
+    ["Panduan Import Department"],
     ["1. Isi data mulai baris ke-2 di sheet Template."],
     ["2. Kolom wajib: Job Code, Site Name, Address, Telp. Number."],
     ["3. Job Code harus 1-5 huruf (A-Z)."],
@@ -165,7 +165,7 @@ function runImportUpload(req: Request, res: Response): Promise<void> {
   });
 }
 
-function parsePayload(payload: unknown): JobCodePayload {
+function parsePayload(payload: unknown): DepartmentPayload {
   if (!payload || typeof payload !== "object") {
     throw new Error("Payload tidak valid.");
   }
@@ -195,9 +195,9 @@ function parsePayload(payload: unknown): JobCodePayload {
   return { code, siteName, address, phoneNumber };
 }
 
-masterJobCodeRouter.get("/master-job-codes", async (_req, res, next) => {
+departmentRouter.get("/departments", async (_req, res, next) => {
   try {
-    const rows = await prisma.jobCode.findMany({
+    const rows = await prisma.department.findMany({
       orderBy: { code: "asc" },
       include: {
         _count: {
@@ -214,10 +214,10 @@ masterJobCodeRouter.get("/master-job-codes", async (_req, res, next) => {
   }
 });
 
-masterJobCodeRouter.get("/master-job-codes/template", requireRole("admin"), async (_req, res, next) => {
+departmentRouter.get("/departments/template", requireRole("admin"), async (_req, res, next) => {
   try {
     const buffer = createTemplateWorkbookBuffer();
-    const filename = "template-master-job-code.xlsx";
+    const filename = "template-department.xlsx";
 
     res.setHeader("Content-Type", "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet");
     res.setHeader("Content-Disposition", `attachment; filename="${filename}"`);
@@ -227,7 +227,7 @@ masterJobCodeRouter.get("/master-job-codes/template", requireRole("admin"), asyn
   }
 });
 
-masterJobCodeRouter.post("/master-job-codes/import", requireRole("admin"), async (req, res, next) => {
+departmentRouter.post("/departments/import", requireRole("admin"), async (req, res, next) => {
   try {
     await runImportUpload(req, res);
 
@@ -255,7 +255,7 @@ masterJobCodeRouter.post("/master-job-codes/import", requireRole("admin"), async
     const parsedRows = parseImportRows(firstSheet);
     const codes = parsedRows.map((row) => row.code);
 
-    const existingRows = await prisma.jobCode.findMany({
+    const existingRows = await prisma.department.findMany({
       where: {
         code: {
           in: codes,
@@ -270,7 +270,7 @@ masterJobCodeRouter.post("/master-job-codes/import", requireRole("admin"), async
 
     await prisma.$transaction(async (tx) => {
       for (const row of parsedRows) {
-        await tx.jobCode.upsert({
+        await tx.department.upsert({
           where: { code: row.code },
           update: {
             siteName: row.siteName,
@@ -291,7 +291,7 @@ masterJobCodeRouter.post("/master-job-codes/import", requireRole("admin"), async
     const updated = parsedRows.length - created;
 
     res.json({
-      message: "Import Master Job Code berhasil.",
+      message: "Import Department berhasil.",
       data: {
         total: parsedRows.length,
         created,
@@ -313,11 +313,11 @@ masterJobCodeRouter.post("/master-job-codes/import", requireRole("admin"), async
   }
 });
 
-masterJobCodeRouter.post("/master-job-codes", requireRole("admin"), async (req, res, next) => {
+departmentRouter.post("/departments", requireRole("admin"), async (req, res, next) => {
   try {
     const payload = parsePayload(req.body);
 
-    const created = await prisma.jobCode.create({
+    const created = await prisma.department.create({
       data: payload,
     });
 
@@ -335,7 +335,7 @@ masterJobCodeRouter.post("/master-job-codes", requireRole("admin"), async (req, 
   }
 });
 
-masterJobCodeRouter.put("/master-job-codes/:id", requireRole("admin"), async (req, res, next) => {
+departmentRouter.put("/departments/:id", requireRole("admin"), async (req, res, next) => {
   try {
     const id = Number(req.params.id);
     if (!Number.isInteger(id) || id < 1) {
@@ -344,7 +344,7 @@ masterJobCodeRouter.put("/master-job-codes/:id", requireRole("admin"), async (re
 
     const payload = parsePayload(req.body);
 
-    const updated = await prisma.jobCode.update({
+    const updated = await prisma.department.update({
       where: { id },
       data: payload,
     });
@@ -367,14 +367,14 @@ masterJobCodeRouter.put("/master-job-codes/:id", requireRole("admin"), async (re
   }
 });
 
-masterJobCodeRouter.delete("/master-job-codes/:id", requireRole("admin"), async (req, res, next) => {
+departmentRouter.delete("/departments/:id", requireRole("admin"), async (req, res, next) => {
   try {
     const id = Number(req.params.id);
     if (!Number.isInteger(id) || id < 1) {
       return res.status(400).json({ message: "ID tidak valid." });
     }
 
-    const row = await prisma.jobCode.findUnique({
+    const row = await prisma.department.findUnique({
       where: { id },
       include: {
         _count: {
@@ -395,7 +395,7 @@ masterJobCodeRouter.delete("/master-job-codes/:id", requireRole("admin"), async 
       });
     }
 
-    await prisma.jobCode.delete({ where: { id } });
+    await prisma.department.delete({ where: { id } });
     res.status(204).send();
   } catch (error) {
     next(error);
