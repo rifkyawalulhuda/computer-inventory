@@ -555,23 +555,23 @@
                                 <div class="device-form-section">
                                     <h6 class="device-form-section-title">Informasi Perangkat</h6>
                                     <div class="row g-3">
-                                        <div class="col-xxl-3 col-lg-4 col-md-6">
+                                        <div class="col-xl-4 col-lg-6 col-md-6">
                                             <label for="jobCodeId" class="form-label">Department</label>
                                             <select class="form-select" id="jobCodeId" required>
                                                 <option value="">Loading...</option>
                                             </select>
                                         </div>
-                                        <div class="col-xxl-3 col-lg-4 col-md-6">
+                                        <div class="col-xl-4 col-lg-6 col-md-6">
                                             <label for="picUserId" class="form-label">PIC Name</label>
                                             <select class="form-select" id="picUserId" required>
                                                 <option value="">Loading...</option>
                                             </select>
                                         </div>
-                                        <div class="col-xxl-3 col-lg-4 col-md-6">
+                                        <div class="col-xl-4 col-lg-6 col-md-6">
                                             <label for="serialNo" class="form-label">Serial No.</label>
                                             <input type="text" class="form-control" id="serialNo" maxlength="100" placeholder="Serial Number">
                                         </div>
-                                        <div class="col-xxl-4 col-lg-4 col-md-6">
+                                        <div class="col-xl-4 col-lg-6 col-md-6">
                                             <label for="category" class="form-label">Category</label>
                                             <select class="form-select" id="category">
                                                 <option value="">Pilih Category</option>
@@ -579,37 +579,13 @@
                                                 <option value="Desktop">Desktop</option>
                                             </select>
                                         </div>
-                                        <div class="col-xxl-4 col-lg-4 col-md-6">
+                                        <div class="col-xl-4 col-lg-6 col-md-6">
                                             <label for="model" class="form-label">Model</label>
                                             <input type="text" class="form-control" id="model" maxlength="100" placeholder="DELL_5420">
                                         </div>
-                                        <div class="col-xxl-4 col-lg-4 col-md-6">
+                                        <div class="col-xl-4 col-lg-6 col-md-6">
                                             <label for="hostName" class="form-label">Host Name</label>
                                             <input type="text" class="form-control" id="hostName" maxlength="120" placeholder="L-ID-22-030">
-                                        </div>
-                                    </div>
-                                </div>
-                            </div>
-                            <div class="col-12">
-                                <div class="device-form-section">
-                                    <h6 class="device-form-section-title">User dan Lokasi</h6>
-                                    <div class="row g-3">
-                                        <div class="col-xl-3 col-lg-6 col-md-6">
-                                            <label for="userName" class="form-label">User Name</label>
-                                            <input type="text" class="form-control" id="userName" maxlength="120" placeholder="Nama pengguna perangkat">
-                                        </div>
-                                        <div class="col-xl-3 col-lg-6 col-md-6">
-                                            <label for="userEmail" class="form-label">User Email</label>
-                                            <input type="email" class="form-control" id="userEmail" maxlength="191" placeholder="email@company.com">
-                                        </div>
-                                        <div class="col-xl-3 col-lg-6 col-md-6">
-                                            <label for="location" class="form-label">Location</label>
-                                            <input type="text" class="form-control" id="location" maxlength="120" placeholder="Cikarang KITIC">
-                                        </div>
-                                        <div class="col-xl-3 col-lg-6 col-md-6">
-                                            <label for="ipList" class="form-label">IP List</label>
-                                            <input type="text" class="form-control" id="ipList" maxlength="20" placeholder="192.168.1.10">
-                                            <small class="text-muted d-block mt-1">Hanya angka dan simbol, maksimal 20 karakter.</small>
                                         </div>
                                     </div>
                                 </div>
@@ -637,6 +613,30 @@
                                                 <option value="EXPIRED">EXPIRED</option>
                                                 <option value="Back To KDDI">Back To KDDI</option>
                                             </select>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="col-12">
+                                <div class="device-form-section">
+                                    <h6 class="device-form-section-title">User dan Lokasi</h6>
+                                    <div class="row g-3">
+                                        <div class="col-xl-3 col-lg-6 col-md-6">
+                                            <label for="userName" class="form-label">User Name</label>
+                                            <input type="text" class="form-control" id="userName" maxlength="120" placeholder="Nama pengguna perangkat">
+                                        </div>
+                                        <div class="col-xl-3 col-lg-6 col-md-6">
+                                            <label for="userEmail" class="form-label">User Email</label>
+                                            <input type="email" class="form-control" id="userEmail" maxlength="191" placeholder="email@company.com">
+                                        </div>
+                                        <div class="col-xl-3 col-lg-6 col-md-6">
+                                            <label for="location" class="form-label">Location</label>
+                                            <input type="text" class="form-control" id="location" maxlength="120" placeholder="Cikarang KITIC">
+                                        </div>
+                                        <div class="col-xl-3 col-lg-6 col-md-6">
+                                            <label for="ipList" class="form-label">IP List</label>
+                                            <input type="text" class="form-control" id="ipList" maxlength="20" placeholder="192.168.1.10">
+                                            <small class="text-muted d-block mt-1">Hanya angka dan simbol, maksimal 20 karakter.</small>
                                         </div>
                                     </div>
                                 </div>
@@ -2568,8 +2568,6 @@ if (event.key === "Escape" && confirmModalOverlay.classList.contains("open")) {
 </body>
 
 </html>
-
-
 
 
 
