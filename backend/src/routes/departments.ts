@@ -7,7 +7,7 @@ import { requireRole } from "../middleware/auth";
 
 export const departmentRouter = Router();
 
-const TEMPLATE_HEADERS = ["Site Code", "Site Name", "Address", "Telp. Number"] as const;
+const TEMPLATE_HEADERS = ["Site Code", "Job Codes", "Site Name", "Address", "Telp. Number"] as const;
 const MAX_IMPORT_FILE_SIZE = 2 * 1024 * 1024;
 
 const importUpload = multer({
@@ -28,14 +28,19 @@ const importUpload = multer({
   },
 });
 
-type DepartmentPayload = {
+type BaseDepartmentPayload = {
   code: string;
   siteName: string;
   address: string;
   phoneNumber: string;
 };
 
-type ParsedImportRow = DepartmentPayload & {
+type DepartmentPayload = BaseDepartmentPayload & {
+  jobCodes: string[];
+};
+
+type ParsedImportRow = BaseDepartmentPayload & {
+  jobCodes: string[];
   rowNumber: number;
 };
 
@@ -75,6 +80,7 @@ function parseImportRows(sheet: XLSX.WorkSheet): ParsedImportRow[] {
   const parsedRows: ParsedImportRow[] = [];
   const rowErrors: string[] = [];
   const seenCodes = new Set<string>();
+  const seenJobCodes = new Map<string, number>();
 
   dataRows.forEach((rawRow, index) => {
     if (!Array.isArray(rawRow)) {
@@ -82,8 +88,8 @@ function parseImportRows(sheet: XLSX.WorkSheet): ParsedImportRow[] {
     }
 
     const rowNumber = index + 2;
-    const [codeRaw, siteNameRaw, addressRaw, phoneNumberRaw] = rawRow;
-    const rowValues = [codeRaw, siteNameRaw, addressRaw, phoneNumberRaw];
+    const [codeRaw, jobCodesRaw, siteNameRaw, addressRaw, phoneNumberRaw] = rawRow;
+    const rowValues = [codeRaw, jobCodesRaw, siteNameRaw, addressRaw, phoneNumberRaw];
     const isEmptyRow = rowValues.every((value) => String(value ?? "").trim() === "");
 
     if (isEmptyRow) {
@@ -91,20 +97,35 @@ function parseImportRows(sheet: XLSX.WorkSheet): ParsedImportRow[] {
     }
 
     try {
-      const payload = parsePayload({
+      const payload = parseBasePayload({
         code: codeRaw,
         siteName: siteNameRaw,
         address: addressRaw,
         phoneNumber: phoneNumberRaw,
       });
+      const jobCodes = parseImportJobCodesCell(jobCodesRaw);
+
+      if (!jobCodes.length) {
+        throw new Error("Kolom Job Codes wajib diisi minimal 1 kode.");
+      }
 
       if (seenCodes.has(payload.code)) {
         throw new Error("Site Code duplikat di file import.");
       }
 
+      for (const code of jobCodes) {
+        const firstRow = seenJobCodes.get(code);
+        if (firstRow) {
+          throw new Error(`Job Code "${code}" duplikat di file import (baris ${firstRow} dan ${rowNumber}).`);
+        }
+
+        seenJobCodes.set(code, rowNumber);
+      }
+
       seenCodes.add(payload.code);
       parsedRows.push({
         ...payload,
+        jobCodes,
         rowNumber,
       });
     } catch (error) {
@@ -128,18 +149,20 @@ function createTemplateWorkbookBuffer(): Buffer {
   const workbook = XLSX.utils.book_new();
   const templateSheet = XLSX.utils.aoa_to_sheet([
     [...TEMPLATE_HEADERS],
-    ["CLC", "Cikarang", "Cikarang", "021-5555-1234"],
+    ["CLC", "CLC, CLC01", "Cikarang", "Cikarang", "021-5555-1234"],
   ]);
 
-  templateSheet["!cols"] = [{ wch: 12 }, { wch: 30 }, { wch: 40 }, { wch: 22 }];
+  templateSheet["!cols"] = [{ wch: 12 }, { wch: 28 }, { wch: 30 }, { wch: 40 }, { wch: 22 }];
 
   const instructionSheet = XLSX.utils.aoa_to_sheet([
     ["Panduan Import Department"],
     ["1. Isi data mulai baris ke-2 di sheet Template."],
-    ["2. Kolom wajib: Site Code, Site Name, Address, Telp. Number."],
+    ["2. Kolom wajib: Site Code, Job Codes, Site Name, Address, Telp. Number."],
     ["3. Site Code harus 1-5 huruf (A-Z)."],
-    ["4. Site Name maksimal 30 karakter, Telp. Number maksimal 30 karakter."],
-    ["5. Jika Site Code sudah ada, data akan diupdate saat import."],
+    ["4. Job Codes boleh lebih dari satu, pisahkan dengan koma atau titik koma (;)."],
+    ["5. Format Job Code: 1-15 karakter, hanya huruf/angka (A-Z, 0-9)."],
+    ["6. Site Name maksimal 30 karakter, Telp. Number maksimal 30 karakter."],
+    ["7. Jika Site Code sudah ada, data dan Job Codes akan diupdate saat import."],
   ]);
 
   instructionSheet["!cols"] = [{ wch: 90 }];
@@ -165,7 +188,7 @@ function runImportUpload(req: Request, res: Response): Promise<void> {
   });
 }
 
-function parsePayload(payload: unknown): DepartmentPayload {
+function parseBasePayload(payload: unknown): BaseDepartmentPayload {
   if (!payload || typeof payload !== "object") {
     throw new Error("Payload tidak valid.");
   }
@@ -195,11 +218,80 @@ function parsePayload(payload: unknown): DepartmentPayload {
   return { code, siteName, address, phoneNumber };
 }
 
+function parseJobCodes(rawValue: unknown): string[] {
+  if (rawValue === undefined || rawValue === null) {
+    return [];
+  }
+
+  if (!Array.isArray(rawValue)) {
+    throw new Error("Format Job Code tidak valid.");
+  }
+
+  const normalizedCodes = rawValue
+    .map((value) => String(value ?? "").trim().toUpperCase())
+    .filter(Boolean);
+
+  if (!normalizedCodes.length) {
+    return [];
+  }
+
+  const seen = new Set<string>();
+  for (const code of normalizedCodes) {
+    if (!/^[A-Z0-9]{1,15}$/.test(code)) {
+      throw new Error("Job Code wajib 1-15 karakter (huruf/angka, A-Z, 0-9).");
+    }
+
+    if (seen.has(code)) {
+      throw new Error("Job Code duplikat tidak diizinkan.");
+    }
+
+    seen.add(code);
+  }
+
+  return [...seen];
+}
+
+function parseImportJobCodesCell(rawValue: unknown): string[] {
+  const text = String(rawValue ?? "").trim();
+  if (!text) {
+    return [];
+  }
+
+  const values = text
+    .split(/[\n,;]+/g)
+    .map((value) => String(value ?? "").trim())
+    .filter(Boolean);
+
+  return parseJobCodes(values);
+}
+
+function parsePayload(payload: unknown, options?: { requireJobCodes?: boolean }): DepartmentPayload {
+  if (!payload || typeof payload !== "object") {
+    throw new Error("Payload tidak valid.");
+  }
+
+  const basePayload = parseBasePayload(payload);
+  const body = payload as Record<string, unknown>;
+  const jobCodes = parseJobCodes(body.jobCodes);
+
+  if (options?.requireJobCodes && jobCodes.length < 1) {
+    throw new Error("Minimal 1 Job Code wajib diisi.");
+  }
+
+  return {
+    ...basePayload,
+    jobCodes,
+  };
+}
+
 departmentRouter.get("/departments", async (_req, res, next) => {
   try {
     const rows = await prisma.department.findMany({
       orderBy: { code: "asc" },
       include: {
+        jobCodes: {
+          orderBy: { code: "asc" },
+        },
         _count: {
           select: {
             devices: true,
@@ -270,7 +362,7 @@ departmentRouter.post("/departments/import", requireRole("admin"), async (req, r
 
     await prisma.$transaction(async (tx) => {
       for (const row of parsedRows) {
-        await tx.department.upsert({
+        const upserted = await tx.department.upsert({
           where: { code: row.code },
           update: {
             siteName: row.siteName,
@@ -283,6 +375,22 @@ departmentRouter.post("/departments/import", requireRole("admin"), async (req, r
             address: row.address,
             phoneNumber: row.phoneNumber,
           },
+          select: {
+            id: true,
+          },
+        });
+
+        await tx.departmentJobCode.deleteMany({
+          where: {
+            departmentId: upserted.id,
+          },
+        });
+
+        await tx.departmentJobCode.createMany({
+          data: row.jobCodes.map((code) => ({
+            departmentId: upserted.id,
+            code,
+          })),
         });
       }
     });
@@ -305,6 +413,10 @@ departmentRouter.post("/departments/import", requireRole("admin"), async (req, r
       });
     }
 
+    if (error instanceof Prisma.PrismaClientKnownRequestError && error.code === "P2002") {
+      return res.status(409).json({ message: "Site Code atau Job Code sudah ada." });
+    }
+
     if (error instanceof Error) {
       return res.status(400).json({ message: error.message });
     }
@@ -315,16 +427,29 @@ departmentRouter.post("/departments/import", requireRole("admin"), async (req, r
 
 departmentRouter.post("/departments", requireRole("admin"), async (req, res, next) => {
   try {
-    const payload = parsePayload(req.body);
+    const payload = parsePayload(req.body, { requireJobCodes: true });
+    const { jobCodes, ...basePayload } = payload;
 
     const created = await prisma.department.create({
-      data: payload,
+      data: {
+        ...basePayload,
+        jobCodes: {
+          createMany: {
+            data: jobCodes.map((code) => ({ code })),
+          },
+        },
+      },
+      include: {
+        jobCodes: {
+          orderBy: { code: "asc" },
+        },
+      },
     });
 
     res.status(201).json({ data: created });
   } catch (error) {
     if (error instanceof Prisma.PrismaClientKnownRequestError && error.code === "P2002") {
-      return res.status(409).json({ message: "Site Code sudah ada." });
+      return res.status(409).json({ message: "Site Code atau Job Code sudah ada." });
     }
 
     if (error instanceof Error) {
@@ -342,17 +467,40 @@ departmentRouter.put("/departments/:id", requireRole("admin"), async (req, res, 
       return res.status(400).json({ message: "ID tidak valid." });
     }
 
-    const payload = parsePayload(req.body);
+    const payload = parsePayload(req.body, { requireJobCodes: true });
+    const { jobCodes, ...basePayload } = payload;
 
-    const updated = await prisma.department.update({
-      where: { id },
-      data: payload,
+    const updated = await prisma.$transaction(async (tx) => {
+      await tx.department.update({
+        where: { id },
+        data: basePayload,
+      });
+
+      await tx.departmentJobCode.deleteMany({
+        where: { departmentId: id },
+      });
+
+      await tx.departmentJobCode.createMany({
+        data: jobCodes.map((code) => ({
+          departmentId: id,
+          code,
+        })),
+      });
+
+      return tx.department.findUniqueOrThrow({
+        where: { id },
+        include: {
+          jobCodes: {
+            orderBy: { code: "asc" },
+          },
+        },
+      });
     });
 
     res.json({ data: updated });
   } catch (error) {
     if (error instanceof Prisma.PrismaClientKnownRequestError && error.code === "P2002") {
-      return res.status(409).json({ message: "Site Code sudah ada." });
+      return res.status(409).json({ message: "Site Code atau Job Code sudah ada." });
     }
 
     if (error instanceof Prisma.PrismaClientKnownRequestError && error.code === "P2025") {

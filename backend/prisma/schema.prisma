@@ -15,11 +15,25 @@ model Department {
   phoneNumber String   @map("phone_number") @db.VarChar(30)
   devices     Device[]
   users       MasterUser[]
+  jobCodes    DepartmentJobCode[]
 
   createdAt DateTime @default(now()) @map("created_at")
   updatedAt DateTime @updatedAt @map("updated_at")
 
   @@map("departments")
+}
+
+model DepartmentJobCode {
+  id           Int        @id @default(autoincrement())
+  departmentId Int        @map("department_id")
+  code         String     @unique @map("job_code") @db.VarChar(15)
+  department   Department @relation(fields: [departmentId], references: [id], onDelete: Cascade)
+
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  @@index([departmentId], map: "idx_department_job_codes_department_id")
+  @@map("department_job_codes")
 }
 
 model MasterUser {

@@ -118,6 +118,15 @@
             overflow-y: auto;
         }
 
+        .job-code-repeat-item {
+            display: flex;
+            gap: 8px;
+        }
+
+        .job-code-repeat-item .job-code-repeat-input {
+            text-transform: uppercase;
+        }
+
         .confirm-modal-overlay {
             position: fixed;
             inset: 0;
@@ -260,6 +269,17 @@
                     </div>
 
                     <div class="mb-3">
+                        <div class="d-flex align-items-center justify-content-between mb-2">
+                            <label class="form-label mb-0">Job Code (Repetitif)</label>
+                            <button type="button" class="btn btn-sm btn-light border" id="addJobCodeFieldButton">
+                                <i class="feather-plus me-1"></i>Tambah Job Code
+                            </button>
+                        </div>
+                        <div id="jobCodeFields" class="d-flex flex-column gap-2"></div>
+                        <small class="text-muted d-block mt-1">Minimal 1 Job Code. Setiap Job Code maksimal 15 karakter (huruf/angka).</small>
+                    </div>
+
+                    <div class="mb-3">
                         <label for="siteName" class="form-label">Site Name</label>
                         <input type="text" class="form-control" id="siteName" maxlength="30" placeholder="Contoh: Cikarang Warehouse" required>
                         <small class="text-muted">Maksimal 30 karakter.</small>
@@ -318,6 +338,8 @@
         const form = document.getElementById("masterJobCodeForm");
         const rowId = document.getElementById("rowId");
         const jobCode = document.getElementById("jobCode");
+        const jobCodeFields = document.getElementById("jobCodeFields");
+        const addJobCodeFieldButton = document.getElementById("addJobCodeFieldButton");
         const siteName = document.getElementById("siteName");
         const address = document.getElementById("address");
         const phoneNumber = document.getElementById("phoneNumber");
@@ -351,9 +373,49 @@
             alertBox.textContent = "";
         }
 
+        function normalizeJobCodeValue(value) {
+            return String(value || "").toUpperCase().replace(/[^A-Z0-9]/g, "").slice(0, 15);
+        }
+
+        function appendJobCodeField(value = "") {
+            const row = document.createElement("div");
+            row.className = "job-code-repeat-item";
+            row.innerHTML = `
+                <input type="text" class="form-control job-code-repeat-input" maxlength="15" placeholder="Contoh: CLC01" value="${String(value || "")}">
+                <button type="button" class="btn btn-light border text-danger" data-action="remove-job-code" title="Hapus Job Code">
+                    <i class="feather-trash-2"></i>
+                </button>
+            `;
+            jobCodeFields.appendChild(row);
+        }
+
+        function renderJobCodeFields(values) {
+            jobCodeFields.innerHTML = "";
+            const safeValues = Array.isArray(values) && values.length
+                ? values
+                : [""];
+
+            safeValues.forEach((value) => appendJobCodeField(normalizeJobCodeValue(value)));
+        }
+
+        function collectJobCodes() {
+            const inputs = Array.from(jobCodeFields.querySelectorAll(".job-code-repeat-input"));
+            const normalized = inputs
+                .map((input) => normalizeJobCodeValue(input.value))
+                .filter(Boolean);
+
+            const uniqueValues = [...new Set(normalized)];
+            if (uniqueValues.length !== normalized.length) {
+                throw new Error("Job Code duplikat tidak diizinkan.");
+            }
+
+            return uniqueValues;
+        }
+
         function resetForm() {
             rowId.value = "";
             form.reset();
+            renderJobCodeFields([""]);
             submitButton.textContent = "Simpan";
             formModalTitle.textContent = "Tambah Department";
         }
@@ -413,11 +475,16 @@
                 code: jobCode.value.trim().toUpperCase(),
                 siteName: siteName.value.trim(),
                 address: address.value.trim(),
-                phoneNumber: phoneNumber.value.trim()
+                phoneNumber: phoneNumber.value.trim(),
+                jobCodes: collectJobCodes()
             };
 
             if (!/^[A-Z]{1,5}$/.test(payload.code)) {
                 throw new Error("Site Code wajib 1-5 huruf (A-Z).");
+            }
+
+            if (!payload.jobCodes.length) {
+                throw new Error("Minimal 1 Job Code wajib diisi.");
             }
 
             if (payload.siteName.length < 1 || payload.siteName.length > 30) {
@@ -690,6 +757,7 @@
                 siteName.value = row.siteName || "";
                 address.value = row.address || "";
                 phoneNumber.value = row.phoneNumber || "";
+                renderJobCodeFields(Array.isArray(row.jobCodes) ? row.jobCodes.map((item) => item.code) : [""]);
                 submitButton.textContent = "Update";
                 openFormModal("Edit Department");
             } catch (error) {
@@ -714,6 +782,45 @@
 
         jobCode.addEventListener("input", () => {
             jobCode.value = jobCode.value.toUpperCase().replace(/[^A-Z]/g, "").slice(0, 5);
+        });
+
+        addJobCodeFieldButton.addEventListener("click", () => {
+            appendJobCodeField("");
+            const lastInput = jobCodeFields.querySelector(".job-code-repeat-item:last-child .job-code-repeat-input");
+            if (lastInput) {
+                lastInput.focus();
+            }
+        });
+
+        jobCodeFields.addEventListener("click", (event) => {
+            const removeButton = event.target.closest("button[data-action=\"remove-job-code\"]");
+            if (!removeButton) {
+                return;
+            }
+
+            const rows = jobCodeFields.querySelectorAll(".job-code-repeat-item");
+            if (rows.length <= 1) {
+                const firstInput = jobCodeFields.querySelector(".job-code-repeat-input");
+                if (firstInput) {
+                    firstInput.value = "";
+                    firstInput.focus();
+                }
+                return;
+            }
+
+            const row = removeButton.closest(".job-code-repeat-item");
+            if (row) {
+                row.remove();
+            }
+        });
+
+        jobCodeFields.addEventListener("input", (event) => {
+            const target = event.target;
+            if (!(target instanceof HTMLInputElement) || !target.classList.contains("job-code-repeat-input")) {
+                return;
+            }
+
+            target.value = normalizeJobCodeValue(target.value);
         });
 
         siteName.addEventListener("input", () => {
