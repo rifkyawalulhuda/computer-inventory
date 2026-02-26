@@ -545,7 +545,7 @@
                         <div>
                             <h5 class="card-title mb-1" id="formCardTitle">Form Input Data Perangkat</h5>
                             <p class="text-muted mb-0">Kolom NO dibuat otomatis oleh sistem.</p>
-                            <p class="text-warning mb-0 mt-1 d-none" id="roleEditHint">Role user hanya bisa edit: User Name, User Email, Location, IP List, dan Keterangan.</p>
+                            <p class="text-warning mb-0 mt-1 d-none" id="roleEditHint">Role user hanya bisa edit: Job Code, User Name, User Email, Location, IP List, dan Keterangan.</p>
                         </div>
                         <button type="button" class="btn btn-light border" id="closeFormButton">Tutup Form</button>
                     </div>
@@ -569,11 +569,11 @@
                                         </div>
                                         <div class="col-xl-4 col-lg-6 col-md-6">
                                             <label for="serialNo" class="form-label">Serial No.</label>
-                                            <input type="text" class="form-control" id="serialNo" maxlength="100" placeholder="Serial Number">
+                                            <input type="text" class="form-control" id="serialNo" maxlength="100" placeholder="Serial Number" required>
                                         </div>
                                         <div class="col-xl-4 col-lg-6 col-md-6">
                                             <label for="category" class="form-label">Category</label>
-                                            <select class="form-select" id="category">
+                                            <select class="form-select" id="category" required>
                                                 <option value="">Pilih Category</option>
                                                 <option value="Laptop">Laptop</option>
                                                 <option value="Desktop">Desktop</option>
@@ -581,11 +581,11 @@
                                         </div>
                                         <div class="col-xl-4 col-lg-6 col-md-6">
                                             <label for="model" class="form-label">Model</label>
-                                            <input type="text" class="form-control" id="model" maxlength="100" placeholder="DELL_5420">
+                                            <input type="text" class="form-control" id="model" maxlength="100" placeholder="DELL_5420" required>
                                         </div>
                                         <div class="col-xl-4 col-lg-6 col-md-6">
                                             <label for="hostName" class="form-label">Host Name</label>
-                                            <input type="text" class="form-control" id="hostName" maxlength="120" placeholder="L-ID-22-030">
+                                            <input type="text" class="form-control" id="hostName" maxlength="120" placeholder="L-ID-22-030" required>
                                         </div>
                                     </div>
                                 </div>
@@ -596,11 +596,11 @@
                                     <div class="row g-3">
                                         <div class="col-xl-3 col-lg-6 col-md-6">
                                             <label for="startDate" class="form-label">Start Date</label>
-                                            <input type="date" class="form-control" id="startDate">
+                                            <input type="date" class="form-control" id="startDate" required>
                                         </div>
                                         <div class="col-xl-3 col-lg-6 col-md-6">
                                             <label for="endDate" class="form-label">End Date</label>
-                                            <input type="date" class="form-control" id="endDate">
+                                            <input type="date" class="form-control" id="endDate" required>
                                         </div>
                                         <div class="col-xl-3 col-lg-6 col-md-6">
                                             <label for="daysLease" class="form-label">Days Lease</label>
@@ -608,7 +608,7 @@
                                         </div>
                                         <div class="col-xl-3 col-lg-6 col-md-6">
                                             <label for="leaseStatus" class="form-label">Lease Status</label>
-                                            <select class="form-select" id="leaseStatus">
+                                            <select class="form-select" id="leaseStatus" required>
                                                 <option value="ACTIVE">ACTIVE</option>
                                                 <option value="EXPIRED">EXPIRED</option>
                                                 <option value="Back To KDDI">Back To KDDI</option>
@@ -621,19 +621,25 @@
                                 <div class="device-form-section">
                                     <h6 class="device-form-section-title">User dan Lokasi</h6>
                                     <div class="row g-3">
-                                        <div class="col-xl-3 col-lg-6 col-md-6">
+                                        <div class="col-xl-2 col-lg-4 col-md-6">
                                             <label for="userName" class="form-label">User Name</label>
                                             <input type="text" class="form-control" id="userName" maxlength="120" placeholder="Nama pengguna perangkat">
                                         </div>
-                                        <div class="col-xl-3 col-lg-6 col-md-6">
+                                        <div class="col-xl-2 col-lg-4 col-md-6">
                                             <label for="userEmail" class="form-label">User Email</label>
                                             <input type="email" class="form-control" id="userEmail" maxlength="191" placeholder="email@company.com">
                                         </div>
-                                        <div class="col-xl-3 col-lg-6 col-md-6">
+                                        <div class="col-xl-2 col-lg-4 col-md-6">
+                                            <label for="departmentJobCodeId" class="form-label">Job Code</label>
+                                            <select class="form-select" id="departmentJobCodeId">
+                                                <option value="">Pilih Department dulu</option>
+                                            </select>
+                                        </div>
+                                        <div class="col-xl-2 col-lg-4 col-md-6">
                                             <label for="location" class="form-label">Location</label>
                                             <input type="text" class="form-control" id="location" maxlength="120" placeholder="Cikarang KITIC">
                                         </div>
-                                        <div class="col-xl-3 col-lg-6 col-md-6">
+                                        <div class="col-xl-4 col-lg-8 col-md-6">
                                             <label for="ipList" class="form-label">IP List</label>
                                             <input type="text" class="form-control" id="ipList" maxlength="20" placeholder="192.168.1.10">
                                             <small class="text-muted d-block mt-1">Hanya angka dan simbol, maksimal 20 karakter.</small>
@@ -831,6 +837,7 @@
         const hostNameInput = document.getElementById("hostName");
         const userNameInput = document.getElementById("userName");
         const userEmailInput = document.getElementById("userEmail");
+        const departmentJobCodeIdInput = document.getElementById("departmentJobCodeId");
         const locationInput = document.getElementById("location");
         const ipListInput = document.getElementById("ipList");
         const startDateInput = document.getElementById("startDate");
@@ -901,6 +908,7 @@
         const searchableColumns = [
             "NO",
             "Department",
+            "Job Code",
             "PIC Name",
             "Serial No.",
             "Category",
@@ -934,6 +942,7 @@
             hostNameInput,
             userNameInput,
             userEmailInput,
+            departmentJobCodeIdInput,
             locationInput,
             ipListInput,
             startDateInput,
@@ -943,8 +952,8 @@
             keteranganInput,
             bitlockerKeyInput
         ];
-        const userAllowedEditInputIds = new Set(["userName", "userEmail", "location", "ipList", "keterangan"]);
-        const searchableSelectInputs = [jobCodeIdInput, picUserIdInput, categoryInput, leaseStatusInput].filter(Boolean);
+        const userAllowedEditInputIds = new Set(["departmentJobCodeId", "userName", "userEmail", "location", "ipList", "keterangan"]);
+        const searchableSelectInputs = [jobCodeIdInput, picUserIdInput, departmentJobCodeIdInput, categoryInput, leaseStatusInput].filter(Boolean);
 
         function canUseSelect2() {
             return Boolean(window.jQuery && window.jQuery.fn && typeof window.jQuery.fn.select2 === "function");
@@ -1243,6 +1252,26 @@
             return label.split("-")[0].trim().toUpperCase();
         }
 
+        function getSelectedDepartmentRow(jobCodeIdValue, jobCodeCodeValue) {
+            const normalizedJobCodeId = String(jobCodeIdValue ?? "").trim();
+            const normalizedJobCodeCode = String(jobCodeCodeValue ?? "").trim().toUpperCase();
+
+            return masterJobCodes.find((row) => {
+                const rowId = String(row?.id ?? "").trim();
+                const rowCode = String(row?.code ?? "").trim().toUpperCase();
+
+                if (normalizedJobCodeId && rowId && rowId === normalizedJobCodeId) {
+                    return true;
+                }
+
+                if (normalizedJobCodeCode && rowCode && rowCode === normalizedJobCodeCode) {
+                    return true;
+                }
+
+                return false;
+            }) || null;
+        }
+
         function getFilteredUsersByJobCode(jobCodeIdValue, jobCodeCodeValue) {
             const normalizedJobCodeId = String(jobCodeIdValue ?? "").trim();
             const normalizedJobCodeCode = String(jobCodeCodeValue ?? "").trim().toUpperCase();
@@ -1290,6 +1319,39 @@
                 ...filteredUsers.map((row) => `<option value="${escapeHtml(row.id)}">${escapeHtml(row.name)} (${escapeHtml(row.email)})</option>`)
             ].join("");
             syncSearchableSelect(picUserIdInput, true);
+        }
+
+        function populateDepartmentJobCodeOptionsByJobCode() {
+            const selectedJobCodeId = String(jobCodeIdInput.value ?? "").trim();
+            const selectedJobCodeCode = resolveSelectedJobCodeCode();
+            const selectedDepartment = getSelectedDepartmentRow(selectedJobCodeId, selectedJobCodeCode);
+            const previousValue = String(departmentJobCodeIdInput.value ?? "").trim();
+            const departmentJobCodes = Array.isArray(selectedDepartment?.jobCodes) ? selectedDepartment.jobCodes : [];
+
+            if (!selectedJobCodeId && !selectedJobCodeCode) {
+                departmentJobCodeIdInput.innerHTML = '<option value="">Pilih Department dulu</option>';
+                departmentJobCodeIdInput.value = "";
+                syncSearchableSelect(departmentJobCodeIdInput, true);
+                return;
+            }
+
+            if (!departmentJobCodes.length) {
+                departmentJobCodeIdInput.innerHTML = '<option value="">Tidak ada Job Code untuk Department ini</option>';
+                departmentJobCodeIdInput.value = "";
+                syncSearchableSelect(departmentJobCodeIdInput, true);
+                return;
+            }
+
+            departmentJobCodeIdInput.innerHTML = [
+                '<option value="">Pilih Job Code</option>',
+                ...departmentJobCodes.map((row) => `<option value="${escapeHtml(row.id)}">${escapeHtml(row.code)}</option>`)
+            ].join("");
+
+            const matchedOption = Array.from(departmentJobCodeIdInput.options).find(
+                (option) => String(option.value ?? "").trim() === previousValue
+            );
+            departmentJobCodeIdInput.value = matchedOption ? previousValue : "";
+            syncSearchableSelect(departmentJobCodeIdInput, true);
         }
 
         function calculateDaysLeaseValue(startDateValue, endDateValue) {
@@ -1381,18 +1443,22 @@
             userEmailInput.value = "";
             jobCodeIdInput.value = "";
             picUserIdInput.value = "";
+            departmentJobCodeIdInput.value = "";
             lastManualLeaseStatus = "ACTIVE";
             leaseStatusInput.value = "ACTIVE";
             populatePicOptionsByJobCode();
+            populateDepartmentJobCodeOptionsByJobCode();
             refreshDaysLease();
             applyRoleBasedFieldPermissions();
         }
 
         function getPayload() {
             refreshDaysLease();
+            const rawDepartmentJobCodeId = String(departmentJobCodeIdInput.value ?? "").trim();
 
             const payload = {
                 jobCodeId: Number(jobCodeIdInput.value),
+                departmentJobCodeId: rawDepartmentJobCodeId ? Number(rawDepartmentJobCodeId) : null,
                 picUserId: picUserIdInput.value,
                 userName: userNameInput.value.trim(),
                 userEmail: userEmailInput.value.trim(),
@@ -1415,6 +1481,20 @@
                 throw new Error("Department wajib dipilih.");
             }
 
+            if (payload.departmentJobCodeId !== null && (!Number.isInteger(payload.departmentJobCodeId) || payload.departmentJobCodeId < 1)) {
+                throw new Error("Job Code tidak valid.");
+            }
+
+            const selectedDepartment = getSelectedDepartmentRow(payload.jobCodeId, resolveSelectedJobCodeCode());
+            if (payload.departmentJobCodeId !== null) {
+                const selectedDepartmentJobCode = Array.isArray(selectedDepartment?.jobCodes)
+                    ? selectedDepartment.jobCodes.find((row) => String(row.id) === String(payload.departmentJobCodeId))
+                    : null;
+                if (!selectedDepartmentJobCode) {
+                    throw new Error("Job Code harus sesuai dengan Department yang dipilih.");
+                }
+            }
+
             if (!payload.picUserId) {
                 throw new Error("PIC Name wajib dipilih.");
             }
@@ -1426,6 +1506,34 @@
 
             if (payload.userEmail && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(payload.userEmail)) {
                 throw new Error("User Email tidak valid.");
+            }
+
+            if (!payload.serialNo) {
+                throw new Error("Serial No. wajib diisi.");
+            }
+
+            if (!payload.category) {
+                throw new Error("Category wajib diisi.");
+            }
+
+            if (!payload.model) {
+                throw new Error("Model wajib diisi.");
+            }
+
+            if (!payload.hostName) {
+                throw new Error("Host Name wajib diisi.");
+            }
+
+            if (!payload.startDate) {
+                throw new Error("Start Date wajib diisi.");
+            }
+
+            if (!payload.endDate) {
+                throw new Error("End Date wajib diisi.");
+            }
+
+            if (!payload.leaseStatus) {
+                throw new Error("Lease Status wajib dipilih.");
             }
 
             if (payload.ipList && payload.ipList.length > 20) {
@@ -1450,6 +1558,22 @@
             }
 
             const match = masterJobCodes.find((row) => String(row.code ?? "").trim().toUpperCase() === targetCode);
+            return match ? String(match.id) : "";
+        }
+
+        function findDepartmentJobCodeIdByCode(departmentJobCode, departmentId) {
+            const normalizedDepartmentId = String(departmentId ?? "").trim();
+            const targetCode = String(departmentJobCode ?? "").trim().toUpperCase();
+            if (!normalizedDepartmentId || !targetCode) {
+                return "";
+            }
+
+            const department = masterJobCodes.find((row) => String(row?.id ?? "").trim() === normalizedDepartmentId);
+            if (!department || !Array.isArray(department.jobCodes)) {
+                return "";
+            }
+
+            const match = department.jobCodes.find((row) => String(row?.code ?? "").trim().toUpperCase() === targetCode);
             return match ? String(match.id) : "";
         }
 
@@ -1493,6 +1617,7 @@
                 // Keep using cached master users when refresh fails.
             } finally {
                 populatePicOptionsByJobCode();
+                populateDepartmentJobCodeOptionsByJobCode();
                 isLoadingPicOptions = false;
             }
         }
@@ -1539,8 +1664,10 @@
             ].join("");
 
             populatePicOptionsByJobCode();
+            populateDepartmentJobCodeOptionsByJobCode();
             refreshDaysLease();
             syncSearchableSelect(jobCodeIdInput, true);
+            syncSearchableSelect(departmentJobCodeIdInput, true);
             syncSearchableSelect(categoryInput);
             syncSearchableSelect(leaseStatusInput);
         }
@@ -2138,6 +2265,7 @@
 
             const detailFields = [
                 ["Department", row["Department"]],
+                ["Job Code", row["Job Code"]],
                 ["PIC Name", row["PIC Name"]],
                 ["Serial No.", row["Serial No."]],
                 ["Category", row["Category"]],
@@ -2192,6 +2320,9 @@
             const resolvedJobCodeId = findJobCodeIdByCode(row["Department"]);
             jobCodeIdInput.value = resolvedJobCodeId;
             populatePicOptionsByJobCode();
+            populateDepartmentJobCodeOptionsByJobCode();
+            const resolvedDepartmentJobCodeId = findDepartmentJobCodeIdByCode(row["Job Code"], resolvedJobCodeId);
+            departmentJobCodeIdInput.value = resolvedDepartmentJobCodeId;
             selectPicByName(row["PIC Name"]);
 
             serialNoInput.value = row["Serial No."] || "";
@@ -2215,6 +2346,7 @@
             refreshDaysLease();
             syncSearchableSelect(jobCodeIdInput, true);
             syncSearchableSelect(picUserIdInput, true);
+            syncSearchableSelect(departmentJobCodeIdInput, true);
             syncSearchableSelect(categoryInput);
             syncSearchableSelect(leaseStatusInput);
 
@@ -2568,6 +2700,3 @@ if (event.key === "Escape" && confirmModalOverlay.classList.contains("open")) {
 </body>
 
 </html>
-
-
-

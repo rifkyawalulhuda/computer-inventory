@@ -28,6 +28,7 @@ model DepartmentJobCode {
   departmentId Int        @map("department_id")
   code         String     @unique @map("job_code") @db.VarChar(15)
   department   Department @relation(fields: [departmentId], references: [id], onDelete: Cascade)
+  devices      Device[]
 
   createdAt DateTime @default(now()) @map("created_at")
   updatedAt DateTime @updatedAt @map("updated_at")
@@ -113,15 +114,17 @@ model Device {
   notes         String? @db.Text
   bitlockerKey  String? @map("bitlocker_key") @db.Text
 
-  jobCodeId   Int? @map("site_code_id")
-  categoryId  Int? @map("category_id")
-  modelId     Int? @map("model_id")
-  locationId  Int? @map("location_id")
+  jobCodeId            Int? @map("site_code_id")
+  departmentJobCodeId  Int? @map("department_job_code_id")
+  categoryId           Int? @map("category_id")
+  modelId              Int? @map("model_id")
+  locationId           Int? @map("location_id")
 
-  jobCode   Department?     @relation(fields: [jobCodeId], references: [id], onDelete: SetNull)
-  category  DeviceCategory? @relation(fields: [categoryId], references: [id], onDelete: SetNull)
-  model     DeviceModel?    @relation(fields: [modelId], references: [id], onDelete: SetNull)
-  location  Location?       @relation(fields: [locationId], references: [id], onDelete: SetNull)
+  jobCode            Department?        @relation(fields: [jobCodeId], references: [id], onDelete: SetNull)
+  departmentJobCode  DepartmentJobCode? @relation(fields: [departmentJobCodeId], references: [id], onDelete: SetNull)
+  category           DeviceCategory?    @relation(fields: [categoryId], references: [id], onDelete: SetNull)
+  model              DeviceModel?       @relation(fields: [modelId], references: [id], onDelete: SetNull)
+  location           Location?          @relation(fields: [locationId], references: [id], onDelete: SetNull)
 
   ipAddresses          DeviceIp[]
   assignments          DeviceAssignment[]
@@ -134,6 +137,7 @@ model Device {
   @@index([hostName], map: "idx_devices_host_name")
   @@index([locationId], map: "idx_devices_location_id")
   @@index([categoryId], map: "idx_devices_category_id")
+  @@index([departmentJobCodeId], map: "idx_devices_department_job_code_id")
   @@map("devices")
 }
 

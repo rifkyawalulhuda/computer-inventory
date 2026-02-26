@@ -11,6 +11,7 @@ export const deviceRecordRouter = Router();
 type DeviceRecordPayload = {
   no: number | null;
   jobCodeId: number;
+  departmentJobCodeId: number | null;
   picUserId: string;
   userName: string | null;
   userEmail: string | null;
@@ -36,6 +37,7 @@ type DeviceExportPayload = {
 type DeviceImportFileRow = {
   rowNumber: number;
   jobCode: string;
+  departmentJobCode: string;
   picName: string;
   serialNo: string;
   category: string;
@@ -67,6 +69,7 @@ type EditorRole = "admin" | "user";
 
 const DEVICE_IMPORT_TEMPLATE_HEADERS = [
   "Department",
+  "Job Code",
   "PIC Name",
   "Serial No.",
   "Category",
@@ -200,6 +203,7 @@ function parsePayload(payload: unknown): DeviceRecordPayload {
 
   const no = null;
   const jobCodeId = Number(body.jobCodeId);
+  const parsedDepartmentJobCodeId = parseInteger(body.departmentJobCodeId, "Job Code", { min: 1 });
   const picUserId = cleanText(body.picUserId);
   const userName = toNullableText(body.userName);
   const userEmail = toNullableText(body.userEmail);
@@ -221,8 +225,42 @@ function parsePayload(payload: unknown): DeviceRecordPayload {
     throw new Error("Department wajib dipilih.");
   }
 
+  if (parsedDepartmentJobCodeId !== null && (!Number.isInteger(parsedDepartmentJobCodeId) || parsedDepartmentJobCodeId < 1)) {
+    throw new Error("Job Code tidak valid.");
+  }
+
+  const departmentJobCodeId: number | null = parsedDepartmentJobCodeId;
+
   if (!picUserId) {
     throw new Error("PIC Name wajib dipilih.");
+  }
+
+  if (!serialNo) {
+    throw new Error("Serial No. wajib diisi.");
+  }
+
+  if (!category) {
+    throw new Error("Category wajib diisi.");
+  }
+
+  if (!model) {
+    throw new Error("Model wajib diisi.");
+  }
+
+  if (!hostName) {
+    throw new Error("Host Name wajib diisi.");
+  }
+
+  if (!startDate) {
+    throw new Error("Start Date wajib diisi.");
+  }
+
+  if (!endDate) {
+    throw new Error("End Date wajib diisi.");
+  }
+
+  if (!leaseStatus) {
+    throw new Error("Lease Status wajib dipilih.");
   }
 
   if (userEmail && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(userEmail)) {
@@ -236,6 +274,7 @@ function parsePayload(payload: unknown): DeviceRecordPayload {
   return {
     no,
     jobCodeId,
+    departmentJobCodeId,
     picUserId,
     userName,
     userEmail,
@@ -413,6 +452,7 @@ const latestLeaseSelect = {
 
 const deviceRecordInclude = {
   jobCode: { select: { id: true, code: true } },
+  departmentJobCode: { select: { id: true, code: true } },
   category: { select: { name: true } },
   model: { select: { name: true } },
   leaseContracts: {
@@ -435,6 +475,7 @@ type MappedDeviceRow = {
   notes: string | null;
   bitlockerKey: string | null;
   jobCode: { id: number; code: string } | null;
+  departmentJobCode: { id: number; code: string } | null;
   category: { name: string } | null;
   model: { name: string } | null;
   leaseContracts: Array<{
@@ -459,6 +500,7 @@ function mapDeviceToExcelRecord(row: MappedDeviceRow, fallbackNo?: number) {
     id: row.id,
     NO: row.legacyNo ?? fallbackNo ?? "",
     "Department": row.jobCode?.code ?? "",
+    "Job Code": row.departmentJobCode?.code ?? "",
     "PIC Name": row.picNameRaw ?? "",
     "Serial No.": row.serialNumber ?? "",
     Category: row.category?.name ?? "",
@@ -497,6 +539,7 @@ function mapDevicesWithResolvedNo(rows: MappedDeviceRow[]) {
 const deviceExportColumns = [
   "NO",
   "Department",
+  "Job Code",
   "PIC Name",
   "Serial No.",
   "Category",
@@ -522,6 +565,7 @@ function toExportRow(row: DeviceExcelRecord): DeviceExportRow {
   return {
     NO: row["NO"],
     "Department": row["Department"],
+    "Job Code": row["Job Code"],
     "PIC Name": row["PIC Name"],
     "Serial No.": row["Serial No."],
     Category: row.Category,
@@ -735,20 +779,21 @@ function parseDeviceImportRows(sheet: XLSX.WorkSheet): DeviceImportFileRow[] {
     parsedRows.push({
       rowNumber,
       jobCode: cleanText(values[0]).toUpperCase(),
-      picName: cleanText(values[1]),
-      serialNo: cleanText(values[2]),
-      category: cleanText(values[3]),
-      model: cleanText(values[4]),
-      hostName: cleanText(values[5]),
-      userName: cleanText(values[6]),
-      userEmail: cleanText(values[7]),
-      location: cleanText(values[8]),
-      ipList: cleanText(values[9]),
-      startDate: normalizeImportDateValue(values[10]),
-      endDate: normalizeImportDateValue(values[11]),
-      leaseStatus: cleanText(values[12]),
-      keterangan: cleanText(values[13]),
-      bitlockerKey: cleanText(values[14]),
+      departmentJobCode: cleanText(values[1]).toUpperCase(),
+      picName: cleanText(values[2]),
+      serialNo: cleanText(values[3]),
+      category: cleanText(values[4]),
+      model: cleanText(values[5]),
+      hostName: cleanText(values[6]),
+      userName: cleanText(values[7]),
+      userEmail: cleanText(values[8]),
+      location: cleanText(values[9]),
+      ipList: cleanText(values[10]),
+      startDate: normalizeImportDateValue(values[11]),
+      endDate: normalizeImportDateValue(values[12]),
+      leaseStatus: cleanText(values[13]),
+      keterangan: cleanText(values[14]),
+      bitlockerKey: cleanText(values[15]),
     });
   });
 
@@ -765,11 +810,17 @@ async function createDeviceImportTemplateWorkbookBuffer(): Promise<Buffer> {
   const instructionSheet = workbook.addWorksheet("Instruksi");
   const referenceSheet = workbook.addWorksheet("Referensi");
 
-  const [jobCodes, picUsers] = await Promise.all([
+  const [departments, picUsers] = await Promise.all([
     prisma.department.findMany({
       orderBy: { code: "asc" },
       select: {
         code: true,
+        jobCodes: {
+          orderBy: { code: "asc" },
+          select: {
+            code: true,
+          },
+        },
       },
     }),
     prisma.masterUser.findMany({
@@ -783,7 +834,8 @@ async function createDeviceImportTemplateWorkbookBuffer(): Promise<Buffer> {
 
   templateSheet.addRow([...DEVICE_IMPORT_TEMPLATE_HEADERS]);
   templateSheet.addRow([
-    jobCodes[0]?.code ?? "",
+    departments[0]?.code ?? "",
+    departments[0]?.jobCodes?.[0]?.code ?? "",
     picUsers[0] ? `${picUsers[0].name} (${picUsers[0].email})` : "",
     "SN-001",
     "Laptop",
@@ -802,6 +854,7 @@ async function createDeviceImportTemplateWorkbookBuffer(): Promise<Buffer> {
 
   templateSheet.columns = [
     { width: 12 },
+    { width: 16 },
     { width: 30 },
     { width: 18 },
     { width: 14 },
@@ -824,34 +877,40 @@ async function createDeviceImportTemplateWorkbookBuffer(): Promise<Buffer> {
 
   referenceSheet.columns = [
     { width: 28 },
+    { width: 24 },
     { width: 42 },
     { width: 16 },
     { width: 16 },
   ];
 
   referenceSheet.getCell("A1").value = "Department";
-  referenceSheet.getCell("B1").value = "PIC Name";
-  referenceSheet.getCell("C1").value = "Category";
-  referenceSheet.getCell("D1").value = "Lease Status";
+  referenceSheet.getCell("B1").value = "Job Code";
+  referenceSheet.getCell("C1").value = "PIC Name";
+  referenceSheet.getCell("D1").value = "Category";
+  referenceSheet.getCell("E1").value = "Lease Status";
 
   const categoryOptions = ["Laptop", "Desktop"];
   const leaseStatusOptions = ["ACTIVE", "EXPIRED", "Back To KDDI"];
 
-  const jobCodeValues = jobCodes.length > 0 ? jobCodes.map((row) => row.code) : [""];
+  const jobCodeValues = departments.length > 0 ? departments.map((row) => row.code) : [""];
+  const departmentJobCodeValues = departments.length > 0
+    ? [...new Set(departments.flatMap((row) => row.jobCodes.map((item) => item.code)))]
+    : [""];
   const picValues = picUsers.length > 0
     ? picUsers.map((user) => `${user.name} (${user.email})`)
     : [""];
 
-  const fillColumn = (column: "A" | "B" | "C" | "D", values: string[]) => {
+  const fillColumn = (column: "A" | "B" | "C" | "D" | "E", values: string[]) => {
     values.forEach((value, index) => {
       referenceSheet.getCell(`${column}${index + 2}`).value = value;
     });
   };
 
   fillColumn("A", jobCodeValues);
-  fillColumn("B", picValues);
-  fillColumn("C", categoryOptions);
-  fillColumn("D", leaseStatusOptions);
+  fillColumn("B", departmentJobCodeValues);
+  fillColumn("C", picValues);
+  fillColumn("D", categoryOptions);
+  fillColumn("E", leaseStatusOptions);
 
   const addListValidation = (
     column: number,
@@ -873,15 +932,17 @@ async function createDeviceImportTemplateWorkbookBuffer(): Promise<Buffer> {
   };
 
   const jobCodeLastRow = Math.max(2, jobCodeValues.length + 1);
+  const departmentJobCodeLastRow = Math.max(2, departmentJobCodeValues.length + 1);
   const picLastRow = Math.max(2, picValues.length + 1);
 
   addListValidation(1, `=Referensi!$A$2:$A$${jobCodeLastRow}`, false, "Department wajib dipilih dari dropdown.");
-  addListValidation(2, `=Referensi!$B$2:$B$${picLastRow}`, false, "PIC Name wajib dipilih dari dropdown.");
-  addListValidation(4, "=Referensi!$C$2:$C$3");
-  addListValidation(13, "=Referensi!$D$2:$D$4");
+  addListValidation(2, `=Referensi!$B$2:$B$${departmentJobCodeLastRow}`, false, "Job Code wajib dipilih dari dropdown.");
+  addListValidation(3, `=Referensi!$C$2:$C$${picLastRow}`, false, "PIC Name wajib dipilih dari dropdown.");
+  addListValidation(5, "=Referensi!$D$2:$D$3");
+  addListValidation(14, "=Referensi!$E$2:$E$4");
 
   for (let row = 2; row <= DEVICE_IMPORT_DROPDOWN_MAX_ROWS; row += 1) {
-    templateSheet.getCell(row, 11).dataValidation = {
+    templateSheet.getCell(row, 12).dataValidation = {
       type: "date",
       operator: "greaterThanOrEqual",
       allowBlank: true,
@@ -892,7 +953,7 @@ async function createDeviceImportTemplateWorkbookBuffer(): Promise<Buffer> {
       error: "Gunakan format tanggal yang valid (YYYY-MM-DD).",
     };
 
-    templateSheet.getCell(row, 12).dataValidation = {
+    templateSheet.getCell(row, 13).dataValidation = {
       type: "date",
       operator: "greaterThanOrEqual",
       allowBlank: true,
@@ -908,12 +969,13 @@ async function createDeviceImportTemplateWorkbookBuffer(): Promise<Buffer> {
     ["Panduan Import Data Perangkat"],
     ["1. Isi data mulai baris ke-2 di sheet Template."],
     ["2. Kolom NO tidak perlu diisi karena otomatis generate oleh sistem."],
-    ["3. Kolom dropdown: Department, PIC Name, Category, Lease Status."],
-    ["4. Department harus sudah terdaftar di master Department."],
-    ["5. PIC Name harus user yang terdaftar di Master User."],
-    ["6. Format tanggal yang disarankan: YYYY-MM-DD (contoh 2026-02-28)."],
-    ["7. Lease Status: ACTIVE, EXPIRED, atau Back To KDDI."],
-    ["8. Jika Serial No sudah ada, data akan diupdate. Jika belum ada, data baru dibuat."],
+    ["3. Kolom dropdown: Department, Job Code, PIC Name, Category, Lease Status."],
+    ["4. Department dan Job Code harus terdaftar di master Department."],
+    ["5. Job Code harus sesuai dengan Department pada baris yang sama."],
+    ["6. PIC Name harus user yang terdaftar di Master User."],
+    ["7. Format tanggal yang disarankan: YYYY-MM-DD (contoh 2026-02-28)."],
+    ["8. Lease Status: ACTIVE, EXPIRED, atau Back To KDDI."],
+    ["9. Jika Serial No sudah ada, data akan diupdate. Jika belum ada, data baru dibuat."],
   ]);
   instructionSheet.getColumn(1).width = 120;
   instructionSheet.getRow(1).font = { bold: true };
@@ -981,26 +1043,32 @@ function resolvePicUserFromImport(
 }
 
 async function prepareDeviceImportRows(rows: DeviceImportFileRow[]): Promise<PreparedImportRow[]> {
-  const uniqueJobCodes = [...new Set(rows.map((row) => cleanText(row.jobCode).toUpperCase()).filter(Boolean))];
+  const uniqueDepartments = [...new Set(rows.map((row) => cleanText(row.jobCode).toUpperCase()).filter(Boolean))];
 
-  const jobCodes = await prisma.department.findMany({
+  const departments = await prisma.department.findMany({
     where: {
       code: {
-        in: uniqueJobCodes,
+        in: uniqueDepartments,
       },
     },
     select: {
       id: true,
       code: true,
+      jobCodes: {
+        select: {
+          id: true,
+          code: true,
+        },
+      },
     },
   });
 
-  const jobCodeByCode = new Map(jobCodes.map((row) => [cleanText(row.code).toUpperCase(), row]));
+  const departmentByCode = new Map(departments.map((row) => [cleanText(row.code).toUpperCase(), row]));
 
   const users = await prisma.masterUser.findMany({
     where: {
       jobCodeId: {
-        in: jobCodes.map((row) => row.id),
+        in: departments.map((row) => row.id),
       },
     },
     select: {
@@ -1029,9 +1097,21 @@ async function prepareDeviceImportRows(rows: DeviceImportFileRow[]): Promise<Pre
         throw new Error("Department wajib diisi.");
       }
 
-      const jobCode = jobCodeByCode.get(jobCodeText);
-      if (!jobCode) {
+      const department = departmentByCode.get(jobCodeText);
+      if (!department) {
         throw new Error(`Department "${jobCodeText}" tidak ditemukan di master.`);
+      }
+
+      const departmentJobCodeText = cleanText(row.departmentJobCode).toUpperCase();
+      if (!departmentJobCodeText) {
+        throw new Error("Job Code wajib diisi.");
+      }
+
+      const selectedDepartmentJobCode = department.jobCodes.find(
+        (item) => cleanText(item.code).toUpperCase() === departmentJobCodeText,
+      );
+      if (!selectedDepartmentJobCode) {
+        throw new Error(`Job Code "${departmentJobCodeText}" tidak sesuai dengan Department "${jobCodeText}".`);
       }
 
       const serialNo = cleanText(row.serialNo);
@@ -1044,11 +1124,12 @@ async function prepareDeviceImportRows(rows: DeviceImportFileRow[]): Promise<Pre
         seenSerialNo.add(serialKey);
       }
 
-      const jobCodeUsers = usersByJobCode.get(jobCode.id) || [];
+      const jobCodeUsers = usersByJobCode.get(department.id) || [];
       const picUser = resolvePicUserFromImport(jobCodeUsers, row.picName);
 
       const payload = parsePayload({
-        jobCodeId: jobCode.id,
+        jobCodeId: department.id,
+        departmentJobCodeId: selectedDepartmentJobCode.id,
         picUserId: picUser.id,
         userName: row.userName,
         userEmail: row.userEmail,
@@ -1089,8 +1170,26 @@ async function prepareDeviceImportRows(rows: DeviceImportFileRow[]): Promise<Pre
 async function validateJobAndPic(
   tx: Prisma.TransactionClient,
   payload: DeviceRecordPayload,
-): Promise<{ name: string; jobCodeId: number; jobCodeCode: string }> {
-  const jobCode = await tx.department.findUnique({ where: { id: payload.jobCodeId } });
+): Promise<{
+  name: string;
+  jobCodeId: number;
+  jobCodeCode: string;
+  departmentJobCodeId: number | null;
+  departmentJobCodeCode: string | null;
+}> {
+  const jobCode = await tx.department.findUnique({
+    where: { id: payload.jobCodeId },
+    select: {
+      id: true,
+      code: true,
+      jobCodes: {
+        select: {
+          id: true,
+          code: true,
+        },
+      },
+    },
+  });
   if (!jobCode) {
     throw new Error("Department tidak ditemukan.");
   }
@@ -1104,7 +1203,20 @@ async function validateJobAndPic(
     throw new Error("PIC Name tidak sesuai dengan Department yang dipilih.");
   }
 
-  return { name: picUser.name, jobCodeId: picUser.jobCodeId, jobCodeCode: jobCode.code };
+  const departmentJobCode = payload.departmentJobCodeId
+    ? jobCode.jobCodes.find((item) => item.id === payload.departmentJobCodeId)
+    : null;
+  if (payload.departmentJobCodeId && !departmentJobCode) {
+    throw new Error("Job Code tidak sesuai dengan Department yang dipilih.");
+  }
+
+  return {
+    name: picUser.name,
+    jobCodeId: picUser.jobCodeId,
+    jobCodeCode: jobCode.code,
+    departmentJobCodeId: departmentJobCode?.id ?? null,
+    departmentJobCodeCode: departmentJobCode?.code ?? null,
+  };
 }
 
 async function resolveLookupIds(tx: Prisma.TransactionClient, payload: DeviceRecordPayload) {
@@ -1303,6 +1415,9 @@ deviceRecordRouter.post("/device-records/import", requireRole("admin"), async (r
               picNameRaw: true,
               notes: true,
               bitlockerKey: true,
+              departmentJobCode: {
+                select: { code: true },
+              },
               jobCode: {
                 select: { code: true },
               },
@@ -1343,6 +1458,7 @@ deviceRecordRouter.post("/device-records/import", requireRole("admin"), async (r
               notes: payload.keterangan,
               bitlockerKey: payload.bitlockerKey,
               jobCodeId: payload.jobCodeId,
+              departmentJobCodeId: payload.departmentJobCodeId,
               categoryId,
               modelId,
               locationId,
@@ -1374,6 +1490,11 @@ deviceRecordRouter.post("/device-records/import", requireRole("admin"), async (r
             label: "Department",
             before: existing.jobCode?.code ?? null,
             after: picUser.jobCodeCode,
+          },
+          {
+            label: "Job Code",
+            before: existing.departmentJobCode?.code ?? null,
+            after: picUser.departmentJobCodeCode,
           },
           {
             label: "PIC Name",
@@ -1463,6 +1584,7 @@ deviceRecordRouter.post("/device-records/import", requireRole("admin"), async (r
             notes: payload.keterangan,
             bitlockerKey: payload.bitlockerKey,
             jobCodeId: payload.jobCodeId,
+            departmentJobCodeId: payload.departmentJobCodeId,
             categoryId,
             modelId,
             locationId,
@@ -1535,6 +1657,7 @@ deviceRecordRouter.post("/device-records/export", async (req, res, next) => {
     worksheet["!cols"] = [
       { wch: 7 },
       { wch: 12 },
+      { wch: 16 },
       { wch: 18 },
       { wch: 18 },
       { wch: 14 },
@@ -1546,7 +1669,6 @@ deviceRecordRouter.post("/device-records/export", async (req, res, next) => {
       { wch: 12 },
       { wch: 14 },
       { wch: 18 },
-      { wch: 24 },
       { wch: 12 },
       { wch: 12 },
       { wch: 44 },
@@ -1608,6 +1730,7 @@ deviceRecordRouter.post("/device-records", async (req, res, next) => {
           notes: payload.keterangan,
           bitlockerKey: payload.bitlockerKey,
           jobCodeId: payload.jobCodeId,
+          departmentJobCodeId: payload.departmentJobCodeId,
           categoryId,
           modelId,
           locationId,
@@ -1662,6 +1785,7 @@ deviceRecordRouter.put("/device-records/:id", async (req, res, next) => {
           id: true,
           legacyNo: true,
           jobCodeId: true,
+          departmentJobCodeId: true,
           serialNumber: true,
           hostName: true,
           userNameRaw: true,
@@ -1671,6 +1795,9 @@ deviceRecordRouter.put("/device-records/:id", async (req, res, next) => {
           picNameRaw: true,
           notes: true,
           bitlockerKey: true,
+          departmentJobCode: {
+            select: { code: true },
+          },
           jobCode: {
             select: { code: true },
           },
@@ -1789,6 +1916,11 @@ deviceRecordRouter.put("/device-records/:id", async (req, res, next) => {
           after: picUser.jobCodeCode,
         },
         {
+          label: "Job Code",
+          before: existing.departmentJobCode?.code ?? null,
+          after: picUser.departmentJobCodeCode,
+        },
+        {
           label: "PIC Name",
           before: existing.picNameRaw,
           after: picUser.name,
@@ -1882,6 +2014,7 @@ deviceRecordRouter.put("/device-records/:id", async (req, res, next) => {
           notes: payload.keterangan,
           bitlockerKey: payload.bitlockerKey,
           jobCodeId: payload.jobCodeId,
+          departmentJobCodeId: payload.departmentJobCodeId,
           categoryId,
           modelId,
           locationId,
@@ -1927,7 +2060,7 @@ deviceRecordRouter.put("/device-records/:id", async (req, res, next) => {
     if (error instanceof Error && error.message.startsWith("ROLE_USER_FORBIDDEN_FIELDS:")) {
       const changedColumns = error.message.replace("ROLE_USER_FORBIDDEN_FIELDS:", "").trim();
       return res.status(403).json({
-        message: `Role user hanya boleh edit kolom User Name, User Email, Location, IP List, dan Keterangan. Kolom tidak diizinkan: ${changedColumns}.`,
+        message: `Role user hanya boleh edit kolom Job Code, User Name, User Email, Location, IP List, dan Keterangan. Kolom tidak diizinkan: ${changedColumns}.`,
       });
     }
 
