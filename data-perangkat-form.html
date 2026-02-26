@@ -466,14 +466,6 @@
                                             <label for="serialNo" class="form-label">Serial No.</label>
                                             <input type="text" class="form-control" id="serialNo" maxlength="100" placeholder="Serial Number">
                                         </div>
-                                        <div class="col-xxl-3 col-lg-4 col-md-6">
-                                            <label for="status" class="form-label">Status</label>
-                                            <select class="form-select" id="status">
-                                                <option value="">Pilih Status</option>
-                                                <option value="ON">ON</option>
-                                                <option value="OFF">OFF</option>
-                                            </select>
-                                        </div>
                                         <div class="col-xxl-4 col-lg-4 col-md-6">
                                             <label for="category" class="form-label">Category</label>
                                             <select class="form-select" id="category">
@@ -594,7 +586,6 @@
                                     <th>Host Name</th>
                                     <th>User Name</th>
                                     <th>User Email</th>
-                                    <th>Status</th>
                                     <th>Days Lease</th>
                                     <th>Lease Status</th>
                                     <th>Action</th>
@@ -602,7 +593,7 @@
                             </thead>
                             <tbody id="tableBody">
                                 <tr>
-                                    <td colspan="13" class="text-center text-muted py-4">Loading data...</td>
+                                    <td colspan="12" class="text-center text-muted py-4">Loading data...</td>
                                 </tr>
                             </tbody>
                         </table>
@@ -689,7 +680,6 @@
         const hostNameInput = document.getElementById("hostName");
         const userNameInput = document.getElementById("userName");
         const userEmailInput = document.getElementById("userEmail");
-        const statusInput = document.getElementById("status");
         const locationInput = document.getElementById("location");
         const ipListInput = document.getElementById("ipList");
         const startDateInput = document.getElementById("startDate");
@@ -721,7 +711,6 @@
         let masterJobCodes = [];
         let deviceRows = [];
         let editingDeviceId = "";
-        let lastManualStatus = "";
         let lastManualLeaseStatus = "ACTIVE";
         let currentDrawerHistoryLog = "";
         let isLoadingPicOptions = false;
@@ -732,7 +721,6 @@
             categoryInput,
             modelInput,
             hostNameInput,
-            statusInput,
             userNameInput,
             userEmailInput,
             locationInput,
@@ -745,7 +733,7 @@
             bitlockerKeyInput
         ];
         const userAllowedEditInputIds = new Set(["userName", "userEmail", "location", "ipList", "keterangan"]);
-        const searchableSelectInputs = [jobCodeIdInput, picUserIdInput, categoryInput, statusInput, leaseStatusInput].filter(Boolean);
+        const searchableSelectInputs = [jobCodeIdInput, picUserIdInput, categoryInput, leaseStatusInput].filter(Boolean);
 
         function canUseSelect2() {
             return Boolean(window.jQuery && window.jQuery.fn && typeof window.jQuery.fn.select2 === "function");
@@ -905,8 +893,6 @@
             if (!isUserRestrictedEdit) {
                 hystoryLogInput.readOnly = true;
                 daysLeaseInput.readOnly = true;
-                statusInput.disabled = false;
-                refreshStatusByDaysLease();
                 refreshLeaseStatusByEndDate();
             }
 
@@ -1048,62 +1034,6 @@
             const days = Math.ceil((leaseEnd.getTime() - baseDate.getTime()) / msPerDay);
             return String(Math.max(0, days));
         }
-
-        function ensureExpiredStatusOption() {
-            const existingOption = Array.from(statusInput.options).find((option) => option.value === "EXPIRED");
-            if (existingOption) {
-                return existingOption;
-            }
-
-            const expiredOption = document.createElement("option");
-            expiredOption.value = "EXPIRED";
-            expiredOption.textContent = "EXPIRED";
-            statusInput.appendChild(expiredOption);
-            return expiredOption;
-        }
-
-        function removeExpiredStatusOption() {
-            const expiredOption = Array.from(statusInput.options).find((option) => option.value === "EXPIRED");
-            if (expiredOption) {
-                expiredOption.remove();
-            }
-        }
-
-        function refreshStatusByDaysLease() {
-            const isUserRestrictedEdit = currentUserRole === "user" && Boolean(editingDeviceId);
-            if (isUserRestrictedEdit) {
-                statusInput.disabled = true;
-                syncSearchableSelect(statusInput);
-                return;
-            }
-
-            const daysLeaseValue = Number(daysLeaseInput.value);
-            const hasDaysLeaseValue = daysLeaseInput.value !== "" && Number.isFinite(daysLeaseValue);
-            const isExpired = hasDaysLeaseValue && daysLeaseValue <= 0;
-
-            if (isExpired) {
-                if (statusInput.value && statusInput.value !== "EXPIRED") {
-                    lastManualStatus = statusInput.value;
-                }
-
-                ensureExpiredStatusOption();
-                statusInput.value = "EXPIRED";
-                statusInput.disabled = true;
-                syncSearchableSelect(statusInput);
-                return;
-            }
-
-            statusInput.disabled = false;
-            const shouldRestoreManualStatus = statusInput.value === "EXPIRED";
-            removeExpiredStatusOption();
-
-            if (shouldRestoreManualStatus) {
-                statusInput.value = lastManualStatus || "";
-            }
-
-            syncSearchableSelect(statusInput);
-        }
-
         function isLeaseExpiredByEndDate(endDateValue) {
             if (!endDateValue) {
                 return false;
@@ -1155,7 +1085,6 @@
 
         function refreshDaysLease() {
             daysLeaseInput.value = calculateDaysLeaseValue(startDateInput.value, endDateInput.value);
-            refreshStatusByDaysLease();
             refreshLeaseStatusByEndDate();
         }
 
@@ -1175,10 +1104,7 @@
             userEmailInput.value = "";
             jobCodeIdInput.value = "";
             picUserIdInput.value = "";
-            lastManualStatus = "";
             lastManualLeaseStatus = "ACTIVE";
-            statusInput.disabled = false;
-            removeExpiredStatusOption();
             leaseStatusInput.value = "ACTIVE";
             leaseStatusInput.disabled = false;
             populatePicOptionsByJobCode();
@@ -1198,7 +1124,6 @@
                 category: categoryInput.value.trim(),
                 model: modelInput.value.trim(),
                 hostName: hostNameInput.value.trim(),
-                status: statusInput.value.trim(),
                 location: locationInput.value.trim(),
                 ipList: ipListInput.value.trim(),
                 startDate: startDateInput.value,
@@ -1227,10 +1152,6 @@
             if (isCreateMode) {
                 if (!payload.serialNo) {
                     throw new Error("Serial No. wajib diisi saat tambah data.");
-                }
-
-                if (!payload.status) {
-                    throw new Error("Status wajib diisi saat tambah data.");
                 }
 
                 if (!payload.category) {
@@ -1372,7 +1293,6 @@
             refreshDaysLease();
             syncSearchableSelect(jobCodeIdInput, true);
             syncSearchableSelect(categoryInput);
-            syncSearchableSelect(statusInput);
             syncSearchableSelect(leaseStatusInput);
         }
 
@@ -1380,7 +1300,7 @@
             if (!rows.length) {
                 tableBody.innerHTML = `
                     <tr>
-                        <td colspan="13" class="text-center text-muted py-4">Belum ada data.</td>
+                        <td colspan="12" class="text-center text-muted py-4">Belum ada data.</td>
                     </tr>
                 `;
                 return;
@@ -1397,7 +1317,6 @@
                     <td>${escapeHtml(row["Host Name"])}</td>
                     <td>${escapeHtml(row["User Name"])}</td>
                     <td title="${escapeHtml(row["User Email"])}">${escapeHtml(row["User Email"])}</td>
-                    <td>${escapeHtml(row["Status"])}</td>
                     <td>${escapeHtml(row["Days Lease"])}</td>
                     <td>${escapeHtml(row["Lease Status"])}</td>
                     <td>
@@ -1420,7 +1339,7 @@
         async function loadRows() {
             tableBody.innerHTML = `
                 <tr>
-                    <td colspan="13" class="text-center text-muted py-4">Loading data...</td>
+                    <td colspan="12" class="text-center text-muted py-4">Loading data...</td>
                 </tr>
             `;
 
@@ -1525,7 +1444,6 @@
                 ["Host Name", row["Host Name"]],
                 ["User Name", row["User Name"]],
                 ["User Email", row["User Email"]],
-                ["Status", row["Status"]],
                 ["Days Lease", row["Days Lease"]],
                 ["Lease Status", row["Lease Status"]],
                 ["Location", row["Location"]],
@@ -1587,14 +1505,9 @@
             bitlockerKeyInput.value = row["Bitlocker Key"] || "";
 
             refreshDaysLease();
-            if (!statusInput.disabled) {
-                statusInput.value = row["Status"] || "";
-            }
-
             syncSearchableSelect(jobCodeIdInput, true);
             syncSearchableSelect(picUserIdInput, true);
             syncSearchableSelect(categoryInput);
-            syncSearchableSelect(statusInput);
             syncSearchableSelect(leaseStatusInput);
 
             editingDeviceId = row.id;
@@ -1758,11 +1671,6 @@
         jobCodeIdInput.addEventListener("change", handleJobCodeSelectionChange);
         startDateInput.addEventListener("change", refreshDaysLease);
         endDateInput.addEventListener("change", refreshDaysLease);
-        statusInput.addEventListener("change", () => {
-            if (statusInput.value && statusInput.value !== "EXPIRED") {
-                lastManualStatus = statusInput.value;
-            }
-        });
         leaseStatusInput.addEventListener("change", () => {
             if (leaseStatusInput.value && leaseStatusInput.value !== "EXPIRED") {
                 lastManualLeaseStatus = leaseStatusInput.value;

@@ -18,7 +18,6 @@ type DeviceRecordPayload = {
   category: string | null;
   model: string | null;
   hostName: string | null;
-  status: string | null;
   location: string | null;
   ipList: string | null;
   startDate: Date | null;
@@ -44,7 +43,6 @@ type DeviceImportFileRow = {
   hostName: string;
   userName: string;
   userEmail: string;
-  status: string;
   location: string;
   ipList: string;
   startDate: string;
@@ -76,7 +74,6 @@ const DEVICE_IMPORT_TEMPLATE_HEADERS = [
   "Host Name",
   "User Name",
   "User Email",
-  "Status",
   "Location",
   "IP List",
   "Start Date",
@@ -115,19 +112,6 @@ function cleanText(value: unknown): string {
 function toNullableText(value: unknown): string | null {
   const text = cleanText(value);
   return text ? text : null;
-}
-
-function normalizeStatus(value: unknown): string | null {
-  const text = cleanText(value).toUpperCase();
-  if (!text) {
-    return null;
-  }
-
-  if (text !== "ON" && text !== "OFF" && text !== "EXPIRED") {
-    throw new Error('Status harus "ON" atau "OFF".');
-  }
-
-  return text;
 }
 
 function normalizeIpList(value: unknown): string | null {
@@ -223,18 +207,11 @@ function parsePayload(payload: unknown): DeviceRecordPayload {
   const category = toNullableText(body.category);
   const model = toNullableText(body.model);
   const hostName = toNullableText(body.hostName);
-  const requestedStatus = normalizeStatus(body.status);
   const location = toNullableText(body.location);
   const ipList = normalizeIpList(body.ipList);
   const startDate = parseDate(body.startDate, "Start Date");
   const endDate = parseDate(body.endDate, "End Date");
   const daysLease = calculateDaysLease(startDate, endDate);
-
-  if (requestedStatus === "EXPIRED" && !(daysLease !== null && daysLease <= 0)) {
-    throw new Error('Status "EXPIRED" hanya boleh otomatis saat Days Lease 0 atau kurang.');
-  }
-
-  const status = daysLease !== null && daysLease <= 0 ? "EXPIRED" : requestedStatus;
   const leaseStatus = toNullableText(body.leaseStatus);
   const hystoryLog = toNullableText(body.hystoryLog);
   const keterangan = toNullableText(body.keterangan);
@@ -266,7 +243,6 @@ function parsePayload(payload: unknown): DeviceRecordPayload {
     category,
     model,
     hostName,
-    status,
     location,
     ipList,
     startDate,
@@ -453,7 +429,6 @@ type MappedDeviceRow = {
   hostName: string | null;
   userNameRaw: string | null;
   userEmailRaw: string | null;
-  statusRaw: string | null;
   locationRaw: string | null;
   ipListRaw: string | null;
   picNameRaw: string | null;
@@ -479,8 +454,6 @@ function mapDeviceToExcelRecord(row: MappedDeviceRow, fallbackNo?: number) {
     latestLease?.endDate ?? null,
   );
   const displayDaysLease = calculatedDaysLease ?? latestLease?.daysLease ?? "";
-  const displayStatus =
-    calculatedDaysLease !== null && calculatedDaysLease <= 0 ? "EXPIRED" : row.statusRaw ?? "";
 
   return {
     id: row.id,
@@ -493,7 +466,6 @@ function mapDeviceToExcelRecord(row: MappedDeviceRow, fallbackNo?: number) {
     "Host Name": row.hostName ?? "",
     "User Name": row.userNameRaw ?? "",
     "User Email": row.userEmailRaw ?? "",
-    Status: displayStatus,
     Location: row.locationRaw ?? "",
     "IP List": row.ipListRaw ?? "",
     "Start Date": formatDate(latestLease?.startDate),
@@ -532,7 +504,6 @@ const deviceExportColumns = [
   "Host Name",
   "User Name",
   "User Email",
-  "Status",
   "Days Lease",
   "Lease Status",
   "Location",
@@ -558,7 +529,6 @@ function toExportRow(row: DeviceExcelRecord): DeviceExportRow {
     "Host Name": row["Host Name"],
     "User Name": row["User Name"],
     "User Email": row["User Email"],
-    Status: row.Status,
     "Days Lease": row["Days Lease"],
     "Lease Status": row["Lease Status"],
     Location: row.Location,
@@ -772,14 +742,13 @@ function parseDeviceImportRows(sheet: XLSX.WorkSheet): DeviceImportFileRow[] {
       hostName: cleanText(values[5]),
       userName: cleanText(values[6]),
       userEmail: cleanText(values[7]),
-      status: cleanText(values[8]).toUpperCase(),
-      location: cleanText(values[9]),
-      ipList: cleanText(values[10]),
-      startDate: normalizeImportDateValue(values[11]),
-      endDate: normalizeImportDateValue(values[12]),
-      leaseStatus: cleanText(values[13]),
-      keterangan: cleanText(values[14]),
-      bitlockerKey: cleanText(values[15]),
+      location: cleanText(values[8]),
+      ipList: cleanText(values[9]),
+      startDate: normalizeImportDateValue(values[10]),
+      endDate: normalizeImportDateValue(values[11]),
+      leaseStatus: cleanText(values[12]),
+      keterangan: cleanText(values[13]),
+      bitlockerKey: cleanText(values[14]),
     });
   });
 
@@ -822,7 +791,6 @@ async function createDeviceImportTemplateWorkbookBuffer(): Promise<Buffer> {
     "L-ID-22-030",
     "Kipli",
     "rifki@sankyu.co.id",
-    "ON",
     "Cikarang",
     "192.168.1.10",
     "2026-02-01",
@@ -841,7 +809,6 @@ async function createDeviceImportTemplateWorkbookBuffer(): Promise<Buffer> {
     { width: 18 },
     { width: 18 },
     { width: 28 },
-    { width: 10 },
     { width: 18 },
     { width: 18 },
     { width: 14 },
@@ -859,18 +826,15 @@ async function createDeviceImportTemplateWorkbookBuffer(): Promise<Buffer> {
     { width: 28 },
     { width: 42 },
     { width: 16 },
-    { width: 12 },
     { width: 16 },
   ];
 
   referenceSheet.getCell("A1").value = "Job Code";
   referenceSheet.getCell("B1").value = "PIC Name";
   referenceSheet.getCell("C1").value = "Category";
-  referenceSheet.getCell("D1").value = "Status";
-  referenceSheet.getCell("E1").value = "Lease Status";
+  referenceSheet.getCell("D1").value = "Lease Status";
 
   const categoryOptions = ["Laptop", "Desktop"];
-  const statusOptions = ["ON", "OFF"];
   const leaseStatusOptions = ["ACTIVE", "EXPIRED", "Back To KDDI"];
 
   const jobCodeValues = jobCodes.length > 0 ? jobCodes.map((row) => row.code) : [""];
@@ -878,7 +842,7 @@ async function createDeviceImportTemplateWorkbookBuffer(): Promise<Buffer> {
     ? picUsers.map((user) => `${user.name} (${user.email})`)
     : [""];
 
-  const fillColumn = (column: "A" | "B" | "C" | "D" | "E", values: string[]) => {
+  const fillColumn = (column: "A" | "B" | "C" | "D", values: string[]) => {
     values.forEach((value, index) => {
       referenceSheet.getCell(`${column}${index + 2}`).value = value;
     });
@@ -887,8 +851,7 @@ async function createDeviceImportTemplateWorkbookBuffer(): Promise<Buffer> {
   fillColumn("A", jobCodeValues);
   fillColumn("B", picValues);
   fillColumn("C", categoryOptions);
-  fillColumn("D", statusOptions);
-  fillColumn("E", leaseStatusOptions);
+  fillColumn("D", leaseStatusOptions);
 
   const addListValidation = (
     column: number,
@@ -915,11 +878,10 @@ async function createDeviceImportTemplateWorkbookBuffer(): Promise<Buffer> {
   addListValidation(1, `=Referensi!$A$2:$A$${jobCodeLastRow}`, false, "Job Code wajib dipilih dari dropdown.");
   addListValidation(2, `=Referensi!$B$2:$B$${picLastRow}`, false, "PIC Name wajib dipilih dari dropdown.");
   addListValidation(4, "=Referensi!$C$2:$C$3");
-  addListValidation(9, "=Referensi!$D$2:$D$3");
-  addListValidation(14, "=Referensi!$E$2:$E$4");
+  addListValidation(13, "=Referensi!$D$2:$D$4");
 
   for (let row = 2; row <= DEVICE_IMPORT_DROPDOWN_MAX_ROWS; row += 1) {
-    templateSheet.getCell(row, 12).dataValidation = {
+    templateSheet.getCell(row, 11).dataValidation = {
       type: "date",
       operator: "greaterThanOrEqual",
       allowBlank: true,
@@ -930,7 +892,7 @@ async function createDeviceImportTemplateWorkbookBuffer(): Promise<Buffer> {
       error: "Gunakan format tanggal yang valid (YYYY-MM-DD).",
     };
 
-    templateSheet.getCell(row, 13).dataValidation = {
+    templateSheet.getCell(row, 12).dataValidation = {
       type: "date",
       operator: "greaterThanOrEqual",
       allowBlank: true,
@@ -946,13 +908,12 @@ async function createDeviceImportTemplateWorkbookBuffer(): Promise<Buffer> {
     ["Panduan Import Data Perangkat"],
     ["1. Isi data mulai baris ke-2 di sheet Template."],
     ["2. Kolom NO tidak perlu diisi karena otomatis generate oleh sistem."],
-    ["3. Kolom dropdown: Job Code, PIC Name, Category, Status, Lease Status."],
+    ["3. Kolom dropdown: Job Code, PIC Name, Category, Lease Status."],
     ["4. Job Code harus sudah ada di Master Job Code."],
     ["5. PIC Name harus user yang terdaftar di Master User."],
     ["6. Format tanggal yang disarankan: YYYY-MM-DD (contoh 2026-02-28)."],
-    ["7. Status: ON/OFF. EXPIRED akan dihitung otomatis jika lease habis."],
-    ["8. Lease Status: ACTIVE, EXPIRED, atau Back To KDDI."],
-    ["9. Jika Serial No sudah ada, data akan diupdate. Jika belum ada, data baru dibuat."],
+    ["7. Lease Status: ACTIVE, EXPIRED, atau Back To KDDI."],
+    ["8. Jika Serial No sudah ada, data akan diupdate. Jika belum ada, data baru dibuat."],
   ]);
   instructionSheet.getColumn(1).width = 120;
   instructionSheet.getRow(1).font = { bold: true };
@@ -1095,7 +1056,6 @@ async function prepareDeviceImportRows(rows: DeviceImportFileRow[]): Promise<Pre
         category: row.category,
         model: row.model,
         hostName: row.hostName,
-        status: row.status,
         location: row.location,
         ipList: row.ipList,
         startDate: row.startDate,
@@ -1338,7 +1298,6 @@ deviceRecordRouter.post("/device-records/import", requireRole("admin"), async (r
               hostName: true,
               userNameRaw: true,
               userEmailRaw: true,
-              statusRaw: true,
               locationRaw: true,
               ipListRaw: true,
               picNameRaw: true,
@@ -1378,8 +1337,7 @@ deviceRecordRouter.post("/device-records/import", requireRole("admin"), async (r
               hostName: payload.hostName,
               userNameRaw: payload.userName,
               userEmailRaw: payload.userEmail,
-              statusRaw: payload.status,
-              locationRaw: payload.location,
+            locationRaw: payload.location,
               ipListRaw: payload.ipList,
               picNameRaw: picUser.name,
               notes: payload.keterangan,
@@ -1448,11 +1406,6 @@ deviceRecordRouter.post("/device-records/import", requireRole("admin"), async (r
             after: payload.userEmail,
           },
           {
-            label: "Status",
-            before: existing.statusRaw,
-            after: payload.status,
-          },
-          {
             label: "Location",
             before: existing.locationRaw,
             after: payload.location,
@@ -1504,7 +1457,6 @@ deviceRecordRouter.post("/device-records/import", requireRole("admin"), async (r
             hostName: payload.hostName,
             userNameRaw: payload.userName,
             userEmailRaw: payload.userEmail,
-            statusRaw: payload.status,
             locationRaw: payload.location,
             ipListRaw: payload.ipList,
             picNameRaw: picUser.name,
@@ -1650,7 +1602,6 @@ deviceRecordRouter.post("/device-records", async (req, res, next) => {
           hostName: payload.hostName,
           userNameRaw: payload.userName,
           userEmailRaw: payload.userEmail,
-          statusRaw: payload.status,
           locationRaw: payload.location,
           ipListRaw: payload.ipList,
           picNameRaw: picUser.name,
@@ -1715,7 +1666,6 @@ deviceRecordRouter.put("/device-records/:id", async (req, res, next) => {
           hostName: true,
           userNameRaw: true,
           userEmailRaw: true,
-          statusRaw: true,
           locationRaw: true,
           ipListRaw: true,
           picNameRaw: true,
@@ -1801,11 +1751,6 @@ deviceRecordRouter.put("/device-records/:id", async (req, res, next) => {
             after: payload.hostName,
           },
           {
-            label: "Status",
-            before: existing.statusRaw,
-            after: payload.status,
-          },
-          {
             label: "Start Date",
             before: formatDate(latestLease?.startDate),
             after: formatDate(payload.startDate),
@@ -1879,11 +1824,6 @@ deviceRecordRouter.put("/device-records/:id", async (req, res, next) => {
           after: payload.userEmail,
         },
         {
-          label: "Status",
-          before: existing.statusRaw,
-          after: payload.status,
-        },
-        {
           label: "Location",
           before: existing.locationRaw,
           after: payload.location,
@@ -1936,7 +1876,6 @@ deviceRecordRouter.put("/device-records/:id", async (req, res, next) => {
           hostName: payload.hostName,
           userNameRaw: payload.userName,
           userEmailRaw: payload.userEmail,
-          statusRaw: payload.status,
           locationRaw: payload.location,
           ipListRaw: payload.ipList,
           picNameRaw: picUser.name,

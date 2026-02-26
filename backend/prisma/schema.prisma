@@ -93,7 +93,6 @@ model Device {
   hostName      String? @map("host_name")
   userNameRaw   String? @map("user_name_raw")
   userEmailRaw  String? @map("user_email_raw")
-  statusRaw     String? @map("status_raw")
   locationRaw   String? @map("location_raw")
   ipListRaw     String? @map("ip_list_raw")
   picNameRaw    String? @map("pic_name_raw")
