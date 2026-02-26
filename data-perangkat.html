@@ -594,17 +594,22 @@
                                 <div class="device-form-section">
                                     <h6 class="device-form-section-title">User dan Lokasi</h6>
                                     <div class="row g-3">
-                                        <div class="col-lg-4 col-md-6">
+                                        <div class="col-xl-3 col-lg-6 col-md-6">
                                             <label for="userName" class="form-label">User Name</label>
                                             <input type="text" class="form-control" id="userName" maxlength="120" placeholder="Nama pengguna perangkat">
                                         </div>
-                                        <div class="col-lg-4 col-md-6">
+                                        <div class="col-xl-3 col-lg-6 col-md-6">
                                             <label for="userEmail" class="form-label">User Email</label>
                                             <input type="email" class="form-control" id="userEmail" maxlength="191" placeholder="email@company.com">
                                         </div>
-                                        <div class="col-lg-4 col-md-6">
+                                        <div class="col-xl-3 col-lg-6 col-md-6">
                                             <label for="location" class="form-label">Location</label>
                                             <input type="text" class="form-control" id="location" maxlength="120" placeholder="Cikarang KITIC">
+                                        </div>
+                                        <div class="col-xl-3 col-lg-6 col-md-6">
+                                            <label for="ipList" class="form-label">IP List</label>
+                                            <input type="text" class="form-control" id="ipList" maxlength="20" placeholder="192.168.1.10">
+                                            <small class="text-muted d-block mt-1">Hanya angka dan simbol, maksimal 20 karakter.</small>
                                         </div>
                                     </div>
                                 </div>
@@ -613,24 +618,19 @@
                                 <div class="device-form-section">
                                     <h6 class="device-form-section-title">Masa Lease</h6>
                                     <div class="row g-3">
-                                        <div class="col-xl-3 col-lg-4 col-md-6">
-                                            <label for="ipList" class="form-label">IP List</label>
-                                            <input type="text" class="form-control" id="ipList" maxlength="20" placeholder="192.168.1.10">
-                                            <small class="text-muted d-block mt-1">Hanya angka dan simbol, maksimal 20 karakter.</small>
-                                        </div>
-                                        <div class="col-xl-2 col-lg-4 col-md-6">
+                                        <div class="col-xl-3 col-lg-6 col-md-6">
                                             <label for="startDate" class="form-label">Start Date</label>
                                             <input type="date" class="form-control" id="startDate">
                                         </div>
-                                        <div class="col-xl-2 col-lg-4 col-md-6">
+                                        <div class="col-xl-3 col-lg-6 col-md-6">
                                             <label for="endDate" class="form-label">End Date</label>
                                             <input type="date" class="form-control" id="endDate">
                                         </div>
-                                        <div class="col-xl-2 col-lg-4 col-md-6">
+                                        <div class="col-xl-3 col-lg-6 col-md-6">
                                             <label for="daysLease" class="form-label">Days Lease</label>
                                             <input type="number" class="form-control" id="daysLease" readonly>
                                         </div>
-                                        <div class="col-xl-3 col-lg-4 col-md-6">
+                                        <div class="col-xl-3 col-lg-6 col-md-6">
                                             <label for="leaseStatus" class="form-label">Lease Status</label>
                                             <select class="form-select" id="leaseStatus">
                                                 <option value="ACTIVE">ACTIVE</option>
@@ -2568,7 +2568,6 @@ if (event.key === "Escape" && confirmModalOverlay.classList.contains("open")) {
 </body>
 
 </html>
-
 
 
 
