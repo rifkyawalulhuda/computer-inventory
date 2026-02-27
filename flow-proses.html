@@ -1,0 +1,1412 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="utf-8">
+    <meta http-equiv="x-ua-compatible" content="IE=edge">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Flow Proses</title>
+    <link rel="shortcut icon" type="image/x-icon" href="assets/images/favicon.ico">
+    <link rel="stylesheet" type="text/css" href="assets/css/bootstrap.min.css">
+    <link rel="stylesheet" type="text/css" href="assets/vendors/css/vendors.min.css">
+    <link rel="stylesheet" type="text/css" href="assets/css/theme.min.css">
+    <script src="assets/js/auth-client.js"></script>
+    <script>
+        if (window.AuthClient) {
+            window.AuthClient.requireAuth();
+            window.AuthClient.validateSession(`${window.location.protocol === "https:" ? "https:" : "http:"}//${window.location.hostname || "localhost"}:3001/api`);
+        }
+    </script>
+    <style>
+        .page-shell {
+            min-height: 100vh;
+            background: linear-gradient(160deg, #f8fafc 0%, #eef4ff 45%, #edf9f4 100%);
+            padding: 32px 0;
+        }
+
+        .page-title {
+            font-size: 1.5rem;
+            font-weight: 700;
+            color: #0f172a;
+            margin-bottom: 4px;
+        }
+
+        .page-subtitle {
+            color: #475569;
+            margin-bottom: 0;
+        }
+
+        .card-shadow {
+            border: 0;
+            box-shadow: 0 10px 30px rgba(15, 23, 42, 0.08);
+        }
+
+        .flow-filter-group {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 8px;
+        }
+
+        .flow-filter-btn.active {
+            background: #1d4ed8;
+            border-color: #1d4ed8;
+            color: #fff;
+        }
+
+        .flow-table {
+            min-width: 1400px;
+        }
+
+        .flow-table th,
+        .flow-table td {
+            white-space: nowrap;
+            vertical-align: middle;
+            font-size: 0.82rem;
+        }
+
+        .flow-table th {
+            font-size: 0.72rem;
+            text-transform: uppercase;
+            letter-spacing: 0.03em;
+            color: #334155;
+        }
+
+        .flow-note-cell {
+            max-width: 280px;
+            white-space: normal;
+            word-break: break-word;
+        }
+
+        .flow-action-group {
+            display: flex;
+            gap: 6px;
+            flex-wrap: wrap;
+        }
+
+        .flow-action-group .btn {
+            min-width: 86px;
+            font-size: 0.74rem;
+            font-weight: 700;
+            letter-spacing: 0.02em;
+        }
+
+        .view-drawer-overlay {
+            position: fixed;
+            inset: 0;
+            background: rgba(15, 23, 42, 0.35);
+            opacity: 0;
+            visibility: hidden;
+            transition: opacity 0.2s ease;
+            z-index: 1050;
+        }
+
+        .view-drawer-overlay.open {
+            opacity: 1;
+            visibility: visible;
+        }
+
+        .view-drawer {
+            position: absolute;
+            top: 0;
+            right: 0;
+            width: min(500px, 100vw);
+            height: 100%;
+            background: #ffffff;
+            box-shadow: -18px 0 40px rgba(15, 23, 42, 0.18);
+            transform: translateX(100%);
+            transition: transform 0.25s ease;
+            display: flex;
+            flex-direction: column;
+        }
+
+        .view-drawer-overlay.open .view-drawer {
+            transform: translateX(0);
+        }
+
+        .view-drawer-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 16px 18px;
+            border-bottom: 1px solid #e2e8f0;
+        }
+
+        .view-drawer-title {
+            margin: 0;
+            font-size: 1.05rem;
+            font-weight: 700;
+            color: #0f172a;
+        }
+
+        .view-drawer-close {
+            width: 34px;
+            height: 34px;
+            border-radius: 8px;
+            border: 1px solid #e2e8f0;
+            background: #ffffff;
+            color: #334155;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            cursor: pointer;
+        }
+
+        .view-drawer-close i {
+            font-size: 16px;
+        }
+
+        .view-drawer-history-btn {
+            border-radius: 8px;
+        }
+
+        .view-drawer-body {
+            padding: 16px 18px 24px;
+            overflow-y: auto;
+        }
+
+        .view-drawer-item {
+            padding: 10px 0;
+            border-bottom: 1px dashed #e2e8f0;
+        }
+
+        .view-drawer-label {
+            font-size: 0.72rem;
+            font-weight: 700;
+            letter-spacing: 0.03em;
+            text-transform: uppercase;
+            color: #64748b;
+            margin-bottom: 4px;
+        }
+
+        .view-drawer-value {
+            color: #0f172a;
+            word-break: break-word;
+        }
+
+        .history-log-overlay {
+            position: fixed;
+            inset: 0;
+            background: rgba(15, 23, 42, 0.45);
+            opacity: 0;
+            visibility: hidden;
+            transition: opacity 0.2s ease;
+            z-index: 1060;
+        }
+
+        .history-log-overlay.open {
+            opacity: 1;
+            visibility: visible;
+        }
+
+        .history-log-modal {
+            width: min(720px, calc(100vw - 32px));
+            max-height: calc(100vh - 48px);
+            margin: 24px auto;
+            background: #ffffff;
+            border-radius: 14px;
+            box-shadow: 0 20px 60px rgba(15, 23, 42, 0.35);
+            display: flex;
+            flex-direction: column;
+            overflow: hidden;
+        }
+
+        .history-log-header {
+            padding: 14px 16px;
+            border-bottom: 1px solid #e2e8f0;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .history-log-title {
+            margin: 0;
+            font-size: 1rem;
+            font-weight: 700;
+            color: #0f172a;
+        }
+
+        .history-log-body {
+            padding: 14px 16px;
+            overflow: auto;
+        }
+
+        .history-log-list {
+            margin: 0;
+            padding-left: 18px;
+            display: grid;
+            gap: 8px;
+            color: #1e293b;
+        }
+
+        .history-log-empty {
+            color: #64748b;
+            margin: 0;
+        }
+
+        .signature-modal-overlay,
+        .note-modal-overlay {
+            position: fixed;
+            inset: 0;
+            background: rgba(15, 23, 42, 0.5);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            z-index: 1060;
+            padding: 16px;
+        }
+
+        .signature-modal,
+        .note-modal {
+            width: min(720px, 100%);
+            background: #fff;
+            border-radius: 14px;
+            border: 1px solid #dbe3ee;
+            box-shadow: 0 18px 40px rgba(15, 23, 42, 0.25);
+            overflow: hidden;
+        }
+
+        .signature-modal-header,
+        .note-modal-header {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 14px 16px;
+            border-bottom: 1px solid #e2e8f0;
+        }
+
+        .signature-modal-title,
+        .note-modal-title {
+            margin: 0;
+            font-size: 1rem;
+            font-weight: 700;
+            color: #0f172a;
+        }
+
+        .signature-modal-body,
+        .note-modal-body {
+            padding: 16px;
+        }
+
+        .signature-canvas-wrap {
+            border: 1px dashed #9fb3cc;
+            border-radius: 10px;
+            background: #f8fbff;
+            padding: 8px;
+        }
+
+        .signature-canvas {
+            width: 100%;
+            height: 220px;
+            border-radius: 8px;
+            background: #fff;
+            cursor: crosshair;
+            touch-action: none;
+        }
+
+        .signature-modal-footer,
+        .note-modal-footer {
+            border-top: 1px solid #e2e8f0;
+            padding: 12px 16px;
+            display: flex;
+            justify-content: flex-end;
+            gap: 8px;
+        }
+
+        .mono-empty {
+            color: #94a3b8;
+            font-style: italic;
+        }
+
+        @media (max-width: 768px) {
+            .page-shell {
+                padding: 16px 0;
+            }
+
+            .flow-action-group .btn {
+                min-width: 74px;
+                padding-left: 8px;
+                padding-right: 8px;
+            }
+        }
+    </style>
+</head>
+
+<body>
+    <main class="page-shell">
+        <div class="container-fluid px-4">
+            <div class="d-flex flex-wrap gap-3 align-items-start justify-content-between mb-3">
+                <div>
+                    <h1 class="page-title mb-1">Flow Proses Data Perangkat</h1>
+                    <p class="page-subtitle">Monitoring status approval user, reject note, tanda tangan digital, dan cetak BAST.</p>
+                </div>
+                <button type="button" class="btn btn-light border" id="refreshButton">
+                    <i class="feather-refresh-cw me-1"></i>Refresh
+                </button>
+            </div>
+
+            <div id="alertBox" class="alert d-none" role="alert"></div>
+
+            <div class="card card-shadow mb-3">
+                <div class="card-body d-flex flex-wrap gap-3 justify-content-between align-items-center">
+                    <div class="flow-filter-group" id="statusFilterGroup">
+                        <button type="button" class="btn btn-sm btn-light border flow-filter-btn active" data-status="ALL">Semua</button>
+                        <button type="button" class="btn btn-sm btn-light border flow-filter-btn" data-status="PENDING_CONFIRMATION">Pending</button>
+                        <button type="button" class="btn btn-sm btn-light border flow-filter-btn" data-status="APPROVED">Approved</button>
+                        <button type="button" class="btn btn-sm btn-light border flow-filter-btn" data-status="REJECTED">Rejected</button>
+                    </div>
+                    <div class="input-group" style="max-width: 360px;">
+                        <span class="input-group-text bg-white"><i class="feather-search"></i></span>
+                        <input type="search" class="form-control" id="searchInput" placeholder="Cari data flow...">
+                        <button type="button" class="btn btn-light border" id="clearSearchButton">Clear</button>
+                    </div>
+                </div>
+            </div>
+
+            <div class="card card-shadow">
+                <div class="card-body">
+                    <div class="table-responsive">
+                        <table class="table table-hover align-middle flow-table">
+                            <thead>
+                                <tr>
+                                    <th>No</th>
+                                    <th>Department</th>
+                                    <th>PIC Name</th>
+                                    <th>Serial No.</th>
+                                    <th>Category</th>
+                                    <th>Model</th>
+                                    <th>Host Name</th>
+                                    <th>Lease Status</th>
+                                    <th>Flow Status</th>
+                                    <th>Approved At</th>
+                                    <th>Reject Note</th>
+                                    <th>Action</th>
+                                </tr>
+                            </thead>
+                            <tbody id="tableBody">
+                                <tr>
+                                    <td colspan="12" class="text-center text-muted py-4">Loading data flow...</td>
+                                </tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </main>
+
+    <div class="view-drawer-overlay" id="viewDrawerOverlay" aria-hidden="true">
+        <aside class="view-drawer" role="dialog" aria-modal="true" aria-labelledby="viewDrawerTitle">
+            <div class="view-drawer-header">
+                <h5 class="view-drawer-title" id="viewDrawerTitle">Detail Data Perangkat</h5>
+                <div class="d-flex align-items-center gap-2">
+                    <button type="button" class="btn btn-sm btn-outline-primary view-drawer-history-btn" id="viewDrawerHistoryButton">
+                        History Log
+                    </button>
+                    <button type="button" class="view-drawer-close" id="viewDrawerCloseButton" aria-label="Tutup Detail">
+                        <i class="feather-x"></i>
+                    </button>
+                </div>
+            </div>
+            <div class="view-drawer-body" id="viewDrawerBody"></div>
+        </aside>
+    </div>
+
+    <div class="history-log-overlay" id="historyLogOverlay" aria-hidden="true">
+        <div class="history-log-modal" role="dialog" aria-modal="true" aria-labelledby="historyLogTitle">
+            <div class="history-log-header">
+                <h5 class="history-log-title" id="historyLogTitle">History Log</h5>
+                <button type="button" class="view-drawer-close" id="historyLogCloseButton" aria-label="Tutup History Log">
+                    <i class="feather-x"></i>
+                </button>
+            </div>
+            <div class="history-log-body" id="historyLogBody"></div>
+        </div>
+    </div>
+
+    <div class="signature-modal-overlay d-none" id="signatureModalOverlay" aria-hidden="true">
+        <div class="signature-modal" role="dialog" aria-modal="true" aria-labelledby="signatureModalTitle">
+            <div class="signature-modal-header">
+                <h5 class="signature-modal-title" id="signatureModalTitle">Tanda Tangan Digital</h5>
+                <button type="button" class="btn btn-light border btn-sm" id="signatureCloseButton" aria-label="Tutup">
+                    <i class="feather-x"></i>
+                </button>
+            </div>
+            <div class="signature-modal-body">
+                <p class="text-muted mb-2" id="signatureModalDescription">Silakan buat tanda tangan digital pada area di bawah.</p>
+                <div class="signature-canvas-wrap mb-3">
+                    <canvas class="signature-canvas" id="signatureCanvas" width="800" height="220"></canvas>
+                </div>
+                <div class="d-flex justify-content-between align-items-center gap-2 flex-wrap">
+                    <small class="text-muted">Gunakan mouse atau sentuhan layar.</small>
+                    <button type="button" class="btn btn-sm btn-light border" id="signatureClearButton">
+                        <i class="feather-rotate-ccw me-1"></i>Clear Signature
+                    </button>
+                </div>
+            </div>
+            <div class="signature-modal-footer">
+                <button type="button" class="btn btn-light border" id="signatureCancelButton">Batal</button>
+                <button type="button" class="btn btn-primary" id="signatureSaveButton">Simpan</button>
+            </div>
+        </div>
+    </div>
+
+    <div class="note-modal-overlay d-none" id="noteModalOverlay" aria-hidden="true">
+        <div class="note-modal" role="dialog" aria-modal="true" aria-labelledby="noteModalTitle">
+            <div class="note-modal-header">
+                <h5 class="note-modal-title" id="noteModalTitle">Catatan</h5>
+                <button type="button" class="btn btn-light border btn-sm" id="noteCloseButton" aria-label="Tutup">
+                    <i class="feather-x"></i>
+                </button>
+            </div>
+            <div class="note-modal-body">
+                <label class="form-label fw-semibold" id="noteLabel" for="noteTextarea">Catatan</label>
+                <textarea class="form-control" id="noteTextarea" rows="4" maxlength="1000" placeholder="Tulis catatan..."></textarea>
+            </div>
+            <div class="note-modal-footer">
+                <button type="button" class="btn btn-light border" id="noteCancelButton">Batal</button>
+                <button type="button" class="btn btn-primary" id="noteSaveButton">Simpan</button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        const API_BASE = `${window.location.protocol === "https:" ? "https:" : "http:"}//${window.location.hostname || "localhost"}:3001/api`;
+
+        async function apiFetch(url, options = {}) {
+            if (window.AuthClient) {
+                return window.AuthClient.fetchWithAuth(url, options);
+            }
+
+            return fetch(url, options);
+        }
+
+        const STATUS_LABELS = {
+            PENDING_CONFIRMATION: "PENDING",
+            APPROVED: "APPROVED",
+            REJECTED: "REJECTED"
+        };
+
+        const DAY_NAMES = ["Minggu", "Senin", "Selasa", "Rabu", "Kamis", "Jumat", "Sabtu"];
+        const MONTH_NAMES = [
+            "Januari", "Februari", "Maret", "April", "Mei", "Juni",
+            "Juli", "Agustus", "September", "Oktober", "November", "Desember"
+        ];
+
+        const alertBox = document.getElementById("alertBox");
+        const tableBody = document.getElementById("tableBody");
+        const refreshButton = document.getElementById("refreshButton");
+        const searchInput = document.getElementById("searchInput");
+        const clearSearchButton = document.getElementById("clearSearchButton");
+        const statusFilterGroup = document.getElementById("statusFilterGroup");
+        const viewDrawerOverlay = document.getElementById("viewDrawerOverlay");
+        const viewDrawerBody = document.getElementById("viewDrawerBody");
+        const viewDrawerCloseButton = document.getElementById("viewDrawerCloseButton");
+        const viewDrawerHistoryButton = document.getElementById("viewDrawerHistoryButton");
+        const historyLogOverlay = document.getElementById("historyLogOverlay");
+        const historyLogBody = document.getElementById("historyLogBody");
+        const historyLogCloseButton = document.getElementById("historyLogCloseButton");
+
+        const signatureModalOverlay = document.getElementById("signatureModalOverlay");
+        const signatureModalTitle = document.getElementById("signatureModalTitle");
+        const signatureModalDescription = document.getElementById("signatureModalDescription");
+        const signatureCloseButton = document.getElementById("signatureCloseButton");
+        const signatureCancelButton = document.getElementById("signatureCancelButton");
+        const signatureSaveButton = document.getElementById("signatureSaveButton");
+        const signatureClearButton = document.getElementById("signatureClearButton");
+        const signatureCanvas = document.getElementById("signatureCanvas");
+
+        const noteModalOverlay = document.getElementById("noteModalOverlay");
+        const noteModalTitle = document.getElementById("noteModalTitle");
+        const noteLabel = document.getElementById("noteLabel");
+        const noteTextarea = document.getElementById("noteTextarea");
+        const noteCloseButton = document.getElementById("noteCloseButton");
+        const noteCancelButton = document.getElementById("noteCancelButton");
+        const noteSaveButton = document.getElementById("noteSaveButton");
+
+        const currentUser = window.AuthClient ? (window.AuthClient.getUser() || {}) : {};
+        const currentUserRole = window.AuthClient ? (window.AuthClient.getUserRole() || "") : "";
+        const currentUserId = String(currentUser?.id || "").trim();
+
+        let flowRows = [];
+        let activeStatus = "ALL";
+        let activeSearchText = "";
+        let pendingSignatureAction = null;
+        let pendingNoteAction = null;
+        let isDrawing = false;
+        let hasSignatureStroke = false;
+        let lastPoint = null;
+        let currentDrawerHistoryLog = "";
+
+        function showAlert(message, type) {
+            alertBox.className = `alert alert-${type}`;
+            alertBox.textContent = message;
+            alertBox.classList.remove("d-none");
+        }
+
+        function hideAlert() {
+            alertBox.classList.add("d-none");
+            alertBox.textContent = "";
+        }
+
+        function escapeHtml(value) {
+            return String(value ?? "")
+                .replaceAll("&", "&amp;")
+                .replaceAll("<", "&lt;")
+                .replaceAll(">", "&gt;")
+                .replaceAll('"', "&quot;")
+                .replaceAll("'", "&#39;");
+        }
+
+        function toDisplayValue(value) {
+            const text = String(value ?? "").trim();
+            return text || "-";
+        }
+
+        function getStatusBadge(status) {
+            const normalized = String(status || "").trim().toUpperCase();
+            const label = STATUS_LABELS[normalized] || toDisplayValue(normalized);
+
+            let badgeClass = "bg-soft-secondary text-secondary";
+            if (normalized === "PENDING_CONFIRMATION") {
+                badgeClass = "bg-soft-warning text-warning";
+            } else if (normalized === "APPROVED") {
+                badgeClass = "bg-soft-success text-success";
+            } else if (normalized === "REJECTED") {
+                badgeClass = "bg-soft-danger text-danger";
+            }
+
+            return `<span class="badge ${badgeClass}">${escapeHtml(label)}</span>`;
+        }
+
+        function getLeaseStatusBadge(status) {
+            const normalized = String(status || "").trim().toUpperCase();
+            let badgeClass = "bg-soft-primary text-primary";
+            if (normalized === "ACTIVE") {
+                badgeClass = "bg-soft-success text-success";
+            } else if (normalized === "EXPIRED") {
+                badgeClass = "bg-soft-danger text-danger";
+            }
+
+            return `<span class="badge ${badgeClass}">${escapeHtml(toDisplayValue(status))}</span>`;
+        }
+
+        function parseFlowDate(value) {
+            const text = String(value || "").trim();
+            if (!text) {
+                return null;
+            }
+
+            const normalized = text.replace(" ", "T");
+            const date = new Date(normalized);
+            return Number.isNaN(date.getTime()) ? null : date;
+        }
+
+        function formatFlowDate(value) {
+            const date = parseFlowDate(value);
+            if (!date) {
+                return "-";
+            }
+
+            const dd = String(date.getDate()).padStart(2, "0");
+            const mm = String(date.getMonth() + 1).padStart(2, "0");
+            const yyyy = String(date.getFullYear());
+            const hh = String(date.getHours()).padStart(2, "0");
+            const min = String(date.getMinutes()).padStart(2, "0");
+            return `${dd}/${mm}/${yyyy} ${hh}:${min}`;
+        }
+
+        function getBastFormattedDate(date) {
+            if (!date) {
+                return { dayName: "-", fullDate: "-" };
+            }
+
+            const dayName = DAY_NAMES[date.getDay()] || "-";
+            const fullDate = `${date.getDate()} ${MONTH_NAMES[date.getMonth()]} ${date.getFullYear()}`;
+            return { dayName, fullDate };
+        }
+
+        function buildStatusQuery() {
+            if (activeStatus === "ALL") {
+                return "";
+            }
+
+            return `?status=${encodeURIComponent(activeStatus)}`;
+        }
+
+        function getSearchText(row) {
+            const keys = [
+                "NO",
+                "Department",
+                "Job Code",
+                "PIC Name",
+                "Serial No.",
+                "Category",
+                "Model",
+                "Host Name",
+                "Lease Status",
+                "Flow Status",
+                "Flow Reject Note"
+            ];
+
+            return keys.map((key) => String(row[key] ?? "")).join(" ").toLowerCase();
+        }
+
+        function getFilteredRows() {
+            if (!activeSearchText) {
+                return flowRows;
+            }
+
+            const needle = activeSearchText.toLowerCase();
+            return flowRows.filter((row) => getSearchText(row).includes(needle));
+        }
+
+        function getCurrentUserDisplayName() {
+            return String(currentUser?.name || "").trim() || "-";
+        }
+
+        function isAdmin() {
+            return currentUserRole === "admin";
+        }
+
+        function isCurrentUserAssignedPic(row) {
+            const assignedPicUserId = String(row["Flow Assigned PIC User ID"] || "").trim();
+            if (!assignedPicUserId || !currentUserId) {
+                return false;
+            }
+
+            return assignedPicUserId === currentUserId;
+        }
+
+        function isCurrentUserFlowSubmitter(row) {
+            const submittedByUserId = String(row["Flow Submitted By User ID"] || "").trim();
+            if (!submittedByUserId || !currentUserId) {
+                return false;
+            }
+
+            return submittedByUserId === currentUserId;
+        }
+
+        function renderActions(row) {
+            const id = String(row.id || "").trim();
+            if (!id) {
+                return "<span class=\"mono-empty\">-</span>";
+            }
+
+            const status = String(row["Flow Status"] || "").trim().toUpperCase();
+            const buttons = [];
+            const canConfirmAsRecipient = status === "PENDING_CONFIRMATION" && isCurrentUserAssignedPic(row);
+
+            buttons.push(`<button type="button" class="btn btn-sm btn-outline-secondary" data-action="view" data-id="${escapeHtml(id)}">Detail</button>`);
+
+            if (canConfirmAsRecipient) {
+                buttons.push(`<button type="button" class="btn btn-sm btn-success" data-action="approve" data-id="${escapeHtml(id)}">Approve</button>`);
+                buttons.push(`<button type="button" class="btn btn-sm btn-danger" data-action="reject" data-id="${escapeHtml(id)}">Reject</button>`);
+            }
+
+            if (status === "REJECTED" && isAdmin() && isCurrentUserFlowSubmitter(row)) {
+                buttons.push(`<button type="button" class="btn btn-sm btn-warning" data-action="resubmit" data-id="${escapeHtml(id)}">Resubmit</button>`);
+            }
+
+            if (status === "APPROVED" && isAdmin()) {
+                buttons.push(`<button type="button" class="btn btn-sm btn-info" data-action="sender-sign" data-id="${escapeHtml(id)}">TTD Pengirim</button>`);
+            }
+
+            if (status === "APPROVED") {
+                buttons.push(`<button type="button" class="btn btn-sm btn-primary" data-action="print-bast" data-id="${escapeHtml(id)}">Print BAST</button>`);
+            }
+
+            if (!buttons.length) {
+                return "<span class=\"mono-empty\">-</span>";
+            }
+
+            return `<div class="flow-action-group">${buttons.join("")}</div>`;
+        }
+
+        function parseHistoryLogLines(value) {
+            return String(value ?? "")
+                .split(/\r?\n/)
+                .map((line) => line.trim())
+                .filter(Boolean);
+        }
+
+        function openHistoryLogOverlay() {
+            const lines = parseHistoryLogLines(currentDrawerHistoryLog);
+            if (!lines.length) {
+                historyLogBody.innerHTML = '<p class="history-log-empty">Belum ada history log.</p>';
+            } else {
+                historyLogBody.innerHTML = `
+                    <ol class="history-log-list">
+                        ${lines.map((line) => `<li>${escapeHtml(line)}</li>`).join("")}
+                    </ol>
+                `;
+            }
+
+            historyLogOverlay.classList.add("open");
+            historyLogOverlay.setAttribute("aria-hidden", "false");
+        }
+
+        function closeHistoryLogOverlay() {
+            historyLogOverlay.classList.remove("open");
+            historyLogOverlay.setAttribute("aria-hidden", "true");
+        }
+
+        function openViewDrawer(row) {
+            const historyLines = parseHistoryLogLines(row["Hystory Log"]);
+            currentDrawerHistoryLog = historyLines.join("\n");
+            viewDrawerHistoryButton.textContent = historyLines.length
+                ? `History Log (${historyLines.length})`
+                : "History Log (0)";
+
+            const detailFields = [
+                ["Department", row["Department"]],
+                ["Job Code", row["Job Code"]],
+                ["PIC Name", row["PIC Name"]],
+                ["Serial No.", row["Serial No."]],
+                ["Category", row["Category"]],
+                ["Model", row["Model"]],
+                ["Host Name", row["Host Name"]],
+                ["User Name", row["User Name"]],
+                ["User Email", row["User Email"]],
+                ["Location", row["Location"]],
+                ["IP List", row["IP List"]],
+                ["Start Date", row["Start Date"]],
+                ["End Date", row["End Date"]],
+                ["Days Lease", row["Days Lease"]],
+                ["Lease Status", row["Lease Status"]],
+                ["Flow Status", row["Flow Status"]],
+                ["Approved By", row["Flow Approved By"]],
+                ["Approved At", row["Flow Approved At"]],
+                ["Reject Note", row["Flow Reject Note"]],
+                ["Keterangan", row["Keterangan"]],
+                ["Bitlocker Key", row["Bitlocker Key"]]
+            ];
+
+            viewDrawerBody.innerHTML = detailFields.map(([label, value]) => {
+                const isLeaseStatusField = label === "Lease Status";
+                const isFlowStatusField = label === "Flow Status";
+                const renderedValue = isLeaseStatusField
+                    ? getLeaseStatusBadge(value)
+                    : (isFlowStatusField ? getStatusBadge(value) : escapeHtml(toDisplayValue(value)));
+
+                return `
+                    <div class="view-drawer-item">
+                        <div class="view-drawer-label">${escapeHtml(label)}</div>
+                        <div class="view-drawer-value">${renderedValue}</div>
+                    </div>
+                `;
+            }).join("");
+
+            closeHistoryLogOverlay();
+            viewDrawerOverlay.classList.add("open");
+            viewDrawerOverlay.setAttribute("aria-hidden", "false");
+            document.body.style.overflow = "hidden";
+        }
+
+        function closeViewDrawer() {
+            closeHistoryLogOverlay();
+            viewDrawerOverlay.classList.remove("open");
+            viewDrawerOverlay.setAttribute("aria-hidden", "true");
+            document.body.style.overflow = "";
+            currentDrawerHistoryLog = "";
+            viewDrawerHistoryButton.textContent = "History Log";
+        }
+
+        function renderRows() {
+            const rows = getFilteredRows();
+
+            if (!rows.length) {
+                tableBody.innerHTML = `
+                    <tr>
+                        <td colspan="12" class="text-center text-muted py-4">Tidak ada data flow.</td>
+                    </tr>
+                `;
+                return;
+            }
+
+            tableBody.innerHTML = rows.map((row) => `
+                <tr>
+                    <td>${escapeHtml(toDisplayValue(row["NO"]))}</td>
+                    <td>${escapeHtml(toDisplayValue(row["Department"]))}</td>
+                    <td>${escapeHtml(toDisplayValue(row["PIC Name"]))}</td>
+                    <td>${escapeHtml(toDisplayValue(row["Serial No."]))}</td>
+                    <td>${escapeHtml(toDisplayValue(row["Category"]))}</td>
+                    <td>${escapeHtml(toDisplayValue(row["Model"]))}</td>
+                    <td>${escapeHtml(toDisplayValue(row["Host Name"]))}</td>
+                    <td>${getLeaseStatusBadge(row["Lease Status"])}</td>
+                    <td>${getStatusBadge(row["Flow Status"])}</td>
+                    <td>${escapeHtml(formatFlowDate(row["Flow Approved At"]))}</td>
+                    <td class="flow-note-cell">${escapeHtml(toDisplayValue(row["Flow Reject Note"]))}</td>
+                    <td>${renderActions(row)}</td>
+                </tr>
+            `).join("");
+        }
+
+        async function loadRows() {
+            hideAlert();
+            tableBody.innerHTML = `
+                <tr>
+                    <td colspan="12" class="text-center text-muted py-4">Loading data flow...</td>
+                </tr>
+            `;
+
+            try {
+                const response = await apiFetch(`${API_BASE}/device-records/flows${buildStatusQuery()}`);
+                const result = await response.json().catch(() => ({}));
+
+                if (!response.ok) {
+                    throw new Error(result?.message || "Gagal memuat data flow.");
+                }
+
+                flowRows = Array.isArray(result?.data) ? result.data : [];
+                renderRows();
+            } catch (error) {
+                flowRows = [];
+                renderRows();
+                showAlert(error instanceof Error ? error.message : "Gagal memuat data flow.", "danger");
+            }
+        }
+
+        function resizeSignatureCanvas() {
+            if (!signatureCanvas) {
+                return;
+            }
+
+            const ratio = Math.max(window.devicePixelRatio || 1, 1);
+            const displayWidth = signatureCanvas.clientWidth;
+            const displayHeight = signatureCanvas.clientHeight;
+            signatureCanvas.width = Math.floor(displayWidth * ratio);
+            signatureCanvas.height = Math.floor(displayHeight * ratio);
+
+            const ctx = signatureCanvas.getContext("2d");
+            if (!ctx) {
+                return;
+            }
+
+            ctx.setTransform(ratio, 0, 0, ratio, 0, 0);
+            ctx.clearRect(0, 0, displayWidth, displayHeight);
+            ctx.lineCap = "round";
+            ctx.lineJoin = "round";
+            ctx.lineWidth = 2.2;
+            ctx.strokeStyle = "#0f172a";
+            hasSignatureStroke = false;
+            lastPoint = null;
+        }
+
+        function getCanvasPoint(event) {
+            const rect = signatureCanvas.getBoundingClientRect();
+            const source = event.touches && event.touches[0] ? event.touches[0] : event;
+            return {
+                x: source.clientX - rect.left,
+                y: source.clientY - rect.top
+            };
+        }
+
+        function startDrawing(event) {
+            event.preventDefault();
+            isDrawing = true;
+            lastPoint = getCanvasPoint(event);
+        }
+
+        function drawSignature(event) {
+            if (!isDrawing) {
+                return;
+            }
+
+            event.preventDefault();
+            const ctx = signatureCanvas.getContext("2d");
+            if (!ctx) {
+                return;
+            }
+
+            const point = getCanvasPoint(event);
+            if (!lastPoint) {
+                lastPoint = point;
+            }
+
+            ctx.beginPath();
+            ctx.moveTo(lastPoint.x, lastPoint.y);
+            ctx.lineTo(point.x, point.y);
+            ctx.stroke();
+
+            lastPoint = point;
+            hasSignatureStroke = true;
+        }
+
+        function stopDrawing() {
+            isDrawing = false;
+            lastPoint = null;
+        }
+
+        function closeSignatureModal() {
+            signatureModalOverlay.classList.add("d-none");
+            pendingSignatureAction = null;
+        }
+
+        function openSignatureModal(config) {
+            pendingSignatureAction = config;
+            signatureModalTitle.textContent = config.title;
+            signatureModalDescription.textContent = config.description;
+            signatureSaveButton.textContent = config.submitLabel;
+            signatureModalOverlay.classList.remove("d-none");
+            requestAnimationFrame(resizeSignatureCanvas);
+        }
+
+        async function submitSignatureAction() {
+            if (!pendingSignatureAction) {
+                return;
+            }
+
+            if (!hasSignatureStroke) {
+                showAlert("Tanda tangan digital wajib diisi.", "warning");
+                return;
+            }
+
+            signatureSaveButton.disabled = true;
+            const defaultButtonText = signatureSaveButton.textContent;
+            signatureSaveButton.textContent = "Menyimpan...";
+
+            try {
+                const signatureDataUrl = signatureCanvas.toDataURL("image/png");
+                const response = await apiFetch(pendingSignatureAction.endpoint, {
+                    method: "POST",
+                    headers: {
+                        "Content-Type": "application/json"
+                    },
+                    body: JSON.stringify({
+                        note: pendingSignatureAction.note || null,
+                        signatureDataUrl
+                    })
+                });
+
+                const result = await response.json().catch(() => ({}));
+                if (!response.ok) {
+                    throw new Error(result?.message || "Gagal menyimpan tanda tangan digital.");
+                }
+
+                closeSignatureModal();
+                showAlert(result?.message || "Tanda tangan digital berhasil disimpan.", "success");
+                await loadRows();
+            } catch (error) {
+                showAlert(error instanceof Error ? error.message : "Gagal menyimpan tanda tangan digital.", "danger");
+            } finally {
+                signatureSaveButton.disabled = false;
+                signatureSaveButton.textContent = defaultButtonText;
+            }
+        }
+
+        function closeNoteModal() {
+            noteModalOverlay.classList.add("d-none");
+            pendingNoteAction = null;
+            noteTextarea.value = "";
+        }
+
+        function openNoteModal(config) {
+            pendingNoteAction = config;
+            noteModalTitle.textContent = config.title;
+            noteLabel.textContent = config.label;
+            noteTextarea.placeholder = config.placeholder;
+            noteTextarea.value = "";
+            noteSaveButton.textContent = config.submitLabel;
+            noteModalOverlay.classList.remove("d-none");
+            noteTextarea.focus();
+        }
+
+        async function submitNoteAction() {
+            if (!pendingNoteAction) {
+                return;
+            }
+
+            const note = String(noteTextarea.value || "").trim();
+            if (pendingNoteAction.required && !note) {
+                showAlert("Catatan wajib diisi.", "warning");
+                return;
+            }
+
+            noteSaveButton.disabled = true;
+            const defaultText = noteSaveButton.textContent;
+            noteSaveButton.textContent = "Menyimpan...";
+
+            try {
+                const response = await apiFetch(pendingNoteAction.endpoint, {
+                    method: "POST",
+                    headers: {
+                        "Content-Type": "application/json"
+                    },
+                    body: JSON.stringify({ note: note || null })
+                });
+
+                const result = await response.json().catch(() => ({}));
+                if (!response.ok) {
+                    throw new Error(result?.message || "Gagal memproses data.");
+                }
+
+                closeNoteModal();
+                showAlert(result?.message || "Proses berhasil.", "success");
+                await loadRows();
+            } catch (error) {
+                showAlert(error instanceof Error ? error.message : "Gagal memproses data.", "danger");
+            } finally {
+                noteSaveButton.disabled = false;
+                noteSaveButton.textContent = defaultText;
+            }
+        }
+
+        function sanitizeSignatureDataUrl(value) {
+            const text = String(value || "").trim();
+            return /^data:image\/(png|jpeg);base64,[A-Za-z0-9+/=]+$/i.test(text) ? text : "";
+        }
+
+        function buildBastHtml(row) {
+            const approvedDate = parseFlowDate(row["Flow Approved At"]);
+            const approvedInfo = getBastFormattedDate(approvedDate);
+
+            const senderName = String(row["Flow Sender Signed By"] || "").trim() || getCurrentUserDisplayName();
+            const currentUserDepartmentCode = String(currentUser?.jobCode?.code || "").trim();
+            const senderDepartment = toDisplayValue(
+                row["Flow Sender Signed By Department"]
+                || currentUserDepartmentCode
+                || row["Department"]
+            );
+            const receiverName = String(row["Flow Approved By"] || row["PIC Name"] || row["User Name"] || "").trim() || "-";
+            const receiverDepartment = toDisplayValue(row["Flow Approved Department"] || row["Department"]);
+
+            const serialNo = toDisplayValue(row["Serial No."]);
+            const model = toDisplayValue(row["Model"]);
+            const hostName = toDisplayValue(row["Host Name"]);
+            const category = toDisplayValue(row["Category"]);
+            const department = toDisplayValue(row["Department"]);
+            const recipientSignature = sanitizeSignatureDataUrl(row["Flow Recipient Signature"]);
+            const senderSignature = sanitizeSignatureDataUrl(row["Flow Sender Signature"]);
+
+            const headerImage = new URL("assets/images/general/bast-header.png", window.location.href).href;
+            const footerImage = new URL("assets/images/general/bast-footer.png", window.location.href).href;
+
+            return `<!DOCTYPE html>
+<html lang="id">
+<head>
+<meta charset="utf-8">
+<title>BAST ${escapeHtml(serialNo)}</title>
+<style>
+    @page { size: A4 portrait; margin: 14mm; }
+    body { font-family: Arial, sans-serif; color: #111827; margin: 0; font-size: 12px; }
+    .header img, .footer img { width: 100%; display: block; }
+    .doc { padding: 8px 2px 0; }
+    .title { text-align: center; font-weight: 700; font-size: 15px; margin: 10px 0 12px; text-transform: uppercase; }
+    .intro { margin-bottom: 10px; line-height: 1.45; }
+    .party-table, .device-table { width: 100%; border-collapse: collapse; margin-bottom: 10px; }
+    .party-table td { border: 1px solid #94a3b8; padding: 6px 8px; vertical-align: top; }
+    .device-table th, .device-table td { border: 1px solid #94a3b8; padding: 6px 8px; }
+    .device-table th { background: #f1f5f9; text-align: left; }
+    .signature-wrap { margin-top: 22px; width: 100%; border-collapse: collapse; }
+    .signature-wrap td { width: 50%; text-align: center; vertical-align: top; }
+    .signature-box { width: 220px; height: 90px; margin: 8px auto; border-bottom: 1px solid #334155; display: flex; align-items: center; justify-content: center; }
+    .signature-box img { max-width: 100%; max-height: 88px; object-fit: contain; }
+    .signature-name { font-weight: 700; margin-top: 6px; }
+    .muted { color: #64748b; }
+</style>
+</head>
+<body>
+    <div class="header"><img src="${headerImage}" alt="Header"></div>
+    <div class="doc">
+        <div class="title">Berita Acara Serah Terima Perangkat</div>
+        <p class="intro">Pada hari <strong>${escapeHtml(approvedInfo.dayName)}</strong>, tanggal <strong>${escapeHtml(approvedInfo.fullDate)}</strong>, telah dilakukan serah terima perangkat dengan detail berikut:</p>
+
+        <table class="party-table">
+            <tr>
+                <td><strong>Nama Pengirim / Admin</strong><br>${escapeHtml(senderName)}</td>
+                <td><strong>Department Pengirim</strong><br>${escapeHtml(senderDepartment)}</td>
+            </tr>
+            <tr>
+                <td><strong>Nama Penerima / User</strong><br>${escapeHtml(receiverName)}</td>
+                <td><strong>Department Penerima</strong><br>${escapeHtml(receiverDepartment)}</td>
+            </tr>
+        </table>
+
+        <table class="device-table">
+            <thead>
+                <tr>
+                    <th>No</th>
+                    <th>Department</th>
+                    <th>Serial No.</th>
+                    <th>Category</th>
+                    <th>Model</th>
+                    <th>Host Name</th>
+                    <th>Qty</th>
+                </tr>
+            </thead>
+            <tbody>
+                <tr>
+                    <td>1</td>
+                    <td>${escapeHtml(department)}</td>
+                    <td>${escapeHtml(serialNo)}</td>
+                    <td>${escapeHtml(category)}</td>
+                    <td>${escapeHtml(model)}</td>
+                    <td>${escapeHtml(hostName)}</td>
+                    <td>1 Unit</td>
+                </tr>
+            </tbody>
+        </table>
+
+        <p class="muted">Dokumen ini dihasilkan oleh sistem Flow Proses Data Perangkat.</p>
+
+        <table class="signature-wrap">
+            <tr>
+                <td><strong>Pengirim / Admin</strong></td>
+                <td><strong>Penerima / User</strong></td>
+            </tr>
+            <tr>
+                <td>
+                    <div class="signature-box">${senderSignature ? `<img src="${senderSignature}" alt="Tanda tangan pengirim">` : ""}</div>
+                    <div class="signature-name">${escapeHtml(senderName)}</div>
+                </td>
+                <td>
+                    <div class="signature-box">${recipientSignature ? `<img src="${recipientSignature}" alt="Tanda tangan penerima">` : ""}</div>
+                    <div class="signature-name">${escapeHtml(receiverName)}</div>
+                </td>
+            </tr>
+        </table>
+    </div>
+    <div class="footer"><img src="${footerImage}" alt="Footer"></div>
+</body>
+</html>`;
+        }
+
+        function printBastWithIframe(html) {
+            let printFrame = document.getElementById("bastPrintFrame");
+            if (!printFrame) {
+                printFrame = document.createElement("iframe");
+                printFrame.id = "bastPrintFrame";
+                printFrame.style.position = "fixed";
+                printFrame.style.right = "0";
+                printFrame.style.bottom = "0";
+                printFrame.style.width = "0";
+                printFrame.style.height = "0";
+                printFrame.style.border = "0";
+                printFrame.setAttribute("aria-hidden", "true");
+                document.body.appendChild(printFrame);
+            }
+
+            printFrame.onload = () => {
+                try {
+                    const printWindow = printFrame.contentWindow;
+                    if (!printWindow) {
+                        throw new Error("WINDOW_NOT_READY");
+                    }
+
+                    printWindow.focus();
+                    setTimeout(() => {
+                        printWindow.print();
+                    }, 300);
+                } catch (_error) {
+                    showAlert("Gagal membuka dialog print. Coba refresh halaman lalu print ulang.", "danger");
+                }
+            };
+
+            printFrame.srcdoc = html;
+        }
+
+        function printBast(row) {
+            const status = String(row["Flow Status"] || "").trim().toUpperCase();
+            if (status !== "APPROVED") {
+                showAlert("Print BAST hanya tersedia untuk data APPROVED.", "warning");
+                return;
+            }
+
+            const html = buildBastHtml(row);
+            const printWindow = window.open("", "_blank");
+            if (!printWindow) {
+                printBastWithIframe(html);
+                return;
+            }
+
+            printWindow.document.open();
+            printWindow.document.write(html);
+            printWindow.document.close();
+            printWindow.focus();
+
+            setTimeout(() => {
+                printWindow.print();
+            }, 350);
+        }
+
+        async function onRowAction(action, rowId) {
+            const row = flowRows.find((item) => String(item.id || "") === String(rowId || ""));
+            if (!row) {
+                showAlert("Data tidak ditemukan.", "warning");
+                return;
+            }
+
+            if (action === "view") {
+                openViewDrawer(row);
+                return;
+            }
+
+            if (action === "approve") {
+                openSignatureModal({
+                    title: "Approve Perangkat",
+                    description: "Tanda tangan digital user/PIC diperlukan untuk approve perangkat.",
+                    submitLabel: "Approve",
+                    endpoint: `${API_BASE}/device-records/${row.id}/flow/approve`,
+                    note: null
+                });
+                return;
+            }
+
+            if (action === "reject") {
+                openNoteModal({
+                    title: "Reject Perangkat",
+                    label: "Alasan Penolakan",
+                    placeholder: "Tulis alasan penolakan perangkat...",
+                    submitLabel: "Reject",
+                    endpoint: `${API_BASE}/device-records/${row.id}/flow/reject`,
+                    required: true
+                });
+                return;
+            }
+
+            if (action === "resubmit") {
+                const targetUrl = `data-perangkat-form.html?id=${encodeURIComponent(row.id)}&flowResubmit=1&source=flow-proses`;
+                window.location.href = targetUrl;
+                return;
+            }
+
+            if (action === "sender-sign") {
+                openSignatureModal({
+                    title: "Tanda Tangan Pengirim",
+                    description: "Simpan tanda tangan digital admin/pengirim untuk dokumen BAST.",
+                    submitLabel: "Simpan TTD",
+                    endpoint: `${API_BASE}/device-records/${row.id}/flow/sender-signature`,
+                    note: null
+                });
+                return;
+            }
+
+            if (action === "print-bast") {
+                printBast(row);
+            }
+        }
+
+        statusFilterGroup.addEventListener("click", async (event) => {
+            const target = event.target.closest("button[data-status]");
+            if (!target) {
+                return;
+            }
+
+            const nextStatus = String(target.getAttribute("data-status") || "ALL").trim().toUpperCase();
+            if (!nextStatus || nextStatus === activeStatus) {
+                return;
+            }
+
+            activeStatus = nextStatus;
+            Array.from(statusFilterGroup.querySelectorAll("button[data-status]")).forEach((button) => {
+                button.classList.toggle("active", button === target);
+            });
+
+            await loadRows();
+        });
+
+        searchInput.addEventListener("input", () => {
+            activeSearchText = String(searchInput.value || "").trim();
+            renderRows();
+        });
+
+        clearSearchButton.addEventListener("click", () => {
+            searchInput.value = "";
+            activeSearchText = "";
+            renderRows();
+        });
+
+        refreshButton.addEventListener("click", async () => {
+            await loadRows();
+        });
+
+        tableBody.addEventListener("click", async (event) => {
+            const button = event.target.closest("button[data-action][data-id]");
+            if (!button) {
+                return;
+            }
+
+            const action = button.getAttribute("data-action") || "";
+            const rowId = button.getAttribute("data-id") || "";
+            await onRowAction(action, rowId);
+        });
+
+        [signatureCloseButton, signatureCancelButton].forEach((element) => {
+            element.addEventListener("click", closeSignatureModal);
+        });
+
+        signatureClearButton.addEventListener("click", () => {
+            resizeSignatureCanvas();
+        });
+
+        signatureSaveButton.addEventListener("click", async () => {
+            await submitSignatureAction();
+        });
+
+        signatureCanvas.addEventListener("mousedown", startDrawing);
+        signatureCanvas.addEventListener("mousemove", drawSignature);
+        signatureCanvas.addEventListener("mouseup", stopDrawing);
+        signatureCanvas.addEventListener("mouseleave", stopDrawing);
+        signatureCanvas.addEventListener("touchstart", startDrawing, { passive: false });
+        signatureCanvas.addEventListener("touchmove", drawSignature, { passive: false });
+        signatureCanvas.addEventListener("touchend", stopDrawing);
+        signatureCanvas.addEventListener("touchcancel", stopDrawing);
+
+        [noteCloseButton, noteCancelButton].forEach((element) => {
+            element.addEventListener("click", closeNoteModal);
+        });
+
+        noteSaveButton.addEventListener("click", async () => {
+            await submitNoteAction();
+        });
+
+        viewDrawerHistoryButton.addEventListener("click", openHistoryLogOverlay);
+        viewDrawerCloseButton.addEventListener("click", closeViewDrawer);
+        viewDrawerOverlay.addEventListener("click", (event) => {
+            if (event.target === viewDrawerOverlay) {
+                closeViewDrawer();
+            }
+        });
+        historyLogCloseButton.addEventListener("click", closeHistoryLogOverlay);
+        historyLogOverlay.addEventListener("click", (event) => {
+            if (event.target === historyLogOverlay) {
+                closeHistoryLogOverlay();
+            }
+        });
+
+        document.addEventListener("keydown", (event) => {
+            if (event.key !== "Escape") {
+                return;
+            }
+
+            if (!noteModalOverlay.classList.contains("d-none")) {
+                closeNoteModal();
+                return;
+            }
+
+            if (!signatureModalOverlay.classList.contains("d-none")) {
+                closeSignatureModal();
+                return;
+            }
+
+            if (historyLogOverlay.classList.contains("open")) {
+                closeHistoryLogOverlay();
+                return;
+            }
+
+            if (viewDrawerOverlay.classList.contains("open")) {
+                closeViewDrawer();
+            }
+        });
+
+        window.addEventListener("resize", () => {
+            if (!signatureModalOverlay.classList.contains("d-none")) {
+                resizeSignatureCanvas();
+            }
+        });
+
+        loadRows();
+    </script>
+</body>
+
+</html>

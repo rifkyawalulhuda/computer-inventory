@@ -869,9 +869,14 @@
         }
         const urlParams = new URLSearchParams(window.location.search);
         const editingFromQueryId = String(urlParams.get("id") || "").trim();
+        const isFlowResubmitMode = String(urlParams.get("flowResubmit") || "").trim() === "1";
+        const sourcePage = String(urlParams.get("source") || "").trim().toLowerCase();
+        const returnPage = sourcePage === "flow-proses" || isFlowResubmitMode
+            ? "flow-proses.html"
+            : "data-perangkat.html";
 
         function goToDeviceTablePage() {
-            window.location.href = "data-perangkat.html";
+            window.location.href = returnPage;
         }
 
         function applyRoleBasedFieldPermissions() {
@@ -1451,6 +1456,26 @@
             renderRows(deviceRows);
         }
 
+        async function loadDeviceById(id) {
+            const safeId = String(id || "").trim();
+            if (!safeId) {
+                throw new Error("ID data perangkat tidak valid.");
+            }
+
+            const response = await apiFetch(`${API_BASE}/device-records/${encodeURIComponent(safeId)}`);
+            const result = await response.json().catch(() => ({}));
+            if (!response.ok) {
+                throw new Error(result.message || "Gagal memuat detail data perangkat.");
+            }
+
+            const row = result?.data;
+            if (!row || typeof row !== "object") {
+                throw new Error("Data perangkat yang akan diedit tidak ditemukan.");
+            }
+
+            return row;
+        }
+
         function toDisplayValue(value) {
             if (value === null || value === undefined) {
                 return "-";
@@ -1707,10 +1732,19 @@
                 }
 
                 if (isEdit) {
+                    const confirmTitle = isFlowResubmitMode && currentUserRole === "admin"
+                        ? "Konfirmasi Update & Resubmit"
+                        : "Konfirmasi Update";
+                    const confirmMessage = isFlowResubmitMode && currentUserRole === "admin"
+                        ? "Update data perangkat ini lalu kirim ulang ke user penerima?"
+                        : "Update data perangkat ini?";
+                    const confirmText = isFlowResubmitMode && currentUserRole === "admin"
+                        ? "Update & Resubmit"
+                        : "Update";
                     const yes = await openConfirmModal({
-                        title: "Konfirmasi Update",
-                        message: "Update data perangkat ini?",
-                        confirmText: "Update",
+                        title: confirmTitle,
+                        message: confirmMessage,
+                        confirmText,
                         confirmClass: "btn-primary",
                         confirmIcon: "feather-check"
                     });
@@ -1734,6 +1768,27 @@
                     throw new Error(result.message || "Gagal menyimpan data.");
                 }
 
+                if (isEdit && isFlowResubmitMode && currentUserRole === "admin") {
+                    const flowResubmitResponse = await apiFetch(`${API_BASE}/device-records/${editingDeviceId}/flow/resubmit`, {
+                        method: "POST",
+                        headers: {
+                            "Content-Type": "application/json"
+                        },
+                        body: JSON.stringify({
+                            note: "Data direvisi oleh admin dari Flow Proses dan dikirim ulang ke user."
+                        })
+                    });
+
+                    const flowResubmitResult = await flowResubmitResponse.json().catch(() => ({}));
+                    if (!flowResubmitResponse.ok) {
+                        throw new Error(flowResubmitResult.message || "Data berhasil diupdate, tetapi gagal resubmit ke flow user.");
+                    }
+
+                    showAlert("Data perangkat berhasil direvisi dan dikirim ulang ke user penerima.", "success");
+                    goToDeviceTablePage();
+                    return;
+                }
+
                 showAlert(isEdit ? "Data perangkat berhasil diupdate." : "Data perangkat berhasil disimpan.", "success");
                 goToDeviceTablePage();
                 return;
@@ -1752,18 +1807,23 @@
                 }
 
                 await loadMasterData();
-                await loadRows();
 
                 if (editingFromQueryId) {
-                    const row = deviceRows.find((item) => String(item.id) === String(editingFromQueryId));
-                    if (!row) {
-                        throw new Error("Data perangkat yang akan diedit tidak ditemukan.");
+                    const row = await loadDeviceById(editingFromQueryId);
+                    editRow(row);
+
+                    if (isFlowResubmitMode && currentUserRole === "admin") {
+                        formCardTitle.textContent = "Revisi Data Perangkat (Resubmit Flow)";
+                        submitButton.textContent = "Update & Resubmit";
                     }
 
-                    editRow(row);
+                    if (currentUserRole === "user") {
+                        submitButton.textContent = "Update Data";
+                    }
                     return;
                 }
 
+                await loadRows();
                 resetForm();
                 setFormVisibility(true, false);
             } catch (error) {

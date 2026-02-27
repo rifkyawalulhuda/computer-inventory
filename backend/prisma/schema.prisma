@@ -113,6 +113,18 @@ model Device {
   picNameRaw    String? @map("pic_name_raw")
   notes         String? @db.Text
   bitlockerKey  String? @map("bitlocker_key") @db.Text
+  flowStatus    String  @default("APPROVED") @map("flow_status") @db.VarChar(30)
+  flowAssignedPicUserId String?   @map("flow_assigned_pic_user_id")
+  flowApprovedByUserId  String?   @map("flow_approved_by_user_id")
+  flowApprovedAt        DateTime? @map("flow_approved_at")
+  flowRejectedByUserId  String?   @map("flow_rejected_by_user_id")
+  flowRejectedAt        DateTime? @map("flow_rejected_at")
+  flowRejectNote        String?   @map("flow_reject_note") @db.Text
+  flowRecipientSignature String?  @map("flow_recipient_signature") @db.Text
+  flowSenderSignature    String?  @map("flow_sender_signature") @db.Text
+  flowSenderSignedByUserId String? @map("flow_sender_signed_by_user_id")
+  flowSenderSignedAt     DateTime? @map("flow_sender_signed_at")
+  flowSubmittedByUserId  String?   @map("flow_submitted_by_user_id")
 
   jobCodeId            Int? @map("site_code_id")
   departmentJobCodeId  Int? @map("department_job_code_id")
@@ -138,6 +150,7 @@ model Device {
   @@index([locationId], map: "idx_devices_location_id")
   @@index([categoryId], map: "idx_devices_category_id")
   @@index([departmentJobCodeId], map: "idx_devices_department_job_code_id")
+  @@index([flowStatus], map: "idx_devices_flow_status")
   @@map("devices")
 }
 

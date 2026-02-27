@@ -34,6 +34,16 @@ type DeviceExportPayload = {
   ids?: unknown;
 };
 
+type DeviceFlowStatus =
+  | "PENDING_CONFIRMATION"
+  | "APPROVED"
+  | "REJECTED";
+
+type DeviceFlowActionPayload = {
+  note: string | null;
+  signatureDataUrl: string | null;
+};
+
 type DeviceImportFileRow = {
   rowNumber: number;
   jobCode: string;
@@ -66,6 +76,15 @@ type HistoryFieldChange = {
 };
 
 type EditorRole = "admin" | "user";
+
+const DEVICE_FLOW_STATUS_PENDING: DeviceFlowStatus = "PENDING_CONFIRMATION";
+const DEVICE_FLOW_STATUS_APPROVED: DeviceFlowStatus = "APPROVED";
+const DEVICE_FLOW_STATUS_REJECTED: DeviceFlowStatus = "REJECTED";
+const DEVICE_FLOW_STATUSES = new Set<DeviceFlowStatus>([
+  DEVICE_FLOW_STATUS_PENDING,
+  DEVICE_FLOW_STATUS_APPROVED,
+  DEVICE_FLOW_STATUS_REJECTED,
+]);
 
 const DEVICE_IMPORT_TEMPLATE_HEADERS = [
   "Department",
@@ -168,6 +187,74 @@ function parseInteger(
   }
 
   return num;
+}
+
+function formatDateTime(date: Date | null | undefined): string {
+  if (!date) {
+    return "";
+  }
+
+  const year = date.getFullYear();
+  const month = String(date.getMonth() + 1).padStart(2, "0");
+  const day = String(date.getDate()).padStart(2, "0");
+  const hours = String(date.getHours()).padStart(2, "0");
+  const minutes = String(date.getMinutes()).padStart(2, "0");
+  const seconds = String(date.getSeconds()).padStart(2, "0");
+  return `${year}-${month}-${day} ${hours}:${minutes}:${seconds}`;
+}
+
+function parseFlowStatusFilters(rawValue: unknown): DeviceFlowStatus[] {
+  const text = cleanText(rawValue);
+  if (!text) {
+    return [];
+  }
+
+  const statuses = text
+    .split(",")
+    .map((value) => cleanText(value).toUpperCase())
+    .filter(Boolean) as DeviceFlowStatus[];
+
+  const normalized = [...new Set(statuses)];
+  const invalid = normalized.filter((status) => !DEVICE_FLOW_STATUSES.has(status));
+  if (invalid.length > 0) {
+    throw new Error(`Flow status tidak valid: ${invalid.join(", ")}.`);
+  }
+
+  return normalized;
+}
+
+function parseFlowActionPayload(payload: unknown, options?: { requireSignature?: boolean }): DeviceFlowActionPayload {
+  if (!payload || typeof payload !== "object") {
+    throw new Error("Payload tidak valid.");
+  }
+
+  const body = payload as Record<string, unknown>;
+  const note = toNullableText(body.note);
+  const signatureDataUrl = toNullableText(body.signatureDataUrl);
+
+  if (options?.requireSignature && !signatureDataUrl) {
+    throw new Error("Tanda tangan digital wajib diisi.");
+  }
+
+  if (signatureDataUrl) {
+    const isDataImage = /^data:image\/(png|jpeg);base64,[A-Za-z0-9+/=]+$/i.test(signatureDataUrl);
+    if (!isDataImage) {
+      throw new Error("Format tanda tangan digital tidak valid.");
+    }
+
+    if (signatureDataUrl.length > 1_500_000) {
+      throw new Error("Ukuran tanda tangan digital terlalu besar.");
+    }
+  }
+
+  if (note && note.length > 1000) {
+    throw new Error("Catatan maksimal 1000 karakter.");
+  }
+
+  return {
+    note,
+    signatureDataUrl,
+  };
 }
 
 function getUtcDateStartMs(date: Date): number {
@@ -419,10 +506,11 @@ async function getAssignedJobCodeId(req: Request): Promise<number | null> {
   return user.jobCodeId;
 }
 
-async function resolveDataScope(req: Request): Promise<{ editorRole: EditorRole; userJobCodeId: number | null }> {
+async function resolveDataScope(req: Request): Promise<{ editorRole: EditorRole; userJobCodeId: number | null; userId: string | null }> {
   const editorRole = parseEditorRole(req);
+  const userId = cleanText(req.authUser?.id) || null;
   if (editorRole === "admin") {
-    return { editorRole, userJobCodeId: null };
+    return { editorRole, userJobCodeId: null, userId };
   }
 
   const userJobCodeId = await getAssignedJobCodeId(req);
@@ -430,7 +518,7 @@ async function resolveDataScope(req: Request): Promise<{ editorRole: EditorRole;
     throw new Error("ROLE_USER_JOB_CODE_NOT_FOUND");
   }
 
-  return { editorRole, userJobCodeId };
+  return { editorRole, userJobCodeId, userId };
 }
 
 function splitIpList(ipList: string | null): string[] {
@@ -465,6 +553,18 @@ const deviceRecordInclude = {
 type MappedDeviceRow = {
   id: string;
   legacyNo: number | null;
+  flowStatus: string;
+  flowAssignedPicUserId: string | null;
+  flowSubmittedByUserId: string | null;
+  flowApprovedByUserId: string | null;
+  flowApprovedAt: Date | null;
+  flowRejectedByUserId: string | null;
+  flowRejectedAt: Date | null;
+  flowRejectNote: string | null;
+  flowRecipientSignature: string | null;
+  flowSenderSignature: string | null;
+  flowSenderSignedByUserId: string | null;
+  flowSenderSignedAt: Date | null;
   serialNumber: string | null;
   hostName: string | null;
   userNameRaw: string | null;
@@ -533,6 +633,74 @@ function mapDevicesWithResolvedNo(rows: MappedDeviceRow[]) {
 
     nextFallbackNo += 1;
     return mapDeviceToExcelRecord(row, nextFallbackNo);
+  });
+}
+
+function mapDeviceToFlowRecord(
+  row: MappedDeviceRow,
+  fallbackNo?: number,
+  userMetaById?: Map<string, { name: string; departmentCode: string }>,
+) {
+  const base = mapDeviceToExcelRecord(row, fallbackNo);
+  const approvedByMeta = row.flowApprovedByUserId
+    ? userMetaById?.get(row.flowApprovedByUserId) ?? { name: row.flowApprovedByUserId, departmentCode: "" }
+    : { name: "", departmentCode: "" };
+  const rejectedByMeta = row.flowRejectedByUserId
+    ? userMetaById?.get(row.flowRejectedByUserId) ?? { name: row.flowRejectedByUserId, departmentCode: "" }
+    : { name: "", departmentCode: "" };
+  const assignedPicMeta = row.flowAssignedPicUserId
+    ? userMetaById?.get(row.flowAssignedPicUserId) ?? { name: row.flowAssignedPicUserId, departmentCode: "" }
+    : { name: "", departmentCode: "" };
+  const senderSignedByMeta = row.flowSenderSignedByUserId
+    ? userMetaById?.get(row.flowSenderSignedByUserId) ?? { name: row.flowSenderSignedByUserId, departmentCode: "" }
+    : { name: "", departmentCode: "" };
+  const submittedByMeta = row.flowSubmittedByUserId
+    ? userMetaById?.get(row.flowSubmittedByUserId) ?? { name: row.flowSubmittedByUserId, departmentCode: "" }
+    : { name: "", departmentCode: "" };
+
+  return {
+    ...base,
+    "Flow Status": cleanText(row.flowStatus || DEVICE_FLOW_STATUS_APPROVED),
+    "Flow Assigned PIC User ID": row.flowAssignedPicUserId ?? "",
+    "Flow Submitted By User ID": row.flowSubmittedByUserId ?? "",
+    "Flow Submitted By": submittedByMeta.name,
+    "Flow Submitted By Department": submittedByMeta.departmentCode,
+    "Flow Assigned PIC Name": assignedPicMeta.name,
+    "Flow Assigned PIC Department": assignedPicMeta.departmentCode,
+    "Flow Approved By User ID": row.flowApprovedByUserId ?? "",
+    "Flow Approved By": approvedByMeta.name,
+    "Flow Approved Department": approvedByMeta.departmentCode,
+    "Flow Approved At": formatDateTime(row.flowApprovedAt),
+    "Flow Rejected By User ID": row.flowRejectedByUserId ?? "",
+    "Flow Rejected By": rejectedByMeta.name,
+    "Flow Rejected Department": rejectedByMeta.departmentCode,
+    "Flow Rejected At": formatDateTime(row.flowRejectedAt),
+    "Flow Reject Note": row.flowRejectNote ?? "",
+    "Flow Recipient Signature": row.flowRecipientSignature ?? "",
+    "Flow Sender Signature": row.flowSenderSignature ?? "",
+    "Flow Sender Signed By User ID": row.flowSenderSignedByUserId ?? "",
+    "Flow Sender Signed By": senderSignedByMeta.name,
+    "Flow Sender Signed By Department": senderSignedByMeta.departmentCode,
+    "Flow Sender Signed At": formatDateTime(row.flowSenderSignedAt),
+  };
+}
+
+function mapFlowRowsWithResolvedNo(
+  rows: MappedDeviceRow[],
+  userMetaById?: Map<string, { name: string; departmentCode: string }>,
+) {
+  let nextFallbackNo = rows.reduce((maxNo, row) => {
+    const value = typeof row.legacyNo === "number" && Number.isFinite(row.legacyNo) ? row.legacyNo : 0;
+    return value > maxNo ? value : maxNo;
+  }, 0);
+
+  return rows.map((row) => {
+    if (typeof row.legacyNo === "number" && Number.isFinite(row.legacyNo) && row.legacyNo > 0) {
+      return mapDeviceToFlowRecord(row, undefined, userMetaById);
+    }
+
+    nextFallbackNo += 1;
+    return mapDeviceToFlowRecord(row, nextFallbackNo, userMetaById);
   });
 }
 
@@ -1313,20 +1481,55 @@ async function syncLatestLease(
   }
 }
 
+async function appendLatestLeaseHistory(
+  tx: Prisma.TransactionClient,
+  deviceId: string,
+  message: string,
+): Promise<void> {
+  const latestLease = await tx.leaseContract.findFirst({
+    where: { deviceId },
+    orderBy: { createdAt: "desc" },
+    select: {
+      id: true,
+      historyLog: true,
+    },
+  });
+
+  if (!latestLease) {
+    return;
+  }
+
+  const updatedHistoryLog = appendHistoryEntries(latestLease.historyLog, [buildHistoryEntry(message)]);
+  await tx.leaseContract.update({
+    where: { id: latestLease.id },
+    data: {
+      historyLog: updatedHistoryLog,
+    },
+  });
+}
+
 async function getMappedDeviceById(tx: Prisma.TransactionClient, id: string) {
   const row = await tx.device.findUniqueOrThrow({
     where: { id },
     include: deviceRecordInclude,
   });
 
-  return mapDeviceToExcelRecord(row as unknown as MappedDeviceRow);
+  return mapDeviceToFlowRecord(row as unknown as MappedDeviceRow);
 }
 
 deviceRecordRouter.get("/device-records", async (req, res, next) => {
   try {
     const scope = await resolveDataScope(req);
+    const where: Prisma.DeviceWhereInput = {
+      flowStatus: DEVICE_FLOW_STATUS_APPROVED,
+    };
+
+    if (scope.editorRole === "user") {
+      where.jobCodeId = scope.userJobCodeId ?? undefined;
+    }
+
     const rows = await prisma.device.findMany({
-      where: scope.editorRole === "user" ? { jobCodeId: scope.userJobCodeId ?? undefined } : undefined,
+      where,
       orderBy: { createdAt: "desc" },
       include: deviceRecordInclude,
     });
@@ -1336,6 +1539,81 @@ deviceRecordRouter.get("/device-records", async (req, res, next) => {
   } catch (error) {
     if (error instanceof Error && error.message === "ROLE_USER_JOB_CODE_NOT_FOUND") {
       return res.status(403).json({ message: "Department user tidak ditemukan. Hubungi admin." });
+    }
+
+    next(error);
+  }
+});
+
+deviceRecordRouter.get("/device-records/flows", async (req, res, next) => {
+  try {
+    const scope = await resolveDataScope(req);
+    const requestedStatuses = parseFlowStatusFilters(req.query.status);
+    const statusFilters = requestedStatuses.length
+      ? requestedStatuses
+      : [DEVICE_FLOW_STATUS_PENDING, DEVICE_FLOW_STATUS_REJECTED, DEVICE_FLOW_STATUS_APPROVED];
+
+    const where: Prisma.DeviceWhereInput = {
+      flowStatus: {
+        in: statusFilters,
+      },
+    };
+
+    if (scope.editorRole === "user") {
+      where.jobCodeId = scope.userJobCodeId ?? undefined;
+      where.flowAssignedPicUserId = scope.userId ?? undefined;
+    }
+
+    const rows = await prisma.device.findMany({
+      where,
+      orderBy: { createdAt: "desc" },
+      include: deviceRecordInclude,
+    });
+
+    const actorIds = [...new Set(
+      rows.flatMap((row) => [
+        row.flowAssignedPicUserId,
+        row.flowSubmittedByUserId,
+        row.flowApprovedByUserId,
+        row.flowRejectedByUserId,
+        row.flowSenderSignedByUserId,
+      ])
+        .map((value) => cleanText(value))
+        .filter(Boolean),
+    )];
+
+    const users = actorIds.length > 0
+      ? await prisma.masterUser.findMany({
+        where: { id: { in: actorIds } },
+        select: {
+          id: true,
+          name: true,
+          jobCode: {
+            select: {
+              code: true,
+            },
+          },
+        },
+      })
+      : [];
+
+    const userMetaById = new Map(users.map((user) => [
+      user.id,
+      {
+        name: user.name,
+        departmentCode: cleanText(user.jobCode?.code),
+      },
+    ]));
+
+    const mappedRows = mapFlowRowsWithResolvedNo(rows as unknown as MappedDeviceRow[], userMetaById);
+    res.json({ data: mappedRows });
+  } catch (error) {
+    if (error instanceof Error && error.message === "ROLE_USER_JOB_CODE_NOT_FOUND") {
+      return res.status(403).json({ message: "Department user tidak ditemukan. Hubungi admin." });
+    }
+
+    if (error instanceof Error) {
+      return res.status(400).json({ message: error.message });
     }
 
     next(error);
@@ -1387,6 +1665,7 @@ deviceRecordRouter.post("/device-records/import", requireRole("admin"), async (r
     const importRows = parseDeviceImportRows(firstSheet);
     const preparedRows = await prepareDeviceImportRows(importRows);
     const actorName = getHistoryActorName(req);
+    const actorUserId = cleanText(req.authUser?.id) || null;
 
     let created = 0;
     let updated = 0;
@@ -1448,11 +1727,14 @@ deviceRecordRouter.post("/device-records/import", requireRole("admin"), async (r
           const device = await tx.device.create({
             data: {
               legacyNo: nextLegacyNo,
+              flowStatus: DEVICE_FLOW_STATUS_APPROVED,
+              flowAssignedPicUserId: payload.picUserId,
+              flowSubmittedByUserId: actorUserId,
               serialNumber: payload.serialNo,
               hostName: payload.hostName,
               userNameRaw: payload.userName,
               userEmailRaw: payload.userEmail,
-            locationRaw: payload.location,
+              locationRaw: payload.location,
               ipListRaw: payload.ipList,
               picNameRaw: picUser.name,
               notes: payload.keterangan,
@@ -1585,6 +1867,7 @@ deviceRecordRouter.post("/device-records/import", requireRole("admin"), async (r
             bitlockerKey: payload.bitlockerKey,
             jobCodeId: payload.jobCodeId,
             departmentJobCodeId: payload.departmentJobCodeId,
+            flowAssignedPicUserId: payload.picUserId,
             categoryId,
             modelId,
             locationId,
@@ -1632,10 +1915,10 @@ deviceRecordRouter.post("/device-records/export", async (req, res, next) => {
     const scope = await resolveDataScope(req);
     const requestedIds = parseExportRequestIds(req.body);
 
-    const where: Prisma.DeviceWhereInput =
-      scope.editorRole === "user"
-        ? { jobCodeId: scope.userJobCodeId ?? undefined }
-        : {};
+    const where: Prisma.DeviceWhereInput = {
+      flowStatus: DEVICE_FLOW_STATUS_APPROVED,
+      ...(scope.editorRole === "user" ? { jobCodeId: scope.userJobCodeId ?? undefined } : {}),
+    };
 
     if (requestedIds.length > 0) {
       where.id = { in: requestedIds };
@@ -1701,6 +1984,77 @@ deviceRecordRouter.post("/device-records/export", async (req, res, next) => {
   }
 });
 
+deviceRecordRouter.get("/device-records/:id", async (req, res, next) => {
+  try {
+    const id = cleanText(req.params.id);
+    if (!id) {
+      return res.status(400).json({ message: "ID tidak valid." });
+    }
+
+    const scope = await resolveDataScope(req);
+    const row = await prisma.device.findUnique({
+      where: { id },
+      include: deviceRecordInclude,
+    });
+
+    if (!row) {
+      return res.status(404).json({ message: "Data perangkat tidak ditemukan." });
+    }
+
+    if (scope.editorRole === "user" && row.jobCodeId !== scope.userJobCodeId) {
+      return res.status(403).json({ message: "Role user tidak diizinkan mengakses data perangkat di Department lain." });
+    }
+
+    const actorIds = [...new Set(
+      [
+        row.flowAssignedPicUserId,
+        row.flowSubmittedByUserId,
+        row.flowApprovedByUserId,
+        row.flowRejectedByUserId,
+        row.flowSenderSignedByUserId,
+      ]
+        .map((value) => cleanText(value))
+        .filter(Boolean),
+    )];
+
+    const users = actorIds.length > 0
+      ? await prisma.masterUser.findMany({
+        where: { id: { in: actorIds } },
+        select: {
+          id: true,
+          name: true,
+          jobCode: {
+            select: {
+              code: true,
+            },
+          },
+        },
+      })
+      : [];
+
+    const userMetaById = new Map(users.map((user) => [
+      user.id,
+      {
+        name: user.name,
+        departmentCode: cleanText(user.jobCode?.code),
+      },
+    ]));
+
+    const mappedRow = mapDeviceToFlowRecord(row as unknown as MappedDeviceRow, undefined, userMetaById);
+    return res.json({ data: mappedRow });
+  } catch (error) {
+    if (error instanceof Error && error.message === "ROLE_USER_JOB_CODE_NOT_FOUND") {
+      return res.status(403).json({ message: "Department user tidak ditemukan. Hubungi admin." });
+    }
+
+    if (error instanceof Error) {
+      return res.status(400).json({ message: error.message });
+    }
+
+    next(error);
+  }
+});
+
 deviceRecordRouter.post("/device-records", async (req, res, next) => {
   try {
     const editorRole = parseEditorRole(req);
@@ -1720,6 +2074,9 @@ deviceRecordRouter.post("/device-records", async (req, res, next) => {
       const device = await tx.device.create({
         data: {
           legacyNo: nextLegacyNo,
+          flowStatus: DEVICE_FLOW_STATUS_PENDING,
+          flowAssignedPicUserId: payload.picUserId,
+          flowSubmittedByUserId: cleanText(req.authUser?.id) || null,
           serialNumber: payload.serialNo,
           hostName: payload.hostName,
           userNameRaw: payload.userName,
@@ -1741,7 +2098,7 @@ deviceRecordRouter.post("/device-records", async (req, res, next) => {
       const createdHistoryLog = appendHistoryEntries(payload.hystoryLog, [
         buildHistoryEntry(
           `Data perangkat dibuat oleh ${actorName || picUser.name}${payload.serialNo ? ` (Serial No: ${payload.serialNo})` : ""
-          }.`,
+          } dan menunggu konfirmasi user.`,
         ),
       ]);
 
@@ -1774,7 +2131,8 @@ deviceRecordRouter.put("/device-records/:id", async (req, res, next) => {
       return res.status(400).json({ message: "ID tidak valid." });
     }
 
-    const { editorRole, userJobCodeId } = await resolveDataScope(req);
+    const scope = await resolveDataScope(req);
+    const { editorRole, userJobCodeId } = scope;
     const payload = parsePayload(req.body);
     const actorName = getHistoryActorName(req);
 
@@ -2062,6 +2420,336 @@ deviceRecordRouter.put("/device-records/:id", async (req, res, next) => {
       return res.status(403).json({
         message: `Role user hanya boleh edit kolom Job Code, User Name, User Email, Location, IP List, dan Keterangan. Kolom tidak diizinkan: ${changedColumns}.`,
       });
+    }
+
+    if (error instanceof Error) {
+      return res.status(400).json({ message: error.message });
+    }
+
+    next(error);
+  }
+});
+
+deviceRecordRouter.post("/device-records/:id/flow/approve", async (req, res, next) => {
+  try {
+    const id = cleanText(req.params.id);
+    if (!id) {
+      return res.status(400).json({ message: "ID tidak valid." });
+    }
+
+    const scope = await resolveDataScope(req);
+    const { editorRole, userJobCodeId } = scope;
+    const payload = parseFlowActionPayload(req.body, { requireSignature: true });
+    const actorName = getHistoryActorName(req);
+
+    const updated = await prisma.$transaction(async (tx) => {
+      const existing = await tx.device.findUnique({
+        where: { id },
+        select: {
+          id: true,
+          jobCodeId: true,
+          flowAssignedPicUserId: true,
+          flowStatus: true,
+          serialNumber: true,
+        },
+      });
+
+      if (!existing) {
+        throw new Error("DATA_PERANGKAT_NOT_FOUND");
+      }
+
+      if (editorRole === "user" && existing.jobCodeId !== userJobCodeId) {
+        throw new Error("ROLE_USER_SCOPE_FORBIDDEN");
+      }
+
+      const assignedPicUserId = cleanText(existing.flowAssignedPicUserId);
+      const currentUserId = cleanText(scope.userId);
+      if (assignedPicUserId && currentUserId && assignedPicUserId !== currentUserId) {
+        throw new Error("FLOW_ASSIGNEE_FORBIDDEN");
+      }
+
+      if (cleanText(existing.flowStatus) !== DEVICE_FLOW_STATUS_PENDING) {
+        throw new Error("Data tidak dalam status menunggu konfirmasi.");
+      }
+
+      await tx.device.update({
+        where: { id },
+        data: {
+          flowStatus: DEVICE_FLOW_STATUS_APPROVED,
+          flowApprovedByUserId: cleanText(req.authUser?.id) || null,
+          flowApprovedAt: new Date(),
+          flowRejectedByUserId: null,
+          flowRejectedAt: null,
+          flowRejectNote: null,
+          flowRecipientSignature: payload.signatureDataUrl,
+        },
+      });
+
+      await appendLatestLeaseHistory(
+        tx,
+        id,
+        `Flow perangkat disetujui oleh ${actorName}${existing.serialNumber ? ` (Serial No: ${existing.serialNumber})` : ""}.`,
+      );
+
+      return getMappedDeviceById(tx, id);
+    });
+
+    res.json({ data: updated, message: "Perangkat berhasil disetujui." });
+  } catch (error) {
+    if (error instanceof Error && error.message === "DATA_PERANGKAT_NOT_FOUND") {
+      return res.status(404).json({ message: "Data perangkat tidak ditemukan." });
+    }
+
+    if (error instanceof Error && error.message === "ROLE_USER_JOB_CODE_NOT_FOUND") {
+      return res.status(403).json({ message: "Department user tidak ditemukan. Hubungi admin." });
+    }
+
+    if (error instanceof Error && error.message === "ROLE_USER_SCOPE_FORBIDDEN") {
+      return res.status(403).json({ message: "Role user tidak diizinkan mengakses data perangkat di Department lain." });
+    }
+
+    if (error instanceof Error && error.message === "FLOW_ASSIGNEE_FORBIDDEN") {
+      return res.status(403).json({ message: "Perangkat ini di-assign ke PIC lain, akun ini tidak bisa melakukan konfirmasi." });
+    }
+
+    if (error instanceof Error) {
+      return res.status(400).json({ message: error.message });
+    }
+
+    next(error);
+  }
+});
+
+deviceRecordRouter.post("/device-records/:id/flow/reject", async (req, res, next) => {
+  try {
+    const id = cleanText(req.params.id);
+    if (!id) {
+      return res.status(400).json({ message: "ID tidak valid." });
+    }
+
+    const scope = await resolveDataScope(req);
+    const { editorRole, userJobCodeId } = scope;
+    const payload = parseFlowActionPayload(req.body);
+    const actorName = getHistoryActorName(req);
+    const rejectNote = cleanText(payload.note);
+    if (!rejectNote) {
+      return res.status(400).json({ message: "Alasan penolakan wajib diisi." });
+    }
+
+    const updated = await prisma.$transaction(async (tx) => {
+      const existing = await tx.device.findUnique({
+        where: { id },
+        select: {
+          id: true,
+          jobCodeId: true,
+          flowAssignedPicUserId: true,
+          flowStatus: true,
+          serialNumber: true,
+        },
+      });
+
+      if (!existing) {
+        throw new Error("DATA_PERANGKAT_NOT_FOUND");
+      }
+
+      if (editorRole === "user" && existing.jobCodeId !== userJobCodeId) {
+        throw new Error("ROLE_USER_SCOPE_FORBIDDEN");
+      }
+
+      const assignedPicUserId = cleanText(existing.flowAssignedPicUserId);
+      const currentUserId = cleanText(scope.userId);
+      if (assignedPicUserId && currentUserId && assignedPicUserId !== currentUserId) {
+        throw new Error("FLOW_ASSIGNEE_FORBIDDEN");
+      }
+
+      if (cleanText(existing.flowStatus) !== DEVICE_FLOW_STATUS_PENDING) {
+        throw new Error("Data tidak dalam status menunggu konfirmasi.");
+      }
+
+      await tx.device.update({
+        where: { id },
+        data: {
+          flowStatus: DEVICE_FLOW_STATUS_REJECTED,
+          flowRejectedByUserId: cleanText(req.authUser?.id) || null,
+          flowRejectedAt: new Date(),
+          flowRejectNote: rejectNote,
+          flowApprovedByUserId: null,
+          flowApprovedAt: null,
+          flowRecipientSignature: null,
+          flowSenderSignature: null,
+          flowSenderSignedByUserId: null,
+          flowSenderSignedAt: null,
+        },
+      });
+
+      await appendLatestLeaseHistory(
+        tx,
+        id,
+        `Flow perangkat ditolak oleh ${actorName}${existing.serialNumber ? ` (Serial No: ${existing.serialNumber})` : ""}. Alasan: ${rejectNote}`,
+      );
+
+      return getMappedDeviceById(tx, id);
+    });
+
+    res.json({ data: updated, message: "Penolakan perangkat berhasil disimpan." });
+  } catch (error) {
+    if (error instanceof Error && error.message === "DATA_PERANGKAT_NOT_FOUND") {
+      return res.status(404).json({ message: "Data perangkat tidak ditemukan." });
+    }
+
+    if (error instanceof Error && error.message === "ROLE_USER_JOB_CODE_NOT_FOUND") {
+      return res.status(403).json({ message: "Department user tidak ditemukan. Hubungi admin." });
+    }
+
+    if (error instanceof Error && error.message === "ROLE_USER_SCOPE_FORBIDDEN") {
+      return res.status(403).json({ message: "Role user tidak diizinkan mengakses data perangkat di Department lain." });
+    }
+
+    if (error instanceof Error && error.message === "FLOW_ASSIGNEE_FORBIDDEN") {
+      return res.status(403).json({ message: "Perangkat ini di-assign ke PIC lain, akun ini tidak bisa melakukan konfirmasi." });
+    }
+
+    if (error instanceof Error) {
+      return res.status(400).json({ message: error.message });
+    }
+
+    next(error);
+  }
+});
+
+deviceRecordRouter.post("/device-records/:id/flow/resubmit", requireRole("admin"), async (req, res, next) => {
+  try {
+    const id = cleanText(req.params.id);
+    if (!id) {
+      return res.status(400).json({ message: "ID tidak valid." });
+    }
+
+    const payload = parseFlowActionPayload(req.body);
+    const actorName = getHistoryActorName(req);
+    const note = cleanText(payload.note);
+
+    const updated = await prisma.$transaction(async (tx) => {
+      const existing = await tx.device.findUnique({
+        where: { id },
+        select: {
+          id: true,
+          flowStatus: true,
+          flowSubmittedByUserId: true,
+          serialNumber: true,
+        },
+      });
+
+      if (!existing) {
+        throw new Error("DATA_PERANGKAT_NOT_FOUND");
+      }
+
+      if (cleanText(existing.flowStatus) !== DEVICE_FLOW_STATUS_REJECTED) {
+        throw new Error("Hanya data berstatus REJECTED yang bisa dikirim ulang.");
+      }
+
+      const currentUserId = cleanText(req.authUser?.id);
+      const submittedByUserId = cleanText(existing.flowSubmittedByUserId);
+      if (!currentUserId || !submittedByUserId || submittedByUserId !== currentUserId) {
+        throw new Error("FLOW_RESUBMIT_SENDER_ONLY");
+      }
+
+      await tx.device.update({
+        where: { id },
+        data: {
+          flowStatus: DEVICE_FLOW_STATUS_PENDING,
+          flowRejectedByUserId: null,
+          flowRejectedAt: null,
+          flowRejectNote: null,
+          flowApprovedByUserId: null,
+          flowApprovedAt: null,
+          flowRecipientSignature: null,
+          flowSenderSignature: null,
+          flowSenderSignedByUserId: null,
+          flowSenderSignedAt: null,
+        },
+      });
+
+      const historyMessage = note
+        ? `Flow perangkat dikirim ulang oleh ${actorName}. Catatan admin: ${note}`
+        : `Flow perangkat dikirim ulang oleh ${actorName}.`;
+
+      await appendLatestLeaseHistory(
+        tx,
+        id,
+        `${historyMessage}${existing.serialNumber ? ` (Serial No: ${existing.serialNumber})` : ""}`,
+      );
+
+      return getMappedDeviceById(tx, id);
+    });
+
+    res.json({ data: updated, message: "Data berhasil dikirim ulang untuk konfirmasi user." });
+  } catch (error) {
+    if (error instanceof Error && error.message === "DATA_PERANGKAT_NOT_FOUND") {
+      return res.status(404).json({ message: "Data perangkat tidak ditemukan." });
+    }
+
+    if (error instanceof Error && error.message === "FLOW_RESUBMIT_SENDER_ONLY") {
+      return res.status(403).json({ message: "Hanya admin pengirim data perangkat yang dapat melakukan resubmit." });
+    }
+
+    if (error instanceof Error) {
+      return res.status(400).json({ message: error.message });
+    }
+
+    next(error);
+  }
+});
+
+deviceRecordRouter.post("/device-records/:id/flow/sender-signature", requireRole("admin"), async (req, res, next) => {
+  try {
+    const id = cleanText(req.params.id);
+    if (!id) {
+      return res.status(400).json({ message: "ID tidak valid." });
+    }
+
+    const payload = parseFlowActionPayload(req.body, { requireSignature: true });
+    const actorName = getHistoryActorName(req);
+
+    const updated = await prisma.$transaction(async (tx) => {
+      const existing = await tx.device.findUnique({
+        where: { id },
+        select: {
+          id: true,
+          flowStatus: true,
+          serialNumber: true,
+        },
+      });
+
+      if (!existing) {
+        throw new Error("DATA_PERANGKAT_NOT_FOUND");
+      }
+
+      if (cleanText(existing.flowStatus) !== DEVICE_FLOW_STATUS_APPROVED) {
+        throw new Error("Tanda tangan pengirim hanya bisa disimpan untuk data APPROVED.");
+      }
+
+      await tx.device.update({
+        where: { id },
+        data: {
+          flowSenderSignature: payload.signatureDataUrl,
+          flowSenderSignedByUserId: cleanText(req.authUser?.id) || null,
+          flowSenderSignedAt: new Date(),
+        },
+      });
+
+      await appendLatestLeaseHistory(
+        tx,
+        id,
+        `Tanda tangan pengirim BAST diperbarui oleh ${actorName}${existing.serialNumber ? ` (Serial No: ${existing.serialNumber})` : ""}.`,
+      );
+
+      return getMappedDeviceById(tx, id);
+    });
+
+    res.json({ data: updated, message: "Tanda tangan pengirim berhasil disimpan." });
+  } catch (error) {
+    if (error instanceof Error && error.message === "DATA_PERANGKAT_NOT_FOUND") {
+      return res.status(404).json({ message: "Data perangkat tidak ditemukan." });
     }
 
     if (error instanceof Error) {
