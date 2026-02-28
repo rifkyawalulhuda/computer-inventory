@@ -1104,7 +1104,7 @@ async function createDeviceImportTemplateWorkbookBuffer(): Promise<Buffer> {
   const picLastRow = Math.max(2, picValues.length + 1);
 
   addListValidation(1, `=Referensi!$A$2:$A$${jobCodeLastRow}`, false, "Department wajib dipilih dari dropdown.");
-  addListValidation(2, `=Referensi!$B$2:$B$${departmentJobCodeLastRow}`, false, "Job Code wajib dipilih dari dropdown.");
+  addListValidation(2, `=Referensi!$B$2:$B$${departmentJobCodeLastRow}`, true, "Jika diisi, Job Code harus dipilih dari dropdown.");
   addListValidation(3, `=Referensi!$C$2:$C$${picLastRow}`, false, "PIC Name wajib dipilih dari dropdown.");
   addListValidation(5, "=Referensi!$D$2:$D$3");
   addListValidation(14, "=Referensi!$E$2:$E$4");
@@ -1138,12 +1138,13 @@ async function createDeviceImportTemplateWorkbookBuffer(): Promise<Buffer> {
     ["1. Isi data mulai baris ke-2 di sheet Template."],
     ["2. Kolom NO tidak perlu diisi karena otomatis generate oleh sistem."],
     ["3. Kolom dropdown: Department, Job Code, PIC Name, Category, Lease Status."],
-    ["4. Department dan Job Code harus terdaftar di master Department."],
-    ["5. Job Code harus sesuai dengan Department pada baris yang sama."],
+    ["4. Department dan PIC Name wajib diisi serta harus terdaftar di master."],
+    ["5. Job Code opsional. Jika diisi, Job Code harus sesuai dengan Department pada baris yang sama."],
     ["6. PIC Name harus user yang terdaftar di Master User."],
     ["7. Format tanggal yang disarankan: YYYY-MM-DD (contoh 2026-02-28)."],
     ["8. Lease Status: ACTIVE, EXPIRED, atau Back To KDDI."],
-    ["9. Jika Serial No sudah ada, data akan diupdate. Jika belum ada, data baru dibuat."],
+    ["9. Kolom opsional: Job Code, User Name, User Email, Location, IP List, Keterangan."],
+    ["10. Jika Serial No sudah ada, data akan diupdate. Jika belum ada, data baru dibuat."],
   ]);
   instructionSheet.getColumn(1).width = 120;
   instructionSheet.getRow(1).font = { bold: true };
@@ -1271,14 +1272,12 @@ async function prepareDeviceImportRows(rows: DeviceImportFileRow[]): Promise<Pre
       }
 
       const departmentJobCodeText = cleanText(row.departmentJobCode).toUpperCase();
-      if (!departmentJobCodeText) {
-        throw new Error("Job Code wajib diisi.");
-      }
-
-      const selectedDepartmentJobCode = department.jobCodes.find(
-        (item) => cleanText(item.code).toUpperCase() === departmentJobCodeText,
-      );
-      if (!selectedDepartmentJobCode) {
+      const selectedDepartmentJobCode = departmentJobCodeText
+        ? department.jobCodes.find(
+          (item) => cleanText(item.code).toUpperCase() === departmentJobCodeText,
+        )
+        : null;
+      if (departmentJobCodeText && !selectedDepartmentJobCode) {
         throw new Error(`Job Code "${departmentJobCodeText}" tidak sesuai dengan Department "${jobCodeText}".`);
       }
 
@@ -1297,7 +1296,7 @@ async function prepareDeviceImportRows(rows: DeviceImportFileRow[]): Promise<Pre
 
       const payload = parsePayload({
         jobCodeId: department.id,
-        departmentJobCodeId: selectedDepartmentJobCode.id,
+        departmentJobCodeId: selectedDepartmentJobCode?.id ?? null,
         picUserId: picUser.id,
         userName: row.userName,
         userEmail: row.userEmail,
