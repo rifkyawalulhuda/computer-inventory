@@ -177,6 +177,72 @@
             letter-spacing: 0.02em;
         }
 
+        .flow-table-pagination {
+            margin-top: 12px;
+            padding-top: 10px;
+            border-top: 1px solid #e2e8f0;
+            display: flex;
+            flex-wrap: wrap;
+            align-items: center;
+            justify-content: space-between;
+            gap: 10px;
+        }
+
+        .flow-page-size {
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            color: #334155;
+            font-size: 0.82rem;
+        }
+
+        .flow-page-size label {
+            margin: 0;
+            font-weight: 600;
+        }
+
+        .flow-page-size .form-select {
+            min-width: 84px;
+            width: auto;
+            min-height: 34px;
+            padding-top: 0.3rem;
+            padding-bottom: 0.3rem;
+            font-size: 0.82rem;
+        }
+
+        .flow-pagination-info {
+            color: #64748b;
+            font-size: 0.82rem;
+        }
+
+        .flow-pagination-controls {
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+            flex-wrap: wrap;
+            justify-content: flex-end;
+        }
+
+        .flow-pagination-controls .btn {
+            min-width: 34px;
+            height: 32px;
+            padding: 0 10px;
+            font-size: 0.78rem;
+            font-weight: 700;
+            border-radius: 8px;
+        }
+
+        .flow-pagination-controls .btn.is-active {
+            background: #1d4ed8;
+            color: #fff;
+            border-color: #1d4ed8;
+        }
+
+        .flow-pagination-controls .btn[disabled] {
+            opacity: 0.55;
+            pointer-events: none;
+        }
+
         .view-drawer-overlay {
             position: fixed;
             inset: 0;
@@ -424,6 +490,23 @@
                 padding-left: 8px;
                 padding-right: 8px;
             }
+
+            .flow-table-pagination {
+                flex-direction: column;
+                align-items: stretch;
+            }
+
+            .flow-page-size {
+                justify-content: space-between;
+            }
+
+            .flow-pagination-info {
+                text-align: left;
+            }
+
+            .flow-pagination-controls {
+                justify-content: flex-start;
+            }
         }
     </style>
 </head>
@@ -497,6 +580,18 @@
                                 </tr>
                             </tbody>
                         </table>
+                    </div>
+                    <div class="flow-table-pagination">
+                        <div class="flow-page-size">
+                            <label for="flowRowsPerPageSelect">Baris per halaman</label>
+                            <select class="form-select form-select-sm" id="flowRowsPerPageSelect">
+                                <option value="15" selected>15</option>
+                                <option value="50">50</option>
+                                <option value="100">100</option>
+                            </select>
+                        </div>
+                        <div class="flow-pagination-info" id="flowPaginationInfo">Menampilkan 0 data</div>
+                        <div class="flow-pagination-controls" id="flowPaginationControls"></div>
                     </div>
                 </div>
             </div>
@@ -608,6 +703,9 @@
         const clearSearchButton = document.getElementById("clearSearchButton");
         const statusFilterGroup = document.getElementById("statusFilterGroup");
         const statusFilterButtons = Array.from(statusFilterGroup.querySelectorAll("button[data-status]"));
+        const flowRowsPerPageSelect = document.getElementById("flowRowsPerPageSelect");
+        const flowPaginationInfo = document.getElementById("flowPaginationInfo");
+        const flowPaginationControls = document.getElementById("flowPaginationControls");
         const viewDrawerOverlay = document.getElementById("viewDrawerOverlay");
         const viewDrawerBody = document.getElementById("viewDrawerBody");
         const viewDrawerCloseButton = document.getElementById("viewDrawerCloseButton");
@@ -640,6 +738,8 @@
         let flowRows = [];
         let activeStatus = "ALL";
         let activeSearchText = "";
+        let currentPage = 1;
+        let rowsPerPage = 15;
         let pendingSignatureAction = null;
         let pendingNoteAction = null;
         let isDrawing = false;
@@ -808,6 +908,85 @@
             return rowsByStatus.filter((row) => getSearchText(row).includes(needle));
         }
 
+        function getTotalPages(totalRows) {
+            return Math.max(1, Math.ceil(totalRows / rowsPerPage));
+        }
+
+        function normalizeCurrentPage(totalRows) {
+            const totalPages = getTotalPages(totalRows);
+            if (!Number.isFinite(currentPage) || currentPage < 1) {
+                currentPage = 1;
+            } else if (currentPage > totalPages) {
+                currentPage = totalPages;
+            }
+
+            return totalPages;
+        }
+
+        function buildPaginationItems(totalPages, page) {
+            if (totalPages <= 7) {
+                return Array.from({ length: totalPages }, (_v, index) => index + 1);
+            }
+
+            const items = [1];
+            const start = Math.max(2, page - 1);
+            const end = Math.min(totalPages - 1, page + 1);
+
+            if (start > 2) {
+                items.push("ellipsis-start");
+            }
+
+            for (let number = start; number <= end; number += 1) {
+                items.push(number);
+            }
+
+            if (end < totalPages - 1) {
+                items.push("ellipsis-end");
+            }
+
+            items.push(totalPages);
+            return items;
+        }
+
+        function renderFlowTablePagination(totalRows) {
+            if (!flowPaginationInfo || !flowPaginationControls) {
+                return;
+            }
+
+            const safeTotalRows = Math.max(0, Number(totalRows) || 0);
+            const totalPages = normalizeCurrentPage(safeTotalRows);
+
+            if (safeTotalRows === 0) {
+                flowPaginationInfo.textContent = "Menampilkan 0 dari 0 data";
+                flowPaginationControls.innerHTML = `
+                    <button type="button" class="btn btn-light border" disabled>Sebelumnya</button>
+                    <button type="button" class="btn btn-light border" disabled>Berikutnya</button>
+                `;
+                return;
+            }
+
+            const start = (currentPage - 1) * rowsPerPage + 1;
+            const end = Math.min(safeTotalRows, start + rowsPerPage - 1);
+            flowPaginationInfo.textContent = `Menampilkan ${start}-${end} dari ${safeTotalRows} data`;
+
+            const pageItems = buildPaginationItems(totalPages, currentPage);
+            const prevDisabled = currentPage <= 1 ? "disabled" : "";
+            const nextDisabled = currentPage >= totalPages ? "disabled" : "";
+
+            flowPaginationControls.innerHTML = `
+                <button type="button" class="btn btn-light border" data-page="${currentPage - 1}" ${prevDisabled}>Sebelumnya</button>
+                ${pageItems.map((item) => {
+                    if (typeof item !== "number") {
+                        return '<span class="text-muted px-1">...</span>';
+                    }
+
+                    const activeClass = item === currentPage ? "is-active" : "";
+                    return `<button type="button" class="btn btn-light border ${activeClass}" data-page="${item}">${item}</button>`;
+                }).join("")}
+                <button type="button" class="btn btn-light border" data-page="${currentPage + 1}" ${nextDisabled}>Berikutnya</button>
+            `;
+        }
+
         function getCurrentUserDisplayName() {
             return String(currentUser?.name || "").trim() || "-";
         }
@@ -970,10 +1149,17 @@
                         <td colspan="12" class="text-center text-muted py-4">Tidak ada data flow.</td>
                     </tr>
                 `;
+                renderFlowTablePagination(0);
                 return;
             }
 
-            tableBody.innerHTML = rows.map((row) => `
+            const totalRows = rows.length;
+            const totalPages = normalizeCurrentPage(totalRows);
+            const safePage = Math.min(Math.max(currentPage, 1), totalPages);
+            const startIndex = (safePage - 1) * rowsPerPage;
+            const pageRows = rows.slice(startIndex, startIndex + rowsPerPage);
+
+            tableBody.innerHTML = pageRows.map((row) => `
                 <tr>
                     <td>${escapeHtml(toDisplayValue(row["NO"]))}</td>
                     <td>${escapeHtml(toDisplayValue(row["Department"]))}</td>
@@ -989,6 +1175,8 @@
                     <td>${renderActions(row)}</td>
                 </tr>
             `).join("");
+
+            renderFlowTablePagination(totalRows);
         }
 
         async function loadRows() {
@@ -998,6 +1186,12 @@
                     <td colspan="12" class="text-center text-muted py-4">Loading data flow...</td>
                 </tr>
             `;
+            if (flowPaginationInfo) {
+                flowPaginationInfo.textContent = "Memuat data...";
+            }
+            if (flowPaginationControls) {
+                flowPaginationControls.innerHTML = "";
+            }
 
             try {
                 const response = await apiFetch(`${API_BASE}/device-records/flows`);
@@ -1453,17 +1647,43 @@
 
             activeStatus = nextStatus;
             syncActiveStatusFilterButton();
+            currentPage = 1;
             renderRows();
         });
 
         searchInput.addEventListener("input", () => {
             activeSearchText = String(searchInput.value || "").trim();
+            currentPage = 1;
             renderRows();
         });
 
         clearSearchButton.addEventListener("click", () => {
             searchInput.value = "";
             activeSearchText = "";
+            currentPage = 1;
+            renderRows();
+        });
+
+        flowRowsPerPageSelect.addEventListener("change", () => {
+            const selected = Number(flowRowsPerPageSelect.value);
+            rowsPerPage = [15, 50, 100].includes(selected) ? selected : 15;
+            flowRowsPerPageSelect.value = String(rowsPerPage);
+            currentPage = 1;
+            renderRows();
+        });
+
+        flowPaginationControls.addEventListener("click", (event) => {
+            const target = event.target;
+            if (!(target instanceof HTMLButtonElement)) {
+                return;
+            }
+
+            const pageValue = Number(target.getAttribute("data-page"));
+            if (!Number.isInteger(pageValue)) {
+                return;
+            }
+
+            currentPage = pageValue;
             renderRows();
         });
 
