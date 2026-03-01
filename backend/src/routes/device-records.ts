@@ -5,7 +5,12 @@ import XLSX from "xlsx";
 import ExcelJS from "exceljs";
 import { prisma } from "../lib/prisma";
 import { requireRole } from "../middleware/auth";
-import { sendDeviceFlowApprovedBastEmail, sendDeviceFlowPendingEmail, sendDeviceFlowRejectedEmail } from "../lib/mailer";
+import {
+  sendDeviceFlowApprovedBastEmail,
+  sendDeviceFlowPendingEmail,
+  sendDeviceFlowRejectedEmail,
+  sendDeviceFlowSenderSignedBastEmail,
+} from "../lib/mailer";
 import { createBastPdfBuffer } from "../lib/bast-pdf";
 
 export const deviceRecordRouter = Router();
@@ -3098,14 +3103,37 @@ deviceRecordRouter.post("/device-records/:id/flow/sender-signature", requireRole
 
     const payload = parseFlowActionPayload(req.body, { requireSignature: true });
     const actorName = getHistoryActorName(req);
+    const signerName = cleanText(req.authUser?.name) || actorName || "Admin";
+    const signerEmail = cleanText(req.authUser?.email) || "";
 
-    const updated = await prisma.$transaction(async (tx) => {
+    const senderSignedResult = await prisma.$transaction(async (tx) => {
+      const signedAt = new Date();
       const existing = await tx.device.findUnique({
         where: { id },
         select: {
           id: true,
           flowStatus: true,
+          flowSenderSignature: true,
+          flowApprovedByUserId: true,
+          flowAssignedPicUserId: true,
+          flowApprovedAt: true,
+          flowRecipientSignature: true,
           serialNumber: true,
+          hostName: true,
+          picNameRaw: true,
+          userNameRaw: true,
+          category: {
+            select: { name: true },
+          },
+          model: {
+            select: { name: true },
+          },
+          jobCode: {
+            select: { code: true },
+          },
+          departmentJobCode: {
+            select: { code: true },
+          },
         },
       });
 
@@ -3117,12 +3145,13 @@ deviceRecordRouter.post("/device-records/:id/flow/sender-signature", requireRole
         throw new Error("Tanda tangan pengirim hanya bisa disimpan untuk data APPROVED.");
       }
 
+      const shouldSendNotification = !cleanText(existing.flowSenderSignature);
       await tx.device.update({
         where: { id },
         data: {
           flowSenderSignature: payload.signatureDataUrl,
           flowSenderSignedByUserId: cleanText(req.authUser?.id) || null,
-          flowSenderSignedAt: new Date(),
+          flowSenderSignedAt: signedAt,
         },
       });
 
@@ -3132,8 +3161,110 @@ deviceRecordRouter.post("/device-records/:id/flow/sender-signature", requireRole
         `Tanda tangan pengirim BAST diperbarui oleh ${actorName}${existing.serialNumber ? ` (Serial No: ${existing.serialNumber})` : ""}.`,
       );
 
-      return getMappedDeviceById(tx, id);
+      const mappedDevice = await getMappedDeviceById(tx, id);
+      if (!shouldSendNotification) {
+        return {
+          mappedDevice,
+          notification: null,
+        };
+      }
+
+      const approvedUserId = cleanText(existing.flowApprovedByUserId);
+      const assignedUserId = cleanText(existing.flowAssignedPicUserId);
+      const recipientUserId = approvedUserId || assignedUserId;
+      const recipientUser = recipientUserId
+        ? await tx.masterUser.findUnique({
+          where: { id: recipientUserId },
+          select: {
+            name: true,
+            email: true,
+            jobCode: {
+              select: {
+                code: true,
+              },
+            },
+          },
+        })
+        : null;
+
+      const signerUserId = cleanText(req.authUser?.id);
+      const signerUser = signerUserId
+        ? await tx.masterUser.findUnique({
+          where: { id: signerUserId },
+          select: {
+            name: true,
+            email: true,
+            jobCode: {
+              select: {
+                code: true,
+              },
+            },
+          },
+        })
+        : null;
+
+      return {
+        mappedDevice,
+        notification: {
+          recipientName: cleanText(recipientUser?.name) || cleanText(existing.picNameRaw) || cleanText(existing.userNameRaw),
+          recipientEmail: cleanText(recipientUser?.email),
+          senderName: cleanText(signerUser?.name) || signerName,
+          senderDepartment: cleanText(signerUser?.jobCode?.code) || cleanText(existing.jobCode?.code),
+          receiverName: cleanText(recipientUser?.name) || cleanText(existing.picNameRaw) || cleanText(existing.userNameRaw),
+          receiverDepartment: cleanText(recipientUser?.jobCode?.code) || cleanText(existing.jobCode?.code),
+          departmentCode: cleanText(existing.jobCode?.code),
+          siteCode: cleanText(existing.departmentJobCode?.code),
+          serialNo: cleanText(existing.serialNumber),
+          category: cleanText(existing.category?.name),
+          model: cleanText(existing.model?.name),
+          hostName: cleanText(existing.hostName),
+          approvedAt: existing.flowApprovedAt ?? signedAt,
+          senderSignatureDataUrl: cleanText(payload.signatureDataUrl),
+          receiverSignatureDataUrl: cleanText(existing.flowRecipientSignature),
+        },
+      };
     });
+
+    const updated = senderSignedResult.mappedDevice;
+    const notification = senderSignedResult.notification;
+    if (notification && cleanText(notification.recipientEmail)) {
+      try {
+        const safeSerial = cleanText(notification.serialNo).replace(/[^A-Za-z0-9._-]+/g, "-");
+        const bastFileName = `BAST-${safeSerial || "device"}.pdf`;
+        const bastPdfBuffer = await createBastPdfBuffer({
+          approvedAt: notification.approvedAt,
+          senderName: cleanText(notification.senderName),
+          senderDepartment: cleanText(notification.senderDepartment),
+          receiverName: cleanText(notification.receiverName),
+          receiverDepartment: cleanText(notification.receiverDepartment),
+          department: cleanText(notification.departmentCode),
+          serialNo: cleanText(notification.serialNo),
+          category: cleanText(notification.category),
+          model: cleanText(notification.model),
+          hostName: cleanText(notification.hostName),
+          senderSignatureDataUrl: cleanText(notification.senderSignatureDataUrl),
+          receiverSignatureDataUrl: cleanText(notification.receiverSignatureDataUrl),
+        });
+
+        await sendDeviceFlowSenderSignedBastEmail({
+          recipientName: cleanText(notification.recipientName) || "User",
+          recipientEmail: cleanText(notification.recipientEmail),
+          departmentCode: cleanText(notification.departmentCode),
+          siteCode: cleanText(notification.siteCode),
+          serialNo: cleanText(notification.serialNo),
+          category: cleanText(notification.category),
+          model: cleanText(notification.model),
+          hostName: cleanText(notification.hostName),
+          signedByName: signerName,
+          signedByEmail: signerEmail,
+          bastFileName,
+          bastPdfBuffer,
+        });
+      } catch (mailError) {
+        const message = mailError instanceof Error ? mailError.message : "Unknown mail error";
+        console.error(`[MAILER] Gagal kirim notifikasi TTD pengirim ke user: ${message}`);
+      }
+    }
 
     res.json({ data: updated, message: "Tanda tangan pengirim berhasil disimpan." });
   } catch (error) {

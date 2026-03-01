@@ -42,6 +42,21 @@ type DeviceFlowApprovedBastEmailPayload = {
   bastPdfBuffer: Buffer;
 };
 
+type DeviceFlowSenderSignedBastEmailPayload = {
+  recipientName: string;
+  recipientEmail: string;
+  departmentCode: string;
+  siteCode: string;
+  serialNo: string;
+  category: string;
+  model: string;
+  hostName: string;
+  signedByName: string;
+  signedByEmail: string;
+  bastFileName: string;
+  bastPdfBuffer: Buffer;
+};
+
 type SmtpConfig = {
   enabled: boolean;
   host: string;
@@ -166,7 +181,7 @@ export async function sendDeviceFlowPendingEmail(payload: DeviceFlowPendingEmail
     "",
     `Buka aplikasi: ${flowUrl}`,
     "",
-    "Email ini dibuat otomatis oleh sistem Computer Inventory.",
+    "Email ini dibuat otomatis oleh sistem Sankyu Computer Inventory.",
   ].join("\n");
 
   const html = `
@@ -189,7 +204,7 @@ export async function sendDeviceFlowPendingEmail(payload: DeviceFlowPendingEmail
           Buka Flow Proses
         </a>
       </p>
-      <p style="color:#64748b;font-size:12px;">Email ini dibuat otomatis oleh sistem Computer Inventory.</p>
+      <p style="color:#64748b;font-size:12px;">Email ini dibuat otomatis oleh sistem Sankyu Computer Inventory.</p>
     </div>
   `;
 
@@ -238,7 +253,7 @@ export async function sendDeviceFlowRejectedEmail(payload: DeviceFlowRejectedEma
     "",
     `Buka Flow Proses: ${flowUrl}`,
     "",
-    "Email ini dibuat otomatis oleh sistem Computer Inventory.",
+    "Email ini dibuat otomatis oleh sistem Sankyu Computer Inventory.",
   ].join("\n");
 
   const html = `
@@ -262,7 +277,7 @@ export async function sendDeviceFlowRejectedEmail(payload: DeviceFlowRejectedEma
           Buka Flow Proses
         </a>
       </p>
-      <p style="color:#64748b;font-size:12px;">Email ini dibuat otomatis oleh sistem Computer Inventory.</p>
+      <p style="color:#64748b;font-size:12px;">Email ini dibuat otomatis oleh sistem Sankyu Computer Inventory.</p>
     </div>
   `;
 
@@ -313,7 +328,7 @@ export async function sendDeviceFlowApprovedBastEmail(
     `Lampiran: ${bastFileName}`,
     `Buka Flow Proses: ${flowUrl}`,
     "",
-    "Email ini dibuat otomatis oleh sistem Computer Inventory.",
+    "Email ini dibuat otomatis oleh sistem Sankyu Computer Inventory.",
   ].join("\n");
 
   const html = `
@@ -337,7 +352,89 @@ export async function sendDeviceFlowApprovedBastEmail(
         </a>
       </p>
       <p style="color:#64748b;font-size:12px;">Lampiran: ${stripHtml(bastFileName)}</p>
-      <p style="color:#64748b;font-size:12px;">Email ini dibuat otomatis oleh sistem Computer Inventory.</p>
+      <p style="color:#64748b;font-size:12px;">Email ini dibuat otomatis oleh sistem Sankyu Computer Inventory.</p>
+    </div>
+  `;
+
+  const transporter = getTransporter(config);
+  await transporter.sendMail({
+    from: `"${config.fromName}" <${config.fromEmail}>`,
+    to: recipientEmail,
+    subject,
+    text,
+    html,
+    attachments: [
+      {
+        filename: bastFileName,
+        content: payload.bastPdfBuffer,
+        contentType: "application/pdf",
+      },
+    ],
+  });
+}
+
+export async function sendDeviceFlowSenderSignedBastEmail(
+  payload: DeviceFlowSenderSignedBastEmailPayload,
+): Promise<void> {
+  const config = getSmtpConfig();
+  const recipientEmail = cleanText(payload.recipientEmail);
+  if (!config.enabled || !recipientEmail || !Buffer.isBuffer(payload.bastPdfBuffer) || payload.bastPdfBuffer.length === 0) {
+    return;
+  }
+
+  const recipientName = toSafeValue(payload.recipientName);
+  const departmentCode = toSafeValue(payload.departmentCode);
+  const siteCode = toSafeValue(payload.siteCode);
+  const serialNo = toSafeValue(payload.serialNo);
+  const category = toSafeValue(payload.category);
+  const model = toSafeValue(payload.model);
+  const hostName = toSafeValue(payload.hostName);
+  const signedByName = toSafeValue(payload.signedByName);
+  const signedByEmail = toSafeValue(payload.signedByEmail);
+  const flowUrl = config.appUrl;
+  const bastFileName = cleanText(payload.bastFileName) || `BAST-${serialNo}.pdf`;
+
+  const subject = `[Computer Inventory] BAST Sudah Ditandatangani Admin - ${serialNo}`;
+  const text = [
+    `Halo ${recipientName},`,
+    "",
+    "Dokumen BAST perangkat berikut sudah ditandatangani Admin.",
+    `Department: ${departmentCode}`,
+    `Job Code: ${siteCode}`,
+    `Serial No: ${serialNo}`,
+    `Category: ${category}`,
+    `Model: ${model}`,
+    `Host Name: ${hostName}`,
+    `Ditandatangani oleh Admin: ${signedByName} (${signedByEmail})`,
+    "",
+    `Lampiran: ${bastFileName}`,
+    `Buka Flow Proses: ${flowUrl}`,
+    "",
+    "Email ini dibuat otomatis oleh sistem Sankyu Computer Inventory.",
+  ].join("\n");
+
+  const html = `
+    <div style="font-family: Arial, sans-serif; color: #0f172a; line-height: 1.6;">
+      <p>Halo <strong>${stripHtml(recipientName)}</strong>,</p>
+      <p>Dokumen BAST perangkat berikut sudah ditandatangani Admin. File PDF BAST terlampir pada email ini.</p>
+      <table style="border-collapse: collapse; width: 100%; max-width: 560px;">
+        <tbody>
+          <tr><td style="padding: 6px 8px; border: 1px solid #e2e8f0;"><strong>Department</strong></td><td style="padding: 6px 8px; border: 1px solid #e2e8f0;">${stripHtml(departmentCode)}</td></tr>
+          <tr><td style="padding: 6px 8px; border: 1px solid #e2e8f0;"><strong>Job Code</strong></td><td style="padding: 6px 8px; border: 1px solid #e2e8f0;">${stripHtml(siteCode)}</td></tr>
+          <tr><td style="padding: 6px 8px; border: 1px solid #e2e8f0;"><strong>Serial No.</strong></td><td style="padding: 6px 8px; border: 1px solid #e2e8f0;">${stripHtml(serialNo)}</td></tr>
+          <tr><td style="padding: 6px 8px; border: 1px solid #e2e8f0;"><strong>Category</strong></td><td style="padding: 6px 8px; border: 1px solid #e2e8f0;">${stripHtml(category)}</td></tr>
+          <tr><td style="padding: 6px 8px; border: 1px solid #e2e8f0;"><strong>Model</strong></td><td style="padding: 6px 8px; border: 1px solid #e2e8f0;">${stripHtml(model)}</td></tr>
+          <tr><td style="padding: 6px 8px; border: 1px solid #e2e8f0;"><strong>Host Name</strong></td><td style="padding: 6px 8px; border: 1px solid #e2e8f0;">${stripHtml(hostName)}</td></tr>
+          <tr><td style="padding: 6px 8px; border: 1px solid #e2e8f0;"><strong>Admin Penandatangan</strong></td><td style="padding: 6px 8px; border: 1px solid #e2e8f0;">${stripHtml(signedByName)} (${stripHtml(signedByEmail)})</td></tr>
+        </tbody>
+      </table>
+      <p style="margin-top: 16px;">
+        <a href="${stripHtml(flowUrl)}" style="display:inline-block;padding:10px 14px;background:#0ea5e9;color:#fff;text-decoration:none;border-radius:8px;font-weight:700;">
+          Buka Flow Proses
+        </a>
+      </p>
+      <p style="color:#64748b;font-size:12px;">Lampiran: ${stripHtml(bastFileName)}</p>
+      <p style="color:#64748b;font-size:12px;">Email ini dibuat otomatis oleh sistem Sankyu Computer Inventory.</p>
     </div>
   `;
 
