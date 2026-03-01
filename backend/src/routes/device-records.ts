@@ -5,6 +5,7 @@ import XLSX from "xlsx";
 import ExcelJS from "exceljs";
 import { prisma } from "../lib/prisma";
 import { requireRole } from "../middleware/auth";
+import { sendDeviceFlowPendingEmail, sendDeviceFlowRejectedEmail } from "../lib/mailer";
 
 export const deviceRecordRouter = Router();
 
@@ -1386,6 +1387,7 @@ async function validateJobAndPic(
   payload: DeviceRecordPayload,
 ): Promise<{
   name: string;
+  email: string;
   jobCodeId: number;
   jobCodeCode: string;
   departmentJobCodeId: number | null;
@@ -1426,6 +1428,7 @@ async function validateJobAndPic(
 
   return {
     name: picUser.name,
+    email: picUser.email,
     jobCodeId: picUser.jobCodeId,
     jobCodeCode: jobCode.code,
     departmentJobCodeId: departmentJobCode?.id ?? null,
@@ -2111,7 +2114,7 @@ deviceRecordRouter.post("/device-records", async (req, res, next) => {
     const payload = parsePayload(req.body);
     const actorName = getHistoryActorName(req);
 
-    const created = await prisma.$transaction(async (tx) => {
+    const createdResult = await prisma.$transaction(async (tx) => {
       const picUser = await validateJobAndPic(tx, payload);
       const { categoryId, modelId, locationId } = await resolveLookupIds(tx, payload);
       await lockLegacyNoSequence(tx);
@@ -2153,8 +2156,33 @@ deviceRecordRouter.post("/device-records", async (req, res, next) => {
         hystoryLog: createdHistoryLog,
       });
 
-      return getMappedDeviceById(tx, device.id);
+      const mappedDevice = await getMappedDeviceById(tx, device.id);
+      return {
+        mappedDevice,
+        notification: {
+          recipientName: picUser.name,
+          recipientEmail: picUser.email,
+          departmentCode: picUser.jobCodeCode,
+          siteCode: picUser.departmentJobCodeCode ?? "",
+          serialNo: payload.serialNo ?? "",
+          category: payload.category ?? "",
+          model: payload.model ?? "",
+          hostName: payload.hostName ?? "",
+        },
+      };
     });
+
+    const created = createdResult.mappedDevice;
+    try {
+      await sendDeviceFlowPendingEmail({
+        ...createdResult.notification,
+        submittedByName: cleanText(req.authUser?.name) || actorName || "Admin",
+        submittedByEmail: cleanText(req.authUser?.email) || "",
+      });
+    } catch (mailError) {
+      const message = mailError instanceof Error ? mailError.message : "Unknown mail error";
+      console.error(`[MAILER] Gagal kirim notifikasi flow create device: ${message}`);
+    }
 
     res.status(201).json({ data: created });
   } catch (error) {
@@ -2582,15 +2610,29 @@ deviceRecordRouter.post("/device-records/:id/flow/reject", async (req, res, next
       return res.status(400).json({ message: "Alasan penolakan wajib diisi." });
     }
 
-    const updated = await prisma.$transaction(async (tx) => {
+    const rejectedResult = await prisma.$transaction(async (tx) => {
       const existing = await tx.device.findUnique({
         where: { id },
         select: {
           id: true,
           jobCodeId: true,
           flowAssignedPicUserId: true,
+          flowSubmittedByUserId: true,
           flowStatus: true,
           serialNumber: true,
+          hostName: true,
+          category: {
+            select: { name: true },
+          },
+          model: {
+            select: { name: true },
+          },
+          jobCode: {
+            select: { code: true },
+          },
+          departmentJobCode: {
+            select: { code: true },
+          },
         },
       });
 
@@ -2634,8 +2676,92 @@ deviceRecordRouter.post("/device-records/:id/flow/reject", async (req, res, next
         `Flow perangkat ditolak oleh ${actorName}${existing.serialNumber ? ` (Serial No: ${existing.serialNumber})` : ""}. Alasan: ${rejectNote}`,
       );
 
-      return getMappedDeviceById(tx, id);
+      const mappedDevice = await getMappedDeviceById(tx, id);
+      return {
+        mappedDevice,
+        notification: {
+          submittedByUserId: cleanText(existing.flowSubmittedByUserId),
+          departmentCode: cleanText(existing.jobCode?.code),
+          siteCode: cleanText(existing.departmentJobCode?.code),
+          serialNo: cleanText(existing.serialNumber),
+          category: cleanText(existing.category?.name),
+          model: cleanText(existing.model?.name),
+          hostName: cleanText(existing.hostName),
+          rejectNote,
+        },
+      };
     });
+
+    const updated = rejectedResult.mappedDevice;
+    const notification = rejectedResult.notification;
+    try {
+      const recipients: Array<{ name: string; email: string }> = [];
+      if (notification.submittedByUserId) {
+        const submitter = await prisma.masterUser.findUnique({
+          where: { id: notification.submittedByUserId },
+          select: {
+            name: true,
+            email: true,
+            role: true,
+          },
+        });
+
+        if (submitter && cleanText(submitter.email) && cleanText(submitter.role).toLowerCase() === "admin") {
+          recipients.push({
+            name: submitter.name,
+            email: submitter.email,
+          });
+        }
+      }
+
+      if (recipients.length === 0) {
+        const adminFallback = await prisma.masterUser.findMany({
+          where: { role: "admin" },
+          select: {
+            name: true,
+            email: true,
+          },
+          orderBy: {
+            name: "asc",
+          },
+          take: 1,
+        });
+
+        adminFallback.forEach((admin) => {
+          if (cleanText(admin.email)) {
+            recipients.push({
+              name: admin.name,
+              email: admin.email,
+            });
+          }
+        });
+      }
+
+      const uniqueRecipients = [...new Map(
+        recipients
+          .filter((recipient) => cleanText(recipient.email))
+          .map((recipient) => [cleanText(recipient.email).toLowerCase(), recipient]),
+      ).values()];
+
+      for (const recipient of uniqueRecipients) {
+        await sendDeviceFlowRejectedEmail({
+          recipientName: cleanText(recipient.name) || "Admin",
+          recipientEmail: cleanText(recipient.email),
+          departmentCode: notification.departmentCode,
+          siteCode: notification.siteCode,
+          serialNo: notification.serialNo,
+          category: notification.category,
+          model: notification.model,
+          hostName: notification.hostName,
+          rejectedByName: cleanText(req.authUser?.name) || actorName || "User",
+          rejectedByEmail: cleanText(req.authUser?.email) || "",
+          rejectNote: notification.rejectNote,
+        });
+      }
+    } catch (mailError) {
+      const message = mailError instanceof Error ? mailError.message : "Unknown mail error";
+      console.error(`[MAILER] Gagal kirim notifikasi flow reject ke admin: ${message}`);
+    }
 
     res.json({ data: updated, message: "Penolakan perangkat berhasil disimpan." });
   } catch (error) {
@@ -2674,14 +2800,28 @@ deviceRecordRouter.post("/device-records/:id/flow/resubmit", requireRole("admin"
     const actorName = getHistoryActorName(req);
     const note = cleanText(payload.note);
 
-    const updated = await prisma.$transaction(async (tx) => {
+    const resubmittedResult = await prisma.$transaction(async (tx) => {
       const existing = await tx.device.findUnique({
         where: { id },
         select: {
           id: true,
           flowStatus: true,
           flowSubmittedByUserId: true,
+          flowAssignedPicUserId: true,
           serialNumber: true,
+          hostName: true,
+          category: {
+            select: { name: true },
+          },
+          model: {
+            select: { name: true },
+          },
+          jobCode: {
+            select: { code: true },
+          },
+          departmentJobCode: {
+            select: { code: true },
+          },
         },
       });
 
@@ -2725,8 +2865,44 @@ deviceRecordRouter.post("/device-records/:id/flow/resubmit", requireRole("admin"
         `${historyMessage}${existing.serialNumber ? ` (Serial No: ${existing.serialNumber})` : ""}`,
       );
 
-      return getMappedDeviceById(tx, id);
+      const mappedDevice = await getMappedDeviceById(tx, id);
+      const recipientUserId = cleanText(existing.flowAssignedPicUserId);
+      const recipientUser = recipientUserId
+        ? await tx.masterUser.findUnique({
+          where: { id: recipientUserId },
+          select: {
+            name: true,
+            email: true,
+          },
+        })
+        : null;
+
+      return {
+        mappedDevice,
+        notification: {
+          recipientName: cleanText(recipientUser?.name),
+          recipientEmail: cleanText(recipientUser?.email),
+          departmentCode: cleanText(existing.jobCode?.code),
+          siteCode: cleanText(existing.departmentJobCode?.code),
+          serialNo: cleanText(existing.serialNumber),
+          category: cleanText(existing.category?.name),
+          model: cleanText(existing.model?.name),
+          hostName: cleanText(existing.hostName),
+        },
+      };
     });
+
+    const updated = resubmittedResult.mappedDevice;
+    try {
+      await sendDeviceFlowPendingEmail({
+        ...resubmittedResult.notification,
+        submittedByName: cleanText(req.authUser?.name) || actorName || "Admin",
+        submittedByEmail: cleanText(req.authUser?.email) || "",
+      });
+    } catch (mailError) {
+      const message = mailError instanceof Error ? mailError.message : "Unknown mail error";
+      console.error(`[MAILER] Gagal kirim notifikasi flow resubmit ke user: ${message}`);
+    }
 
     res.json({ data: updated, message: "Data berhasil dikirim ulang untuk konfirmasi user." });
   } catch (error) {
