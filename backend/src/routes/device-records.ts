@@ -281,6 +281,46 @@ function calculateDaysLease(startDate: Date | null, endDate: Date | null): numbe
   return Math.ceil((endMs - baseMs) / msPerDay);
 }
 
+function hasExpiredDaysLeaseValue(value: number | string | null | undefined): boolean {
+  if (typeof value === "number") {
+    return Number.isFinite(value) && value <= 0;
+  }
+
+  const text = cleanText(value);
+  if (!text) {
+    return false;
+  }
+
+  if (text.toUpperCase() === "TODAY") {
+    return true;
+  }
+
+  const parsed = Number(text);
+  return Number.isFinite(parsed) && parsed <= 0;
+}
+
+function isDateOnOrBeforeToday(date: Date | null | undefined): boolean {
+  if (!date) {
+    return false;
+  }
+
+  const now = new Date();
+  const todayMs = Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate());
+  return getUtcDateStartMs(date) <= todayMs;
+}
+
+function resolveLeaseStatus(
+  leaseStatus: string | null | undefined,
+  daysLease: number | string | null | undefined,
+  endDate: Date | null | undefined,
+): string | null {
+  if (hasExpiredDaysLeaseValue(daysLease) || isDateOnOrBeforeToday(endDate)) {
+    return "EXPIRED";
+  }
+
+  return toNullableText(leaseStatus);
+}
+
 function parsePayload(payload: unknown): DeviceRecordPayload {
   if (!payload || typeof payload !== "object") {
     throw new Error("Payload tidak valid.");
@@ -358,6 +398,8 @@ function parsePayload(payload: unknown): DeviceRecordPayload {
     throw new Error("Start Date tidak boleh lebih besar dari End Date.");
   }
 
+  const normalizedLeaseStatus = resolveLeaseStatus(leaseStatus, daysLease, endDate);
+
   return {
     no,
     jobCodeId,
@@ -374,7 +416,7 @@ function parsePayload(payload: unknown): DeviceRecordPayload {
     startDate,
     endDate,
     daysLease,
-    leaseStatus,
+    leaseStatus: normalizedLeaseStatus,
     hystoryLog,
     keterangan,
     bitlockerKey,
@@ -595,6 +637,11 @@ function mapDeviceToExcelRecord(row: MappedDeviceRow, fallbackNo?: number) {
     latestLease?.endDate ?? null,
   );
   const displayDaysLease = calculatedDaysLease ?? latestLease?.daysLease ?? "";
+  const displayLeaseStatus = resolveLeaseStatus(
+    latestLease?.leaseStatus ?? null,
+    displayDaysLease,
+    latestLease?.endDate ?? null,
+  ) ?? "";
 
   return {
     id: row.id,
@@ -613,7 +660,7 @@ function mapDeviceToExcelRecord(row: MappedDeviceRow, fallbackNo?: number) {
     "Start Date": formatDate(latestLease?.startDate),
     "End Date": formatDate(latestLease?.endDate),
     "Days Lease": displayDaysLease,
-    "Lease Status": latestLease?.leaseStatus ?? "",
+    "Lease Status": displayLeaseStatus,
     "Hystory Log": latestLease?.historyLog ?? "",
     Keterangan: row.notes ?? "",
     "Bitlocker Key": row.bitlockerKey ?? "",

@@ -708,7 +708,9 @@
             }
 
             if (status === "APPROVED" && isAdmin()) {
-                buttons.push(`<button type="button" class="btn btn-sm btn-info" data-action="sender-sign" data-id="${escapeHtml(id)}">TTD Pengirim</button>`);
+                const hasSenderSignature = String(row["Flow Sender Signature"] || "").trim().length > 0;
+                const senderSignButtonClass = hasSenderSignature ? "btn-info" : "btn-warning";
+                buttons.push(`<button type="button" class="btn btn-sm ${senderSignButtonClass}" data-action="sender-sign" data-id="${escapeHtml(id)}">TTD Pengirim</button>`);
             }
 
             if (status === "APPROVED") {

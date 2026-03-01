@@ -111,6 +111,22 @@
         .page-header .breadcrumb .breadcrumb-item.is-current::before {
             color: #1d4ed8;
         }
+
+        .flow-pending-badge {
+            margin-left: 8px;
+            font-size: 0.65rem;
+            font-weight: 700;
+            line-height: 1.1;
+            vertical-align: middle;
+        }
+
+        .flow-rejected-badge {
+            margin-left: 6px;
+            font-size: 0.65rem;
+            font-weight: 700;
+            line-height: 1.1;
+            vertical-align: middle;
+        }
     </style>
     <!--! HTML5 shim and Respond.js for IE8 support of HTML5 elements and media queries !-->
     <!--! WARNING: Respond.js doesn"t work if you view the page via file: !-->
@@ -161,7 +177,13 @@
                         </a>
                         <ul class="nxl-submenu">
                             <li class="nxl-item"><a class="nxl-link master-inline-nav" href="data-perangkat.html" data-master-title="Data Perangkat">Data Perangkat</a></li>
-                            <li class="nxl-item"><a class="nxl-link master-inline-nav" href="flow-proses.html" data-master-title="Flow Proses">Flow Proses</a></li>
+                            <li class="nxl-item">
+                                <a class="nxl-link master-inline-nav" href="flow-proses.html" data-master-title="Flow Proses">
+                                    Flow Proses
+                                    <span class="badge bg-warning text-dark d-none flow-pending-badge" data-flow-pending-badge="true" aria-hidden="true">0</span>
+                                    <span class="badge bg-danger text-white d-none flow-rejected-badge" data-flow-rejected-badge="true" aria-hidden="true">0</span>
+                                </a>
+                            </li>
                         </ul>
                     </li>
                 </ul>
@@ -2195,7 +2217,11 @@
                                     <a class="btn btn-primary master-inline-nav" href="department.html" data-master-title="Department" data-admin-only="true">Department</a>
                                     <a class="btn btn-light-brand master-inline-nav" href="master-user.html" data-master-title="Master User" data-admin-only="true">Master User</a>
                                     <a class="btn btn-success master-inline-nav" href="data-perangkat.html" data-master-title="Data Perangkat">Data Perangkat</a>
-                                    <a class="btn btn-info master-inline-nav" href="flow-proses.html" data-master-title="Flow Proses">Flow Proses</a>
+                                    <a class="btn btn-info master-inline-nav" href="flow-proses.html" data-master-title="Flow Proses">
+                                        Flow Proses
+                                        <span class="badge bg-warning text-dark d-none flow-pending-badge" data-flow-pending-badge="true" aria-hidden="true">0</span>
+                                        <span class="badge bg-danger text-white d-none flow-rejected-badge" data-flow-rejected-badge="true" aria-hidden="true">0</span>
+                                    </a>
                                 </div>
                             </div>
                         </div>
@@ -3458,6 +3484,10 @@
             const currentUserRole = window.AuthClient ? window.AuthClient.getUserRole() : "";
             const adminOnlyElements = document.querySelectorAll('[data-admin-only="true"]');
             const masterDataMenuItem = document.getElementById("masterDataMenuItem");
+            const flowPendingBadges = document.querySelectorAll('[data-flow-pending-badge="true"]');
+            const flowRejectedBadges = document.querySelectorAll('[data-flow-rejected-badge="true"]');
+            const API_BASE = `${window.location.protocol === "https:" ? "https:" : "http:"}//${window.location.hostname || "localhost"}:3001/api`;
+            let flowPendingPollTimer = null;
 
             if (!inlineContainer || !inlineFrame || !mainContent || !pageTitle || breadcrumbItems.length < 2) {
                 return;
@@ -3577,6 +3607,93 @@
                 }
             }
 
+            function setFlowPendingBadgeCount(count) {
+                const normalizedCount = Number.isFinite(count) && count > 0 ? Math.floor(count) : 0;
+                const badgeText = normalizedCount > 99 ? "99+" : String(normalizedCount);
+                const badgeTitle = currentUserRole === "admin"
+                    ? "Perangkat dengan status pending konfirmasi"
+                    : "Perangkat baru yang menunggu approve Anda";
+
+                flowPendingBadges.forEach((badge) => {
+                    if (!(badge instanceof HTMLElement)) {
+                        return;
+                    }
+
+                    if (normalizedCount <= 0) {
+                        badge.textContent = "0";
+                        badge.classList.add("d-none");
+                        badge.setAttribute("aria-hidden", "true");
+                        badge.removeAttribute("title");
+                        return;
+                    }
+
+                    badge.textContent = badgeText;
+                    badge.classList.remove("d-none");
+                    badge.setAttribute("aria-hidden", "false");
+                    badge.setAttribute("title", badgeTitle);
+                });
+            }
+
+            function setFlowRejectedBadgeCount(count) {
+                const normalizedCount = Number.isFinite(count) && count > 0 ? Math.floor(count) : 0;
+                const badgeText = normalizedCount > 99 ? "99+" : String(normalizedCount);
+                const badgeTitle = "Perangkat dengan status rejected (menunggu resubmit).";
+
+                flowRejectedBadges.forEach((badge) => {
+                    if (!(badge instanceof HTMLElement)) {
+                        return;
+                    }
+
+                    if (currentUserRole !== "admin" || normalizedCount <= 0) {
+                        badge.textContent = "0";
+                        badge.classList.add("d-none");
+                        badge.setAttribute("aria-hidden", "true");
+                        badge.removeAttribute("title");
+                        return;
+                    }
+
+                    badge.textContent = badgeText;
+                    badge.classList.remove("d-none");
+                    badge.setAttribute("aria-hidden", "false");
+                    badge.setAttribute("title", badgeTitle);
+                });
+            }
+
+            async function refreshFlowStatusBadges() {
+                if (!window.AuthClient || (flowPendingBadges.length === 0 && flowRejectedBadges.length === 0)) {
+                    return;
+                }
+
+                try {
+                    const response = await window.AuthClient.fetchWithAuth(
+                        `${API_BASE}/device-records/flows`,
+                        { method: "GET" }
+                    );
+                    const result = await response.json().catch(() => ({}));
+                    if (!response.ok) {
+                        throw new Error(result?.message || "Gagal memuat notifikasi flow.");
+                    }
+
+                    const rows = Array.isArray(result?.data) ? result.data : [];
+                    const pendingCount = rows.filter((row) => String(row?.["Flow Status"] || "").trim().toUpperCase() === "PENDING_CONFIRMATION").length;
+                    const rejectedCount = rows.filter((row) => String(row?.["Flow Status"] || "").trim().toUpperCase() === "REJECTED").length;
+                    setFlowPendingBadgeCount(pendingCount);
+                    setFlowRejectedBadgeCount(rejectedCount);
+                } catch (_error) {
+                    setFlowPendingBadgeCount(0);
+                    setFlowRejectedBadgeCount(0);
+                }
+            }
+
+            function startFlowPendingBadgePolling() {
+                if (flowPendingPollTimer) {
+                    window.clearInterval(flowPendingPollTimer);
+                }
+
+                refreshFlowStatusBadges();
+                flowPendingPollTimer = window.setInterval(refreshFlowStatusBadges, 30000);
+            }
+
             inlineLinks.forEach((link) => {
                 link.addEventListener("click", (event) => {
                     event.preventDefault();
@@ -3619,6 +3736,19 @@
             applyRoleBasedNavigation();
             setActiveNav(dashboardLink);
             setActiveBreadcrumb(pageTitle.textContent.trim());
+            startFlowPendingBadgePolling();
+
+            if (inlineFrame) {
+                inlineFrame.addEventListener("load", () => {
+                    refreshFlowStatusBadges();
+                });
+            }
+
+            window.addEventListener("beforeunload", () => {
+                if (flowPendingPollTimer) {
+                    window.clearInterval(flowPendingPollTimer);
+                }
+            });
         })();
     </script>
 </body>
