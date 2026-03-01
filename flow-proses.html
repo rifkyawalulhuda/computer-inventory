@@ -44,13 +44,100 @@
         .flow-filter-group {
             display: flex;
             flex-wrap: wrap;
-            gap: 8px;
+            gap: 10px;
+            align-items: center;
+            background: #f8fafc;
+            border: 1px solid #e2e8f0;
+            border-radius: 14px;
+            padding: 10px;
+        }
+
+        .flow-filter-btn {
+            border-radius: 999px;
+            min-width: 122px;
+            padding: 7px 12px;
+            font-size: 0.75rem;
+            font-weight: 700;
+            letter-spacing: 0.02em;
+            display: inline-flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 10px;
+            border-color: #d6dee8 !important;
+            background: #ffffff !important;
+            color: #334155 !important;
+            transition: all 0.2s ease;
+        }
+
+        .flow-filter-btn:hover {
+            transform: translateY(-1px);
+            box-shadow: 0 6px 14px rgba(15, 23, 42, 0.08);
+        }
+
+        .flow-filter-label {
+            text-transform: uppercase;
+        }
+
+        .flow-filter-count {
+            min-width: 24px;
+            height: 24px;
+            padding: 0 8px;
+            border-radius: 999px;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 0.7rem;
+            font-weight: 700;
+            line-height: 1;
+            background: #e2e8f0;
+            color: #0f172a;
+        }
+
+        .flow-filter-btn[data-status="ALL"] .flow-filter-count {
+            background: #dbeafe;
+            color: #1d4ed8;
+        }
+
+        .flow-filter-btn[data-status="PENDING_CONFIRMATION"] .flow-filter-count {
+            background: #fef3c7;
+            color: #b45309;
+        }
+
+        .flow-filter-btn[data-status="APPROVED"] .flow-filter-count {
+            background: #dcfce7;
+            color: #15803d;
+        }
+
+        .flow-filter-btn[data-status="REJECTED"] .flow-filter-count {
+            background: #fee2e2;
+            color: #b91c1c;
         }
 
         .flow-filter-btn.active {
-            background: #1d4ed8;
-            border-color: #1d4ed8;
+            color: #fff !important;
+            border-color: transparent !important;
+            box-shadow: 0 10px 20px rgba(15, 23, 42, 0.16);
+        }
+
+        .flow-filter-btn.active .flow-filter-count {
+            background: rgba(255, 255, 255, 0.2);
             color: #fff;
+        }
+
+        .flow-filter-btn.active[data-status="ALL"] {
+            background: #1d4ed8 !important;
+        }
+
+        .flow-filter-btn.active[data-status="PENDING_CONFIRMATION"] {
+            background: #f59e0b !important;
+        }
+
+        .flow-filter-btn.active[data-status="APPROVED"] {
+            background: #16a34a !important;
+        }
+
+        .flow-filter-btn.active[data-status="REJECTED"] {
+            background: #dc2626 !important;
         }
 
         .flow-table {
@@ -322,6 +409,16 @@
                 padding: 16px 0;
             }
 
+            .flow-filter-group {
+                gap: 8px;
+                padding: 8px;
+            }
+
+            .flow-filter-btn {
+                min-width: 112px;
+                flex: 1 1 auto;
+            }
+
             .flow-action-group .btn {
                 min-width: 74px;
                 padding-left: 8px;
@@ -349,10 +446,22 @@
             <div class="card card-shadow mb-3">
                 <div class="card-body d-flex flex-wrap gap-3 justify-content-between align-items-center">
                     <div class="flow-filter-group" id="statusFilterGroup">
-                        <button type="button" class="btn btn-sm btn-light border flow-filter-btn active" data-status="ALL">Semua</button>
-                        <button type="button" class="btn btn-sm btn-light border flow-filter-btn" data-status="PENDING_CONFIRMATION">Pending</button>
-                        <button type="button" class="btn btn-sm btn-light border flow-filter-btn" data-status="APPROVED">Approved</button>
-                        <button type="button" class="btn btn-sm btn-light border flow-filter-btn" data-status="REJECTED">Rejected</button>
+                        <button type="button" class="btn btn-sm btn-light border flow-filter-btn active" data-status="ALL">
+                            <span class="flow-filter-label">Semua</span>
+                            <span class="flow-filter-count" data-filter-count>0</span>
+                        </button>
+                        <button type="button" class="btn btn-sm btn-light border flow-filter-btn" data-status="PENDING_CONFIRMATION">
+                            <span class="flow-filter-label">Pending</span>
+                            <span class="flow-filter-count" data-filter-count>0</span>
+                        </button>
+                        <button type="button" class="btn btn-sm btn-light border flow-filter-btn" data-status="APPROVED">
+                            <span class="flow-filter-label">Approved</span>
+                            <span class="flow-filter-count" data-filter-count>0</span>
+                        </button>
+                        <button type="button" class="btn btn-sm btn-light border flow-filter-btn" data-status="REJECTED">
+                            <span class="flow-filter-label">Rejected</span>
+                            <span class="flow-filter-count" data-filter-count>0</span>
+                        </button>
                     </div>
                     <div class="input-group" style="max-width: 360px;">
                         <span class="input-group-text bg-white"><i class="feather-search"></i></span>
@@ -498,6 +607,7 @@
         const searchInput = document.getElementById("searchInput");
         const clearSearchButton = document.getElementById("clearSearchButton");
         const statusFilterGroup = document.getElementById("statusFilterGroup");
+        const statusFilterButtons = Array.from(statusFilterGroup.querySelectorAll("button[data-status]"));
         const viewDrawerOverlay = document.getElementById("viewDrawerOverlay");
         const viewDrawerBody = document.getElementById("viewDrawerBody");
         const viewDrawerCloseButton = document.getElementById("viewDrawerCloseButton");
@@ -625,12 +735,46 @@
             return { dayName, fullDate };
         }
 
-        function buildStatusQuery() {
-            if (activeStatus === "ALL") {
-                return "";
-            }
+        function normalizeFlowStatus(status) {
+            return String(status || "").trim().toUpperCase();
+        }
 
-            return `?status=${encodeURIComponent(activeStatus)}`;
+        function getStatusCounts() {
+            const counts = {
+                ALL: flowRows.length,
+                PENDING_CONFIRMATION: 0,
+                APPROVED: 0,
+                REJECTED: 0
+            };
+
+            flowRows.forEach((row) => {
+                const status = normalizeFlowStatus(row?.["Flow Status"]);
+                if (Object.prototype.hasOwnProperty.call(counts, status)) {
+                    counts[status] += 1;
+                }
+            });
+
+            return counts;
+        }
+
+        function updateStatusFilterBadges() {
+            const counts = getStatusCounts();
+
+            statusFilterButtons.forEach((button) => {
+                const status = normalizeFlowStatus(button.getAttribute("data-status") || "ALL");
+                const value = counts[status] ?? 0;
+                const badge = button.querySelector("[data-filter-count]");
+                if (badge) {
+                    badge.textContent = value > 99 ? "99+" : String(value);
+                }
+            });
+        }
+
+        function syncActiveStatusFilterButton() {
+            statusFilterButtons.forEach((button) => {
+                const status = normalizeFlowStatus(button.getAttribute("data-status") || "ALL");
+                button.classList.toggle("active", status === activeStatus);
+            });
         }
 
         function getSearchText(row) {
@@ -652,12 +796,16 @@
         }
 
         function getFilteredRows() {
+            const rowsByStatus = activeStatus === "ALL"
+                ? flowRows
+                : flowRows.filter((row) => normalizeFlowStatus(row?.["Flow Status"]) === activeStatus);
+
             if (!activeSearchText) {
-                return flowRows;
+                return rowsByStatus;
             }
 
             const needle = activeSearchText.toLowerCase();
-            return flowRows.filter((row) => getSearchText(row).includes(needle));
+            return rowsByStatus.filter((row) => getSearchText(row).includes(needle));
         }
 
         function getCurrentUserDisplayName() {
@@ -852,7 +1000,7 @@
             `;
 
             try {
-                const response = await apiFetch(`${API_BASE}/device-records/flows${buildStatusQuery()}`);
+                const response = await apiFetch(`${API_BASE}/device-records/flows`);
                 const result = await response.json().catch(() => ({}));
 
                 if (!response.ok) {
@@ -860,9 +1008,13 @@
                 }
 
                 flowRows = Array.isArray(result?.data) ? result.data : [];
+                updateStatusFilterBadges();
+                syncActiveStatusFilterButton();
                 renderRows();
             } catch (error) {
                 flowRows = [];
+                updateStatusFilterBadges();
+                syncActiveStatusFilterButton();
                 renderRows();
                 showAlert(error instanceof Error ? error.message : "Gagal memuat data flow.", "danger");
             }
@@ -1288,7 +1440,7 @@
             }
         }
 
-        statusFilterGroup.addEventListener("click", async (event) => {
+        statusFilterGroup.addEventListener("click", (event) => {
             const target = event.target.closest("button[data-status]");
             if (!target) {
                 return;
@@ -1300,11 +1452,8 @@
             }
 
             activeStatus = nextStatus;
-            Array.from(statusFilterGroup.querySelectorAll("button[data-status]")).forEach((button) => {
-                button.classList.toggle("active", button === target);
-            });
-
-            await loadRows();
+            syncActiveStatusFilterButton();
+            renderRows();
         });
 
         searchInput.addEventListener("input", () => {
