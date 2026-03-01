@@ -27,6 +27,21 @@ type DeviceFlowRejectedEmailPayload = {
   rejectNote: string;
 };
 
+type DeviceFlowApprovedBastEmailPayload = {
+  recipientName: string;
+  recipientEmail: string;
+  departmentCode: string;
+  siteCode: string;
+  serialNo: string;
+  category: string;
+  model: string;
+  hostName: string;
+  approvedByName: string;
+  approvedByEmail: string;
+  bastFileName: string;
+  bastPdfBuffer: Buffer;
+};
+
 type SmtpConfig = {
   enabled: boolean;
   host: string;
@@ -258,5 +273,87 @@ export async function sendDeviceFlowRejectedEmail(payload: DeviceFlowRejectedEma
     subject,
     text,
     html,
+  });
+}
+
+export async function sendDeviceFlowApprovedBastEmail(
+  payload: DeviceFlowApprovedBastEmailPayload,
+): Promise<void> {
+  const config = getSmtpConfig();
+  const recipientEmail = cleanText(payload.recipientEmail);
+  if (!config.enabled || !recipientEmail || !Buffer.isBuffer(payload.bastPdfBuffer) || payload.bastPdfBuffer.length === 0) {
+    return;
+  }
+
+  const recipientName = toSafeValue(payload.recipientName);
+  const departmentCode = toSafeValue(payload.departmentCode);
+  const siteCode = toSafeValue(payload.siteCode);
+  const serialNo = toSafeValue(payload.serialNo);
+  const category = toSafeValue(payload.category);
+  const model = toSafeValue(payload.model);
+  const hostName = toSafeValue(payload.hostName);
+  const approvedByName = toSafeValue(payload.approvedByName);
+  const approvedByEmail = toSafeValue(payload.approvedByEmail);
+  const flowUrl = config.appUrl;
+  const bastFileName = cleanText(payload.bastFileName) || `BAST-${serialNo}.pdf`;
+
+  const subject = `[Computer Inventory] Perangkat Disetujui + Lampiran BAST - ${serialNo}`;
+  const text = [
+    `Halo ${recipientName},`,
+    "",
+    "Perangkat berikut sudah disetujui user/PIC.",
+    `Department: ${departmentCode}`,
+    `Job Code: ${siteCode}`,
+    `Serial No: ${serialNo}`,
+    `Category: ${category}`,
+    `Model: ${model}`,
+    `Host Name: ${hostName}`,
+    `Disetujui oleh: ${approvedByName} (${approvedByEmail})`,
+    "",
+    `Lampiran: ${bastFileName}`,
+    `Buka Flow Proses: ${flowUrl}`,
+    "",
+    "Email ini dibuat otomatis oleh sistem Computer Inventory.",
+  ].join("\n");
+
+  const html = `
+    <div style="font-family: Arial, sans-serif; color: #0f172a; line-height: 1.6;">
+      <p>Halo <strong>${stripHtml(recipientName)}</strong>,</p>
+      <p>Perangkat berikut sudah disetujui user/PIC. Dokumen BAST terlampir pada email ini.</p>
+      <table style="border-collapse: collapse; width: 100%; max-width: 560px;">
+        <tbody>
+          <tr><td style="padding: 6px 8px; border: 1px solid #e2e8f0;"><strong>Department</strong></td><td style="padding: 6px 8px; border: 1px solid #e2e8f0;">${stripHtml(departmentCode)}</td></tr>
+          <tr><td style="padding: 6px 8px; border: 1px solid #e2e8f0;"><strong>Job Code</strong></td><td style="padding: 6px 8px; border: 1px solid #e2e8f0;">${stripHtml(siteCode)}</td></tr>
+          <tr><td style="padding: 6px 8px; border: 1px solid #e2e8f0;"><strong>Serial No.</strong></td><td style="padding: 6px 8px; border: 1px solid #e2e8f0;">${stripHtml(serialNo)}</td></tr>
+          <tr><td style="padding: 6px 8px; border: 1px solid #e2e8f0;"><strong>Category</strong></td><td style="padding: 6px 8px; border: 1px solid #e2e8f0;">${stripHtml(category)}</td></tr>
+          <tr><td style="padding: 6px 8px; border: 1px solid #e2e8f0;"><strong>Model</strong></td><td style="padding: 6px 8px; border: 1px solid #e2e8f0;">${stripHtml(model)}</td></tr>
+          <tr><td style="padding: 6px 8px; border: 1px solid #e2e8f0;"><strong>Host Name</strong></td><td style="padding: 6px 8px; border: 1px solid #e2e8f0;">${stripHtml(hostName)}</td></tr>
+          <tr><td style="padding: 6px 8px; border: 1px solid #e2e8f0;"><strong>Disetujui oleh</strong></td><td style="padding: 6px 8px; border: 1px solid #e2e8f0;">${stripHtml(approvedByName)} (${stripHtml(approvedByEmail)})</td></tr>
+        </tbody>
+      </table>
+      <p style="margin-top: 16px;">
+        <a href="${stripHtml(flowUrl)}" style="display:inline-block;padding:10px 14px;background:#16a34a;color:#fff;text-decoration:none;border-radius:8px;font-weight:700;">
+          Buka Flow Proses
+        </a>
+      </p>
+      <p style="color:#64748b;font-size:12px;">Lampiran: ${stripHtml(bastFileName)}</p>
+      <p style="color:#64748b;font-size:12px;">Email ini dibuat otomatis oleh sistem Computer Inventory.</p>
+    </div>
+  `;
+
+  const transporter = getTransporter(config);
+  await transporter.sendMail({
+    from: `"${config.fromName}" <${config.fromEmail}>`,
+    to: recipientEmail,
+    subject,
+    text,
+    html,
+    attachments: [
+      {
+        filename: bastFileName,
+        content: payload.bastPdfBuffer,
+        contentType: "application/pdf",
+      },
+    ],
   });
 }

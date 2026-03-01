@@ -5,7 +5,8 @@ import XLSX from "xlsx";
 import ExcelJS from "exceljs";
 import { prisma } from "../lib/prisma";
 import { requireRole } from "../middleware/auth";
-import { sendDeviceFlowPendingEmail, sendDeviceFlowRejectedEmail } from "../lib/mailer";
+import { sendDeviceFlowApprovedBastEmail, sendDeviceFlowPendingEmail, sendDeviceFlowRejectedEmail } from "../lib/mailer";
+import { createBastPdfBuffer } from "../lib/bast-pdf";
 
 export const deviceRecordRouter = Router();
 
@@ -2516,15 +2517,31 @@ deviceRecordRouter.post("/device-records/:id/flow/approve", async (req, res, nex
     const payload = parseFlowActionPayload(req.body, { requireSignature: true });
     const actorName = getHistoryActorName(req);
 
-    const updated = await prisma.$transaction(async (tx) => {
+    const approvedResult = await prisma.$transaction(async (tx) => {
+      const approvedAt = new Date();
       const existing = await tx.device.findUnique({
         where: { id },
         select: {
           id: true,
           jobCodeId: true,
           flowAssignedPicUserId: true,
+          flowSubmittedByUserId: true,
           flowStatus: true,
           serialNumber: true,
+          hostName: true,
+          flowSenderSignature: true,
+          category: {
+            select: { name: true },
+          },
+          model: {
+            select: { name: true },
+          },
+          jobCode: {
+            select: { code: true },
+          },
+          departmentJobCode: {
+            select: { code: true },
+          },
         },
       });
 
@@ -2551,7 +2568,7 @@ deviceRecordRouter.post("/device-records/:id/flow/approve", async (req, res, nex
         data: {
           flowStatus: DEVICE_FLOW_STATUS_APPROVED,
           flowApprovedByUserId: cleanText(req.authUser?.id) || null,
-          flowApprovedAt: new Date(),
+          flowApprovedAt: approvedAt,
           flowRejectedByUserId: null,
           flowRejectedAt: null,
           flowRejectNote: null,
@@ -2565,8 +2582,158 @@ deviceRecordRouter.post("/device-records/:id/flow/approve", async (req, res, nex
         `Flow perangkat disetujui oleh ${actorName}${existing.serialNumber ? ` (Serial No: ${existing.serialNumber})` : ""}.`,
       );
 
-      return getMappedDeviceById(tx, id);
+      const mappedDevice = await getMappedDeviceById(tx, id);
+      return {
+        mappedDevice,
+        notification: {
+          submittedByUserId: cleanText(existing.flowSubmittedByUserId),
+          departmentCode: cleanText(existing.jobCode?.code),
+          siteCode: cleanText(existing.departmentJobCode?.code),
+          serialNo: cleanText(existing.serialNumber),
+          category: cleanText(existing.category?.name),
+          model: cleanText(existing.model?.name),
+          hostName: cleanText(existing.hostName),
+          approvedAt,
+          senderSignatureDataUrl: cleanText(existing.flowSenderSignature),
+          receiverSignatureDataUrl: cleanText(payload.signatureDataUrl),
+        },
+      };
     });
+
+    const updated = approvedResult.mappedDevice;
+    const notification = approvedResult.notification;
+    try {
+      const submitterUserId = cleanText(notification.submittedByUserId);
+      const recipients: Array<{ name: string; email: string; departmentCode: string }> = [];
+      let submitterName = "";
+      let submitterDepartmentCode = "";
+      if (submitterUserId) {
+        const submitter = await prisma.masterUser.findUnique({
+          where: { id: submitterUserId },
+          select: {
+            name: true,
+            email: true,
+            role: true,
+            jobCode: {
+              select: {
+                code: true,
+              },
+            },
+          },
+        });
+
+        submitterName = cleanText(submitter?.name);
+        submitterDepartmentCode = cleanText(submitter?.jobCode?.code);
+
+        if (submitter && cleanText(submitter.email) && cleanText(submitter.role).toLowerCase() === "admin") {
+          recipients.push({
+            name: submitter.name,
+            email: submitter.email,
+            departmentCode: cleanText(submitter.jobCode?.code),
+          });
+        }
+      }
+
+      if (recipients.length === 0) {
+        const adminFallback = await prisma.masterUser.findMany({
+          where: { role: "admin" },
+          select: {
+            name: true,
+            email: true,
+            jobCode: {
+              select: {
+                code: true,
+              },
+            },
+          },
+          orderBy: {
+            name: "asc",
+          },
+          take: 1,
+        });
+
+        adminFallback.forEach((admin) => {
+          if (cleanText(admin.email)) {
+            recipients.push({
+              name: admin.name,
+              email: admin.email,
+              departmentCode: cleanText(admin.jobCode?.code),
+            });
+          }
+        });
+      }
+
+      const uniqueRecipients = [...new Map(
+        recipients
+          .filter((recipient) => cleanText(recipient.email))
+          .map((recipient) => [cleanText(recipient.email).toLowerCase(), recipient]),
+      ).values()];
+
+      if (uniqueRecipients.length > 0) {
+        const approverName = cleanText(req.authUser?.name) || actorName || "User";
+        const approverEmail = cleanText(req.authUser?.email) || "";
+        const approverUserId = cleanText(req.authUser?.id);
+        let approverDepartmentCode = "";
+        if (approverUserId) {
+          const approverUser = await prisma.masterUser.findUnique({
+            where: { id: approverUserId },
+            select: {
+              jobCode: {
+                select: {
+                  code: true,
+                },
+              },
+            },
+          });
+          approverDepartmentCode = cleanText(approverUser?.jobCode?.code);
+        }
+
+        const senderName = submitterName || cleanText(uniqueRecipients[0]?.name) || "Admin";
+        const senderDepartment = submitterDepartmentCode
+          || cleanText(uniqueRecipients[0]?.departmentCode)
+          || cleanText(notification.departmentCode)
+          || "-";
+        const receiverName = approverName;
+        const receiverDepartment = approverDepartmentCode || cleanText(notification.departmentCode) || "-";
+
+        const safeSerial = cleanText(notification.serialNo).replace(/[^A-Za-z0-9._-]+/g, "-");
+        const bastFileName = `BAST-${safeSerial || "device"}.pdf`;
+        const bastPdfBuffer = await createBastPdfBuffer({
+          approvedAt: notification.approvedAt,
+          senderName,
+          senderDepartment,
+          receiverName,
+          receiverDepartment,
+          department: cleanText(notification.departmentCode),
+          serialNo: cleanText(notification.serialNo),
+          category: cleanText(notification.category),
+          model: cleanText(notification.model),
+          hostName: cleanText(notification.hostName),
+          senderSignatureDataUrl: notification.senderSignatureDataUrl,
+          receiverSignatureDataUrl: notification.receiverSignatureDataUrl,
+        });
+
+        for (const recipient of uniqueRecipients) {
+          await sendDeviceFlowApprovedBastEmail({
+            recipientName: cleanText(recipient.name) || "Admin",
+            recipientEmail: cleanText(recipient.email),
+            departmentCode: cleanText(notification.departmentCode),
+            siteCode: cleanText(notification.siteCode),
+            serialNo: cleanText(notification.serialNo),
+            category: cleanText(notification.category),
+            model: cleanText(notification.model),
+            hostName: cleanText(notification.hostName),
+            approvedByName: approverName,
+            approvedByEmail: approverEmail,
+            bastFileName,
+            bastPdfBuffer,
+          });
+        }
+      }
+    } catch (mailError) {
+      const message = mailError instanceof Error ? mailError.message : "Unknown mail error";
+      console.error(`[MAILER] Gagal kirim notifikasi flow approve + BAST ke admin: ${message}`);
+    }
 
     res.json({ data: updated, message: "Perangkat berhasil disetujui." });
   } catch (error) {
