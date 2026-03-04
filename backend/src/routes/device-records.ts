@@ -1700,6 +1700,18 @@ deviceRecordRouter.get("/device-records/dashboard-summary", async (req, res, nex
       daysLease: number;
       endDate: string;
     }> = [];
+    const devices: Array<{
+      id: string;
+      siteCode: string;
+      picName: string;
+      serialNo: string;
+      category: string;
+      model: string;
+      hostName: string;
+      leaseStatus: string;
+      daysLease: number | null;
+      endDate: string;
+    }> = [];
 
     rows.forEach((row) => {
       totals.all += 1;
@@ -1747,6 +1759,19 @@ deviceRecordRouter.get("/device-records/dashboard-summary", async (req, res, nex
       }
 
       const siteCode = cleanText(row.jobCode?.code) || "-";
+      devices.push({
+        id: row.id,
+        siteCode,
+        picName: cleanText(row.picNameRaw),
+        serialNo: cleanText(row.serialNumber),
+        category: cleanText(row.category?.name),
+        model: cleanText(row.model?.name),
+        hostName: cleanText(row.hostName),
+        leaseStatus: leaseStatus ?? "",
+        daysLease: typeof normalizedDaysLease === "number" ? normalizedDaysLease : null,
+        endDate: formatDate(latestLease?.endDate),
+      });
+
       const siteSummary = bySiteMap.get(siteCode) ?? {
         siteCode,
         total: 0,
@@ -1816,6 +1841,14 @@ deviceRecordRouter.get("/device-records/dashboard-summary", async (req, res, nex
 
       return a.siteCode.localeCompare(b.siteCode);
     });
+    devices.sort((a, b) => {
+      const bySite = a.siteCode.localeCompare(b.siteCode);
+      if (bySite !== 0) {
+        return bySite;
+      }
+
+      return a.serialNo.localeCompare(b.serialNo);
+    });
 
     res.json({
       data: {
@@ -1823,6 +1856,7 @@ deviceRecordRouter.get("/device-records/dashboard-summary", async (req, res, nex
         totals,
         bySite,
         expiringSoonDevices,
+        devices,
       },
     });
   } catch (error) {

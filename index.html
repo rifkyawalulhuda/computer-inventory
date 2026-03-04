@@ -223,6 +223,53 @@
             font-size: 0.75rem;
             color: #64748b;
         }
+
+        .dashboard-detail-trigger {
+            cursor: pointer;
+            transition: transform 0.18s ease, box-shadow 0.18s ease;
+        }
+
+        .dashboard-detail-trigger:hover,
+        .dashboard-detail-trigger:focus-visible {
+            transform: translateY(-2px);
+            box-shadow: 0 14px 28px rgba(15, 23, 42, 0.08);
+        }
+
+        .dashboard-detail-trigger:focus-visible {
+            outline: 2px solid #1d4ed8;
+            outline-offset: 2px;
+        }
+
+        .dashboard-detail-modal .modal-dialog {
+            max-width: 1100px;
+        }
+
+        .dashboard-detail-modal .modal-title {
+            font-size: 1.05rem;
+            font-weight: 700;
+            color: #0f172a;
+        }
+
+        .dashboard-detail-summary {
+            font-size: 0.83rem;
+            color: #64748b;
+        }
+
+        .dashboard-sortable {
+            cursor: pointer;
+            user-select: none;
+        }
+
+        .dashboard-sortable .sort-indicator {
+            margin-left: 6px;
+            color: #94a3b8;
+            font-size: 0.68rem;
+            vertical-align: middle;
+        }
+
+        .dashboard-sortable.is-active .sort-indicator {
+            color: #1d4ed8;
+        }
     </style>
     <!--! HTML5 shim and Respond.js for IE8 support of HTML5 elements and media queries !-->
     <!--! WARNING: Respond.js doesn"t work if you view the page via file: !-->
@@ -2325,7 +2372,7 @@
                 </div>
                 <div class="row g-3 mb-4">
                     <div class="col-xxl-3 col-lg-6">
-                        <div class="card stretch stretch-full inventory-metric-card">
+                        <div class="card stretch stretch-full inventory-metric-card dashboard-detail-trigger" data-dashboard-card="total" role="button" tabindex="0" aria-label="Lihat detail total perangkat">
                             <div class="card-body">
                                 <div class="metric-label">Total Perangkat</div>
                                 <p class="metric-value" id="dashboardMetricTotal">-</p>
@@ -2334,7 +2381,7 @@
                         </div>
                     </div>
                     <div class="col-xxl-3 col-lg-6">
-                        <div class="card stretch stretch-full inventory-metric-card">
+                        <div class="card stretch stretch-full inventory-metric-card dashboard-detail-trigger" data-dashboard-card="active" role="button" tabindex="0" aria-label="Lihat detail perangkat active">
                             <div class="card-body">
                                 <div class="d-flex align-items-center justify-content-between gap-2">
                                     <div class="metric-label mb-0">Status Active</div>
@@ -2346,7 +2393,7 @@
                         </div>
                     </div>
                     <div class="col-xxl-3 col-lg-6">
-                        <div class="card stretch stretch-full inventory-metric-card">
+                        <div class="card stretch stretch-full inventory-metric-card dashboard-detail-trigger" data-dashboard-card="expired" role="button" tabindex="0" aria-label="Lihat detail perangkat expired">
                             <div class="card-body">
                                 <div class="d-flex align-items-center justify-content-between gap-2">
                                     <div class="metric-label mb-0">Status Expired</div>
@@ -2358,7 +2405,7 @@
                         </div>
                     </div>
                     <div class="col-xxl-3 col-lg-6">
-                        <div class="card stretch stretch-full inventory-metric-card">
+                        <div class="card stretch stretch-full inventory-metric-card dashboard-detail-trigger" data-dashboard-card="back-to-kddi" role="button" tabindex="0" aria-label="Lihat detail perangkat Back To KDDI">
                             <div class="card-body">
                                 <div class="d-flex align-items-center justify-content-between gap-2">
                                     <div class="metric-label mb-0">Back To KDDI</div>
@@ -2372,7 +2419,7 @@
                 </div>
                 <div class="row g-3 mb-4">
                     <div class="col-xl-3 col-md-6">
-                        <div class="card stretch stretch-full inventory-metric-card">
+                        <div class="card stretch stretch-full inventory-metric-card dashboard-detail-trigger" data-dashboard-card="laptop" role="button" tabindex="0" aria-label="Lihat detail kategori laptop">
                             <div class="card-body">
                                 <div class="metric-label">Kategori Laptop</div>
                                 <p class="metric-value" id="dashboardMetricLaptop">-</p>
@@ -2381,7 +2428,7 @@
                         </div>
                     </div>
                     <div class="col-xl-3 col-md-6">
-                        <div class="card stretch stretch-full inventory-metric-card">
+                        <div class="card stretch stretch-full inventory-metric-card dashboard-detail-trigger" data-dashboard-card="desktop" role="button" tabindex="0" aria-label="Lihat detail kategori desktop">
                             <div class="card-body">
                                 <div class="metric-label">Kategori Desktop</div>
                                 <p class="metric-value" id="dashboardMetricDesktop">-</p>
@@ -2390,7 +2437,7 @@
                         </div>
                     </div>
                     <div class="col-xl-3 col-md-6">
-                        <div class="card stretch stretch-full inventory-metric-card">
+                        <div class="card stretch stretch-full inventory-metric-card dashboard-detail-trigger" data-dashboard-card="expiring-soon" role="button" tabindex="0" aria-label="Lihat detail perangkat akan expired">
                             <div class="card-body">
                                 <div class="metric-label">Akan Expired <= 28 Hari</div>
                                 <p class="metric-value text-warning" id="dashboardMetricExpiringSoon">-</p>
@@ -2399,7 +2446,7 @@
                         </div>
                     </div>
                     <div class="col-xl-3 col-md-6">
-                        <div class="card stretch stretch-full inventory-metric-card">
+                        <div class="card stretch stretch-full inventory-metric-card dashboard-detail-trigger" data-dashboard-card="site-count" role="button" tabindex="0" aria-label="Lihat detail jumlah site">
                             <div class="card-body">
                                 <div class="metric-label">Jumlah Site</div>
                                 <p class="metric-value" id="dashboardMetricSiteCount">-</p>
@@ -3689,6 +3736,43 @@
     <!--! ================================================================ !-->
     <!--! [End] Theme Customizer !-->
     <!--! ================================================================ !-->
+    <div class="modal fade dashboard-detail-modal" id="dashboardDetailModal" tabindex="-1" aria-labelledby="dashboardDetailTitle" aria-hidden="true">
+        <div class="modal-dialog modal-dialog-centered modal-dialog-scrollable">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <div>
+                        <h5 class="modal-title" id="dashboardDetailTitle">Detail Data Perangkat</h5>
+                        <p class="dashboard-detail-summary mb-0" id="dashboardDetailSummary">Memuat detail data...</p>
+                    </div>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+                <div class="modal-body pt-0">
+                    <div class="table-responsive">
+                        <table class="table dashboard-table align-middle mb-0">
+                            <thead id="dashboardDetailTableHead">
+                                <tr>
+                                    <th>No</th>
+                                    <th>Department</th>
+                                    <th>PIC Name</th>
+                                    <th>Serial No.</th>
+                                    <th>Category</th>
+                                    <th>Model</th>
+                                    <th>Host Name</th>
+                                    <th>Days Lease</th>
+                                    <th>Lease Status</th>
+                                </tr>
+                            </thead>
+                            <tbody id="dashboardDetailTableBody">
+                                <tr>
+                                    <td colspan="9" class="text-center text-muted py-4">Memuat data detail...</td>
+                                </tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
     <!--! ================================================================ !-->
     <!--! Footer Script !-->
     <!--! ================================================================ !-->
@@ -3743,6 +3827,12 @@
             const dashboardMetricDesktop = document.getElementById("dashboardMetricDesktop");
             const dashboardMetricExpiringSoon = document.getElementById("dashboardMetricExpiringSoon");
             const dashboardMetricSiteCount = document.getElementById("dashboardMetricSiteCount");
+            const dashboardDetailTriggers = document.querySelectorAll(".dashboard-detail-trigger[data-dashboard-card]");
+            const dashboardDetailModal = document.getElementById("dashboardDetailModal");
+            const dashboardDetailTitle = document.getElementById("dashboardDetailTitle");
+            const dashboardDetailSummary = document.getElementById("dashboardDetailSummary");
+            const dashboardDetailTableHead = document.getElementById("dashboardDetailTableHead");
+            const dashboardDetailTableBody = document.getElementById("dashboardDetailTableBody");
             const dashboardSiteSummaryList = document.getElementById("dashboardSiteSummaryList");
             const dashboardExpiringBody = document.getElementById("dashboardExpiringBody");
             const dashboardExpiringSoonBadge = document.getElementById("dashboardExpiringSoonBadge");
@@ -3751,6 +3841,10 @@
             let flowPendingPollTimer = null;
             let dashboardSummaryPollTimer = null;
             let dashboardSiteChart = null;
+            let dashboardSummaryCache = null;
+            let dashboardDetailModalInstance = null;
+            let dashboardDetailCurrent = null;
+            let dashboardDetailSort = { key: "", direction: "asc" };
 
             if (!inlineContainer || !inlineFrame || !mainContent || !pageTitle || breadcrumbItems.length < 2) {
                 return;
@@ -3945,6 +4039,332 @@
                     .replaceAll("'", "&#39;");
             }
 
+            function normalizeLeaseStatus(value) {
+                const normalized = String(value || "")
+                    .trim()
+                    .toUpperCase()
+                    .replaceAll("_", " ")
+                    .replace(/\s+/g, " ");
+                return normalized;
+            }
+
+            function getDashboardSummaryDevices() {
+                if (!dashboardSummaryCache || !Array.isArray(dashboardSummaryCache.devices)) {
+                    return [];
+                }
+
+                return dashboardSummaryCache.devices;
+            }
+
+            function getDashboardSummaryBySite() {
+                if (!dashboardSummaryCache || !Array.isArray(dashboardSummaryCache.bySite)) {
+                    return [];
+                }
+
+                return dashboardSummaryCache.bySite;
+            }
+
+            function buildDashboardDeviceRows(devices) {
+                return devices.map((device) => {
+                    const numericDaysLease = Number(device?.daysLease);
+                    return {
+                        siteCode: toDisplayText(device?.siteCode),
+                        picName: toDisplayText(device?.picName),
+                        serialNo: toDisplayText(device?.serialNo),
+                        category: toDisplayText(device?.category),
+                        model: toDisplayText(device?.model),
+                        hostName: toDisplayText(device?.hostName),
+                        daysLease: Number.isFinite(numericDaysLease) ? numericDaysLease : null,
+                        leaseStatus: toDisplayText(device?.leaseStatus),
+                    };
+                });
+            }
+
+            function buildDashboardSiteRows(bySite) {
+                return bySite.map((site) => ({
+                    siteCode: toDisplayText(site?.siteCode),
+                    total: Number(site?.total) || 0,
+                    active: Number(site?.active) || 0,
+                    expired: Number(site?.expired) || 0,
+                    backToKddi: Number(site?.backToKddi) || 0,
+                    expiringSoon: Number(site?.expiringSoon) || 0,
+                }));
+            }
+
+            function getDashboardLeaseStatusBadge(status) {
+                const normalized = normalizeLeaseStatus(status);
+                let classes = "bg-soft-secondary text-secondary";
+
+                if (normalized === "ACTIVE") {
+                    classes = "bg-soft-success text-success";
+                } else if (normalized === "EXPIRED") {
+                    classes = "bg-soft-danger text-danger";
+                } else if (normalized === "BACK TO KDDI") {
+                    classes = "bg-soft-warning text-warning";
+                }
+
+                return `<span class="badge ${classes}">${escapeHtml(toDisplayText(status))}</span>`;
+            }
+
+            function sortDashboardDetailRows(detail) {
+                const rows = Array.isArray(detail?.rows) ? [...detail.rows] : [];
+                if (!dashboardDetailSort.key) {
+                    return rows;
+                }
+
+                const sortColumn = detail.columns.find((column) => column.key === dashboardDetailSort.key && column.sortable);
+                if (!sortColumn) {
+                    return rows;
+                }
+
+                const direction = dashboardDetailSort.direction === "desc" ? -1 : 1;
+                rows.sort((leftRow, rightRow) => {
+                    const leftValue = leftRow?.[sortColumn.key];
+                    const rightValue = rightRow?.[sortColumn.key];
+
+                    if (sortColumn.type === "number") {
+                        const leftNum = Number(leftValue);
+                        const rightNum = Number(rightValue);
+                        const leftValid = Number.isFinite(leftNum);
+                        const rightValid = Number.isFinite(rightNum);
+
+                        if (!leftValid && !rightValid) return 0;
+                        if (!leftValid) return 1;
+                        if (!rightValid) return -1;
+                        return (leftNum - rightNum) * direction;
+                    }
+
+                    const leftText = String(leftValue || "").trim();
+                    const rightText = String(rightValue || "").trim();
+                    return leftText.localeCompare(rightText, "id", { sensitivity: "base" }) * direction;
+                });
+
+                return rows;
+            }
+
+            function renderDashboardDetailTable(detail) {
+                if (!dashboardDetailTableHead || !dashboardDetailTableBody || !detail) {
+                    return;
+                }
+
+                const columns = Array.isArray(detail.columns) ? detail.columns : [];
+                const sortedRows = sortDashboardDetailRows(detail);
+
+                dashboardDetailTableHead.innerHTML = `
+                    <tr>
+                        ${columns.map((column) => {
+                            if (!column.sortable) {
+                                return `<th>${escapeHtml(column.label)}</th>`;
+                            }
+
+                            const isActiveSort = dashboardDetailSort.key === column.key;
+                            const indicator = isActiveSort
+                                ? (dashboardDetailSort.direction === "desc" ? "↓" : "↑")
+                                : "↕";
+                            const activeClass = isActiveSort ? " is-active" : "";
+
+                            return `<th class="dashboard-sortable${activeClass}" data-dashboard-sort-key="${escapeHtml(column.key)}">${escapeHtml(column.label)} <span class="sort-indicator">${indicator}</span></th>`;
+                        }).join("")}
+                    </tr>
+                `;
+
+                dashboardDetailTableHead.querySelectorAll("[data-dashboard-sort-key]").forEach((header) => {
+                    header.addEventListener("click", () => {
+                        const sortKey = String(header.getAttribute("data-dashboard-sort-key") || "").trim();
+                        if (!sortKey) {
+                            return;
+                        }
+
+                        if (dashboardDetailSort.key === sortKey) {
+                            dashboardDetailSort.direction = dashboardDetailSort.direction === "asc" ? "desc" : "asc";
+                        } else {
+                            dashboardDetailSort.key = sortKey;
+                            dashboardDetailSort.direction = "asc";
+                        }
+
+                        renderDashboardDetailTable(detail);
+                    });
+                });
+
+                if (sortedRows.length === 0) {
+                    dashboardDetailTableBody.innerHTML = `
+                        <tr>
+                            <td colspan="${columns.length}" class="text-center text-muted py-4">${escapeHtml(toDisplayText(detail.emptyMessage || "Tidak ada data untuk ditampilkan."))}</td>
+                        </tr>
+                    `;
+                    return;
+                }
+
+                dashboardDetailTableBody.innerHTML = sortedRows.map((row, index) => `
+                    <tr>
+                        ${columns.map((column) => {
+                            if (column.key === "__rownum") {
+                                return `<td>${index + 1}</td>`;
+                            }
+
+                            if (column.key === "leaseStatus") {
+                                return `<td>${getDashboardLeaseStatusBadge(row?.[column.key])}</td>`;
+                            }
+
+                            if (column.key === "daysLease") {
+                                const numericDaysLease = Number(row?.daysLease);
+                                return `<td>${Number.isFinite(numericDaysLease) ? formatNumber(numericDaysLease) : "-"}</td>`;
+                            }
+
+                            return `<td>${escapeHtml(toDisplayText(row?.[column.key]))}</td>`;
+                        }).join("")}
+                    </tr>
+                `).join("");
+            }
+
+            function resolveDashboardDetailContent(cardKey) {
+                const devices = getDashboardSummaryDevices();
+                const bySite = getDashboardSummaryBySite();
+
+                const deviceColumns = [
+                    { key: "__rownum", label: "No", sortable: false },
+                    { key: "siteCode", label: "Department", sortable: true, type: "text" },
+                    { key: "picName", label: "PIC Name", sortable: true, type: "text" },
+                    { key: "serialNo", label: "Serial No.", sortable: true, type: "text" },
+                    { key: "category", label: "Category", sortable: true, type: "text" },
+                    { key: "model", label: "Model", sortable: true, type: "text" },
+                    { key: "hostName", label: "Host Name", sortable: true, type: "text" },
+                    { key: "daysLease", label: "Days Lease", sortable: true, type: "number" },
+                    { key: "leaseStatus", label: "Lease Status", sortable: true, type: "text" },
+                ];
+
+                if (cardKey === "site-count") {
+                    return {
+                        title: "Detail Jumlah Site",
+                        summary: `Total ${formatNumber(bySite.length)} site yang memiliki perangkat approved.`,
+                        columns: [
+                            { key: "__rownum", label: "No", sortable: false },
+                            { key: "siteCode", label: "Department", sortable: true, type: "text" },
+                            { key: "total", label: "Total Device", sortable: true, type: "number" },
+                            { key: "active", label: "Active", sortable: true, type: "number" },
+                            { key: "expired", label: "Expired", sortable: true, type: "number" },
+                            { key: "backToKddi", label: "Back To KDDI", sortable: true, type: "number" },
+                            { key: "expiringSoon", label: "Akan Expired <= 28 Hari", sortable: true, type: "number" },
+                        ],
+                        rows: buildDashboardSiteRows(bySite),
+                        emptyMessage: "Tidak ada data site untuk ditampilkan.",
+                        defaultSort: { key: "total", direction: "desc" },
+                    };
+                }
+
+                let filteredDevices = devices;
+                let title = "Detail Total Perangkat";
+                let summaryText = `Total ${formatNumber(devices.length)} perangkat approved.`;
+
+                if (cardKey === "active") {
+                    filteredDevices = devices.filter((device) => normalizeLeaseStatus(device?.leaseStatus) === "ACTIVE");
+                    title = "Detail Status Active";
+                    summaryText = `Menampilkan ${formatNumber(filteredDevices.length)} perangkat dengan status Active.`;
+                } else if (cardKey === "expired") {
+                    filteredDevices = devices.filter((device) => normalizeLeaseStatus(device?.leaseStatus) === "EXPIRED");
+                    title = "Detail Status Expired";
+                    summaryText = `Menampilkan ${formatNumber(filteredDevices.length)} perangkat dengan status Expired.`;
+                } else if (cardKey === "back-to-kddi") {
+                    filteredDevices = devices.filter((device) => normalizeLeaseStatus(device?.leaseStatus) === "BACK TO KDDI");
+                    title = "Detail Back To KDDI";
+                    summaryText = `Menampilkan ${formatNumber(filteredDevices.length)} perangkat dengan status Back To KDDI.`;
+                } else if (cardKey === "laptop") {
+                    filteredDevices = devices.filter((device) => String(device?.category || "").trim().toUpperCase() === "LAPTOP");
+                    title = "Detail Kategori Laptop";
+                    summaryText = `Menampilkan ${formatNumber(filteredDevices.length)} perangkat kategori Laptop.`;
+                } else if (cardKey === "desktop") {
+                    filteredDevices = devices.filter((device) => String(device?.category || "").trim().toUpperCase() === "DESKTOP");
+                    title = "Detail Kategori Desktop";
+                    summaryText = `Menampilkan ${formatNumber(filteredDevices.length)} perangkat kategori Desktop.`;
+                } else if (cardKey === "expiring-soon") {
+                    filteredDevices = devices.filter((device) => {
+                        const numericDaysLease = Number(device?.daysLease);
+                        const normalizedLeaseStatus = normalizeLeaseStatus(device?.leaseStatus);
+                        return Number.isFinite(numericDaysLease)
+                            && numericDaysLease > 0
+                            && numericDaysLease <= 28
+                            && normalizedLeaseStatus !== "BACK TO KDDI";
+                    });
+                    title = "Detail Perangkat Akan Expired <= 28 Hari";
+                    summaryText = `Menampilkan ${formatNumber(filteredDevices.length)} perangkat yang akan expired dalam 28 hari.`;
+                }
+
+                return {
+                    title,
+                    summary: summaryText,
+                    columns: deviceColumns,
+                    rows: buildDashboardDeviceRows(filteredDevices),
+                    emptyMessage: "Tidak ada data perangkat untuk filter ini.",
+                    defaultSort: { key: "siteCode", direction: "asc" },
+                };
+            }
+
+            function showDashboardDetailModal() {
+                if (!dashboardDetailModal) {
+                    return;
+                }
+
+                const ModalCtor = window.bootstrap?.Modal;
+                if (typeof ModalCtor === "function") {
+                    if (!dashboardDetailModalInstance) {
+                        dashboardDetailModalInstance = ModalCtor.getOrCreateInstance(dashboardDetailModal);
+                    }
+                    dashboardDetailModalInstance.show();
+                    return;
+                }
+
+                dashboardDetailModal.style.display = "block";
+                dashboardDetailModal.classList.add("show");
+                dashboardDetailModal.removeAttribute("aria-hidden");
+            }
+
+            function openDashboardDetail(cardKey) {
+                if (!dashboardDetailModal || !dashboardDetailTitle || !dashboardDetailSummary) {
+                    return;
+                }
+
+                const detail = resolveDashboardDetailContent(String(cardKey || "").trim().toLowerCase());
+                dashboardDetailCurrent = detail;
+                dashboardDetailSort = {
+                    key: detail?.defaultSort?.key || "",
+                    direction: detail?.defaultSort?.direction === "desc" ? "desc" : "asc",
+                };
+                dashboardDetailTitle.textContent = detail.title;
+                dashboardDetailSummary.textContent = detail.summary;
+                renderDashboardDetailTable(dashboardDetailCurrent);
+                showDashboardDetailModal();
+            }
+
+            function initializeDashboardDetailTriggers() {
+                if (!dashboardDetailTriggers.length) {
+                    return;
+                }
+
+                dashboardDetailTriggers.forEach((trigger) => {
+                    if (!(trigger instanceof HTMLElement)) {
+                        return;
+                    }
+
+                    const cardKey = trigger.getAttribute("data-dashboard-card");
+                    if (!cardKey) {
+                        return;
+                    }
+
+                    trigger.addEventListener("click", () => {
+                        openDashboardDetail(cardKey);
+                    });
+
+                    trigger.addEventListener("keydown", (event) => {
+                        if (event.key !== "Enter" && event.key !== " ") {
+                            return;
+                        }
+
+                        event.preventDefault();
+                        openDashboardDetail(cardKey);
+                    });
+                });
+            }
+
             function formatDateTime(value) {
                 if (!value) {
                     return "-";
@@ -4133,6 +4553,14 @@
                 const category = totals?.category || {};
                 const bySite = Array.isArray(summary?.bySite) ? summary.bySite : [];
                 const expiringSoonDevices = Array.isArray(summary?.expiringSoonDevices) ? summary.expiringSoonDevices : [];
+                const devices = Array.isArray(summary?.devices) ? summary.devices : [];
+
+                dashboardSummaryCache = {
+                    totals,
+                    bySite,
+                    expiringSoonDevices,
+                    devices,
+                };
 
                 setMetricValue(dashboardMetricTotal, totals?.all);
                 setMetricValue(dashboardMetricActive, status?.active);
@@ -4292,6 +4720,7 @@
             applyRoleBasedNavigation();
             setActiveNav(dashboardLink);
             setActiveBreadcrumb(pageTitle.textContent.trim());
+            initializeDashboardDetailTriggers();
             startFlowPendingBadgePolling();
             startDashboardSummaryPolling();
 
