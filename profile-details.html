@@ -38,6 +38,16 @@
             border-radius: 999px;
             border: 3px solid #dbeafe;
         }
+
+        body.popup-mode .page-shell {
+            min-height: auto;
+            padding: 16px 0;
+            background: transparent;
+        }
+
+        body.popup-mode .profile-header-back {
+            display: none !important;
+        }
     </style>
 </head>
 
@@ -49,7 +59,7 @@
                     <h2 class="mb-1">Profile Details</h2>
                     <p class="text-muted mb-0">Anda bisa mengubah Foto Profile, Contact, Rank, dan Password (wajib isi password lama).</p>
                 </div>
-                <a href="index.html" class="btn btn-light border">Kembali ke Dashboard</a>
+                <a href="index.html" class="btn btn-light border profile-header-back" id="profileBackButton">Kembali ke Dashboard</a>
             </div>
 
             <div id="alertBox" class="alert d-none" role="alert"></div>
@@ -107,6 +117,7 @@
     <script>
         const API_BASE = `${window.location.protocol === "https:" ? "https:" : "http:"}//${window.location.hostname || "localhost"}:3001/api`;
         const DEFAULT_AVATAR = "assets/images/avatar/1.png";
+        const isPopupMode = new URLSearchParams(window.location.search).get("popup") === "1";
 
         const alertBox = document.getElementById("alertBox");
         const profileForm = document.getElementById("profileForm");
@@ -122,6 +133,18 @@
 
         let currentUser = null;
         let selectedProfilePhotoDataUrl = "";
+
+        function notifyParentProfileUpdated() {
+            if (!isPopupMode || !window.parent || window.parent === window) {
+                return;
+            }
+
+            try {
+                window.parent.postMessage({ type: "profile-updated" }, window.location.origin);
+            } catch (_error) {
+                // Ignore postMessage errors in popup mode.
+            }
+        }
 
         async function apiFetch(url, options = {}) {
             if (window.AuthClient) {
@@ -316,6 +339,7 @@
                 currentPasswordInput.value = "";
                 passwordInput.value = "";
                 renderForm();
+                notifyParentProfileUpdated();
                 showAlert("Profile berhasil diperbarui.", "success");
             } catch (error) {
                 showAlert(error.message || "Gagal menyimpan profile.", "danger");
@@ -338,6 +362,9 @@
 
         profilePhotoInput.addEventListener("change", handlePhotoChange);
         profileForm.addEventListener("submit", handleSubmit);
+        if (isPopupMode) {
+            document.body.classList.add("popup-mode");
+        }
         initialize();
     </script>
 </body>

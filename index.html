@@ -333,6 +333,27 @@
             text-transform: uppercase;
             letter-spacing: 0.03em;
         }
+
+        .profile-detail-modal .modal-dialog {
+            max-width: 960px;
+        }
+
+        .profile-detail-modal .modal-content {
+            overflow: hidden;
+            border-radius: 12px;
+        }
+
+        .profile-detail-modal .modal-header {
+            padding: 0.75rem 1rem;
+        }
+
+        .profile-detail-frame {
+            width: 100%;
+            height: min(80vh, 740px);
+            border: 0;
+            display: block;
+            background: #fff;
+        }
     </style>
     <!--! HTML5 shim and Respond.js for IE8 support of HTML5 elements and media queries !-->
     <!--! WARNING: Respond.js doesn"t work if you view the page via file: !-->
@@ -3509,6 +3530,19 @@
             </div>
         </div>
     </div>
+    <div class="modal fade profile-detail-modal" id="profileDetailModal" tabindex="-1" aria-labelledby="profileDetailModalTitle" aria-hidden="true">
+        <div class="modal-dialog modal-dialog-centered modal-dialog-scrollable">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title" id="profileDetailModalTitle">Profile Details</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+                <div class="modal-body p-0">
+                    <iframe id="profileDetailFrame" class="profile-detail-frame" src="about:blank" title="Profile Details"></iframe>
+                </div>
+            </div>
+        </div>
+    </div>
     <!--! ================================================================ !-->
     <!--! Footer Script !-->
     <!--! ================================================================ !-->
@@ -3583,6 +3617,8 @@
             const dashboardDetailSummary = document.getElementById("dashboardDetailSummary");
             const dashboardDetailTableHead = document.getElementById("dashboardDetailTableHead");
             const dashboardDetailTableBody = document.getElementById("dashboardDetailTableBody");
+            const profileDetailModal = document.getElementById("profileDetailModal");
+            const profileDetailFrame = document.getElementById("profileDetailFrame");
             const dashboardSiteSummaryList = document.getElementById("dashboardSiteSummaryList");
             const dashboardExpiringBody = document.getElementById("dashboardExpiringBody");
             const dashboardExpiringSoonBadge = document.getElementById("dashboardExpiringSoonBadge");
@@ -3596,6 +3632,7 @@
             let dashboardSiteChart = null;
             let dashboardSummaryCache = null;
             let dashboardDetailModalInstance = null;
+            let profileDetailModalInstance = null;
             let dashboardDetailCurrent = null;
             let dashboardDetailSort = { key: "", direction: "asc" };
             let dashboardExpiringRowsCache = [];
@@ -3757,6 +3794,50 @@
                 }
 
                 DropdownCtor.getOrCreateInstance(headerSearchToggle).hide();
+            }
+
+            function closeUserDropdownMenu() {
+                if (!profileDetailsLink) {
+                    return;
+                }
+
+                const dropdownRoot = profileDetailsLink.closest(".dropdown");
+                const dropdownToggle = dropdownRoot?.querySelector(':scope > [data-bs-toggle="dropdown"]');
+                if (!(dropdownToggle instanceof HTMLElement)) {
+                    return;
+                }
+
+                const DropdownCtor = window.bootstrap?.Dropdown;
+                if (typeof DropdownCtor !== "function") {
+                    return;
+                }
+
+                DropdownCtor.getOrCreateInstance(dropdownToggle).hide();
+            }
+
+            function openProfileDetailsModal() {
+                if (!profileDetailModal || !profileDetailFrame) {
+                    window.location.href = "profile-details.html";
+                    return;
+                }
+
+                closeUserDropdownMenu();
+
+                const ModalCtor = window.bootstrap?.Modal;
+                const popupUrl = "profile-details.html?popup=1";
+                if (profileDetailFrame.getAttribute("src") !== popupUrl) {
+                    profileDetailFrame.setAttribute("src", popupUrl);
+                }
+
+                if (typeof ModalCtor !== "function") {
+                    profileDetailModal.style.display = "block";
+                    profileDetailModal.classList.add("show");
+                    profileDetailModal.removeAttribute("aria-hidden");
+                    return;
+                }
+
+                profileDetailModalInstance = ModalCtor.getOrCreateInstance(profileDetailModal);
+                profileDetailModalInstance.show();
             }
 
             function normalizeHeaderSearchText(value) {
@@ -5479,7 +5560,7 @@
             if (profileDetailsLink) {
                 profileDetailsLink.addEventListener("click", (event) => {
                     event.preventDefault();
-                    window.location.href = "profile-details.html";
+                    openProfileDetailsModal();
                 });
             }
 
@@ -5513,6 +5594,19 @@
                     refreshFlowStatusBadges();
                 });
             }
+
+            window.addEventListener("message", (event) => {
+                if (event.origin !== window.location.origin) {
+                    return;
+                }
+
+                const payload = event.data;
+                if (!payload || payload.type !== "profile-updated") {
+                    return;
+                }
+
+                setDropdownUserProfile();
+            });
 
             window.addEventListener("beforeunload", () => {
                 if (flowPendingPollTimer) {

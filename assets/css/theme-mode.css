@@ -207,6 +207,107 @@ html.app-skin-dark .table-hover > tbody > tr:hover > * {
   color: #eef4ff !important;
 }
 
+/* Master table badge (Site Code) */
+html.app-skin-dark .site-code-badge,
+html.app-skin-dark .table .badge.bg-light.text-dark.border {
+  background: #203454 !important;
+  color: #d7e6ff !important;
+  border-color: #35537e !important;
+}
+
+/* Device form sections (Data Perangkat) */
+html.app-skin-dark .device-form-section {
+  background: #14233b !important;
+  border-color: var(--ci-border-dark) !important;
+}
+
+html.app-skin-dark .device-form-section-title,
+html.app-skin-dark .device-form-layout .form-label {
+  color: #c5d6ef !important;
+}
+
+html.app-skin-dark .device-form-actions {
+  border-top-color: #2b3d5f !important;
+}
+
+html.app-skin-dark .device-form-layout .select2-container--default.select2-container--disabled .select2-selection--single {
+  background-color: #111f37 !important;
+  border-color: var(--ci-border-dark) !important;
+  color: #a9bbd4 !important;
+}
+
+html.app-skin-dark .device-form-layout .select2-container--default .select2-selection--single .select2-selection__placeholder {
+  color: #7f95b3 !important;
+}
+
+/* Data Perangkat / Flow Proses table + filter consistency */
+html.app-skin-dark .device-table-filters,
+html.app-skin-dark .flow-filter-group,
+html.app-skin-dark .flow-table-pagination,
+html.app-skin-dark .device-table-pagination {
+  background: var(--ci-surface-dark) !important;
+  border-color: var(--ci-border-dark) !important;
+}
+
+html.app-skin-dark .device-table-filters .form-label,
+html.app-skin-dark .table-page-size,
+html.app-skin-dark .table-pagination-info,
+html.app-skin-dark .flow-page-size,
+html.app-skin-dark .flow-pagination-info,
+html.app-skin-dark .filter-empty {
+  color: var(--ci-muted-dark) !important;
+}
+
+html.app-skin-dark .filter-dropdown-button,
+html.app-skin-dark .flow-filter-btn,
+html.app-skin-dark .table-sort-btn {
+  color: var(--ci-text-dark) !important;
+  background: #17243d !important;
+  border-color: var(--ci-border-dark) !important;
+}
+
+html.app-skin-dark .flow-filter-btn:hover,
+html.app-skin-dark .table-sort-btn:hover,
+html.app-skin-dark .filter-dropdown-button:hover {
+  background: #1d2d4a !important;
+  color: #edf3ff !important;
+}
+
+html.app-skin-dark .table-sort-btn .table-sort-indicator {
+  color: #89a2c3 !important;
+}
+
+html.app-skin-dark .table-sort-btn.is-active {
+  color: #8fb3ff !important;
+}
+
+html.app-skin-dark .table-sort-btn.is-active .table-sort-indicator {
+  color: #8fb3ff !important;
+}
+
+html.app-skin-dark .filter-search-group .input-group-text,
+html.app-skin-dark .flow-filter-group .input-group-text,
+html.app-skin-dark .filter-search-group .btn,
+html.app-skin-dark .flow-filter-group .btn,
+html.app-skin-dark .filter-search-group .form-control,
+html.app-skin-dark .flow-filter-group .form-control {
+  background: #0f1a2d !important;
+  border-color: var(--ci-border-dark) !important;
+  color: var(--ci-text-dark) !important;
+}
+
+html.app-skin-dark .filter-dropdown-menu,
+html.app-skin-dark .filter-option-item,
+html.app-skin-dark .flow-filter-group .dropdown-menu {
+  background: var(--ci-surface-dark) !important;
+  border-color: var(--ci-border-dark) !important;
+  color: var(--ci-text-dark) !important;
+}
+
+html.app-skin-dark .filter-option-item:hover {
+  background: #1a2843 !important;
+}
+
 html.app-skin-dark .theme-customizer {
   background-color: #111a2f !important;
   border-color: var(--ci-border-dark) !important;
