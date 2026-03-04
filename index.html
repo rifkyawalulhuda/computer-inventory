@@ -127,6 +127,102 @@
             line-height: 1.1;
             vertical-align: middle;
         }
+
+        .inventory-metric-card .metric-label {
+            font-size: 0.74rem;
+            font-weight: 700;
+            letter-spacing: 0.04em;
+            text-transform: uppercase;
+            color: #64748b;
+            margin-bottom: 8px;
+        }
+
+        .inventory-metric-card .metric-value {
+            font-size: 1.95rem;
+            line-height: 1.05;
+            font-weight: 800;
+            color: #0f172a;
+            margin: 0;
+        }
+
+        .inventory-metric-card .metric-subtext {
+            margin-top: 8px;
+            font-size: 0.79rem;
+            color: #64748b;
+        }
+
+        .inventory-metric-card .metric-pill {
+            font-size: 0.68rem;
+            font-weight: 700;
+            letter-spacing: 0.04em;
+            text-transform: uppercase;
+        }
+
+        .dashboard-site-list {
+            list-style: none;
+            margin: 0;
+            padding: 0;
+            display: grid;
+            gap: 10px;
+        }
+
+        .dashboard-site-list li {
+            border: 1px solid #e2e8f0;
+            border-radius: 10px;
+            background: #f8fbff;
+            padding: 10px 12px;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 10px;
+        }
+
+        .dashboard-site-list .site-name {
+            font-size: 0.82rem;
+            font-weight: 700;
+            color: #0f172a;
+        }
+
+        .dashboard-site-list .site-detail {
+            font-size: 0.74rem;
+            color: #64748b;
+        }
+
+        .dashboard-site-list .site-count {
+            font-size: 1rem;
+            font-weight: 800;
+            color: #1d4ed8;
+            min-width: 36px;
+            text-align: right;
+        }
+
+        .dashboard-table th {
+            font-size: 0.72rem;
+            text-transform: uppercase;
+            letter-spacing: 0.03em;
+            color: #475569;
+            white-space: nowrap;
+        }
+
+        .dashboard-table td {
+            white-space: nowrap;
+            font-size: 0.84rem;
+            color: #0f172a;
+        }
+
+        .dashboard-chart-empty {
+            border: 1px dashed #cbd5e1;
+            border-radius: 10px;
+            padding: 24px 12px;
+            text-align: center;
+            color: #64748b;
+            font-size: 0.84rem;
+        }
+
+        .dashboard-generated-at {
+            font-size: 0.75rem;
+            color: #64748b;
+        }
     </style>
     <!--! HTML5 shim and Respond.js for IE8 support of HTML5 elements and media queries !-->
     <!--! WARNING: Respond.js doesn"t work if you view the page via file: !-->
@@ -2227,6 +2323,158 @@
                         </div>
                     </div>
                 </div>
+                <div class="row g-3 mb-4">
+                    <div class="col-xxl-3 col-lg-6">
+                        <div class="card stretch stretch-full inventory-metric-card">
+                            <div class="card-body">
+                                <div class="metric-label">Total Perangkat</div>
+                                <p class="metric-value" id="dashboardMetricTotal">-</p>
+                                <div class="metric-subtext">Data perangkat aktif inventory</div>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="col-xxl-3 col-lg-6">
+                        <div class="card stretch stretch-full inventory-metric-card">
+                            <div class="card-body">
+                                <div class="d-flex align-items-center justify-content-between gap-2">
+                                    <div class="metric-label mb-0">Status Active</div>
+                                    <span class="badge bg-soft-success text-success metric-pill">Active</span>
+                                </div>
+                                <p class="metric-value text-success" id="dashboardMetricActive">-</p>
+                                <div class="metric-subtext">Perangkat yang masih aktif</div>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="col-xxl-3 col-lg-6">
+                        <div class="card stretch stretch-full inventory-metric-card">
+                            <div class="card-body">
+                                <div class="d-flex align-items-center justify-content-between gap-2">
+                                    <div class="metric-label mb-0">Status Expired</div>
+                                    <span class="badge bg-soft-danger text-danger metric-pill">Expired</span>
+                                </div>
+                                <p class="metric-value text-danger" id="dashboardMetricExpired">-</p>
+                                <div class="metric-subtext">Perangkat yang masa lease habis</div>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="col-xxl-3 col-lg-6">
+                        <div class="card stretch stretch-full inventory-metric-card">
+                            <div class="card-body">
+                                <div class="d-flex align-items-center justify-content-between gap-2">
+                                    <div class="metric-label mb-0">Back To KDDI</div>
+                                    <span class="badge bg-soft-warning text-warning metric-pill">Back To KDDI</span>
+                                </div>
+                                <p class="metric-value text-warning" id="dashboardMetricBackToKddi">-</p>
+                                <div class="metric-subtext">Perangkat yang sudah return</div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                <div class="row g-3 mb-4">
+                    <div class="col-xl-3 col-md-6">
+                        <div class="card stretch stretch-full inventory-metric-card">
+                            <div class="card-body">
+                                <div class="metric-label">Kategori Laptop</div>
+                                <p class="metric-value" id="dashboardMetricLaptop">-</p>
+                                <div class="metric-subtext">Jumlah perangkat laptop</div>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="col-xl-3 col-md-6">
+                        <div class="card stretch stretch-full inventory-metric-card">
+                            <div class="card-body">
+                                <div class="metric-label">Kategori Desktop</div>
+                                <p class="metric-value" id="dashboardMetricDesktop">-</p>
+                                <div class="metric-subtext">Jumlah perangkat desktop</div>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="col-xl-3 col-md-6">
+                        <div class="card stretch stretch-full inventory-metric-card">
+                            <div class="card-body">
+                                <div class="metric-label">Akan Expired <= 28 Hari</div>
+                                <p class="metric-value text-warning" id="dashboardMetricExpiringSoon">-</p>
+                                <div class="metric-subtext">Perlu follow-up sebelum expired</div>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="col-xl-3 col-md-6">
+                        <div class="card stretch stretch-full inventory-metric-card">
+                            <div class="card-body">
+                                <div class="metric-label">Jumlah Site</div>
+                                <p class="metric-value" id="dashboardMetricSiteCount">-</p>
+                                <div class="metric-subtext">Site yang memiliki perangkat</div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                <div class="row g-3 mb-4">
+                    <div class="col-xxl-8">
+                        <div class="card stretch stretch-full">
+                            <div class="card-header d-flex align-items-center justify-content-between">
+                                <h5 class="mb-0">Jumlah Perangkat per Site</h5>
+                                <span class="dashboard-generated-at" id="dashboardGeneratedAt">Loading...</span>
+                            </div>
+                            <div class="card-body">
+                                <div id="dashboardSiteChartContainer" style="min-height: 340px;">
+                                    <div id="dashboardSiteChart"></div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="col-xxl-4">
+                        <div class="card stretch stretch-full">
+                            <div class="card-header">
+                                <h5 class="mb-0">Ringkasan Site</h5>
+                            </div>
+                            <div class="card-body">
+                                <ul class="dashboard-site-list" id="dashboardSiteSummaryList">
+                                    <li>
+                                        <div>
+                                            <div class="site-name">Loading...</div>
+                                            <div class="site-detail">Memuat data site</div>
+                                        </div>
+                                        <div class="site-count">-</div>
+                                    </li>
+                                </ul>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                <div class="row mb-4">
+                    <div class="col-12">
+                        <div class="card stretch stretch-full">
+                            <div class="card-header d-flex align-items-center justify-content-between">
+                                <h5 class="mb-0">Perangkat Akan Expired (<= 28 Hari)</h5>
+                                <span class="badge bg-soft-warning text-warning" id="dashboardExpiringSoonBadge">0 Device</span>
+                            </div>
+                            <div class="card-body">
+                                <div class="table-responsive">
+                                    <table class="table dashboard-table align-middle mb-0">
+                                        <thead>
+                                            <tr>
+                                                <th>No</th>
+                                                <th>Site</th>
+                                                <th>PIC Name</th>
+                                                <th>Serial No.</th>
+                                                <th>Category</th>
+                                                <th>Model</th>
+                                                <th>Host Name</th>
+                                                <th>Sisa Hari</th>
+                                                <th>End Date</th>
+                                            </tr>
+                                        </thead>
+                                        <tbody id="dashboardExpiringBody">
+                                            <tr>
+                                                <td colspan="9" class="text-center text-muted py-4">Memuat data perangkat...</td>
+                                            </tr>
+                                        </tbody>
+                                    </table>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
                 <div class="row d-none">
                     <!-- [Invoices Awaiting Payment] start -->
                     <div class="col-xxl-3 col-md-6">
@@ -3487,7 +3735,22 @@
             const flowPendingBadges = document.querySelectorAll('[data-flow-pending-badge="true"]');
             const flowRejectedBadges = document.querySelectorAll('[data-flow-rejected-badge="true"]');
             const API_BASE = `${window.location.protocol === "https:" ? "https:" : "http:"}//${window.location.hostname || "localhost"}:3001/api`;
+            const dashboardMetricTotal = document.getElementById("dashboardMetricTotal");
+            const dashboardMetricActive = document.getElementById("dashboardMetricActive");
+            const dashboardMetricExpired = document.getElementById("dashboardMetricExpired");
+            const dashboardMetricBackToKddi = document.getElementById("dashboardMetricBackToKddi");
+            const dashboardMetricLaptop = document.getElementById("dashboardMetricLaptop");
+            const dashboardMetricDesktop = document.getElementById("dashboardMetricDesktop");
+            const dashboardMetricExpiringSoon = document.getElementById("dashboardMetricExpiringSoon");
+            const dashboardMetricSiteCount = document.getElementById("dashboardMetricSiteCount");
+            const dashboardSiteSummaryList = document.getElementById("dashboardSiteSummaryList");
+            const dashboardExpiringBody = document.getElementById("dashboardExpiringBody");
+            const dashboardExpiringSoonBadge = document.getElementById("dashboardExpiringSoonBadge");
+            const dashboardGeneratedAt = document.getElementById("dashboardGeneratedAt");
+            const dashboardSiteChartContainer = document.getElementById("dashboardSiteChartContainer");
             let flowPendingPollTimer = null;
+            let dashboardSummaryPollTimer = null;
+            let dashboardSiteChart = null;
 
             if (!inlineContainer || !inlineFrame || !mainContent || !pageTitle || breadcrumbItems.length < 2) {
                 return;
@@ -3659,6 +3922,299 @@
                 });
             }
 
+            function formatNumber(value) {
+                const number = Number(value);
+                if (!Number.isFinite(number)) {
+                    return "0";
+                }
+
+                return number.toLocaleString("id-ID");
+            }
+
+            function toDisplayText(value) {
+                const text = String(value || "").trim();
+                return text || "-";
+            }
+
+            function escapeHtml(value) {
+                return String(value ?? "")
+                    .replaceAll("&", "&amp;")
+                    .replaceAll("<", "&lt;")
+                    .replaceAll(">", "&gt;")
+                    .replaceAll('"', "&quot;")
+                    .replaceAll("'", "&#39;");
+            }
+
+            function formatDateTime(value) {
+                if (!value) {
+                    return "-";
+                }
+
+                const date = value instanceof Date ? value : new Date(value);
+                if (Number.isNaN(date.getTime())) {
+                    return "-";
+                }
+
+                return date.toLocaleString("id-ID", {
+                    year: "numeric",
+                    month: "2-digit",
+                    day: "2-digit",
+                    hour: "2-digit",
+                    minute: "2-digit",
+                });
+            }
+
+            function setMetricValue(element, value) {
+                if (!element) {
+                    return;
+                }
+
+                element.textContent = formatNumber(value);
+            }
+
+            function renderDashboardSiteList(bySite) {
+                if (!dashboardSiteSummaryList) {
+                    return;
+                }
+
+                if (!Array.isArray(bySite) || bySite.length === 0) {
+                    dashboardSiteSummaryList.innerHTML = `
+                        <li>
+                            <div>
+                                <div class="site-name">Belum ada data</div>
+                                <div class="site-detail">Tidak ada perangkat untuk ditampilkan.</div>
+                            </div>
+                            <div class="site-count">0</div>
+                        </li>
+                    `;
+                    return;
+                }
+
+                dashboardSiteSummaryList.innerHTML = bySite.slice(0, 8).map((site) => {
+                    const siteCode = toDisplayText(site?.siteCode);
+                    const total = Number(site?.total) || 0;
+                    const active = Number(site?.active) || 0;
+                    const expired = Number(site?.expired) || 0;
+                    const backToKddi = Number(site?.backToKddi) || 0;
+                    const expiringSoon = Number(site?.expiringSoon) || 0;
+
+                    return `
+                        <li>
+                            <div>
+                                <div class="site-name">${escapeHtml(siteCode)}</div>
+                                <div class="site-detail">A:${formatNumber(active)} | E:${formatNumber(expired)} | B:${formatNumber(backToKddi)} | Soon:${formatNumber(expiringSoon)}</div>
+                            </div>
+                            <div class="site-count">${formatNumber(total)}</div>
+                        </li>
+                    `;
+                }).join("");
+            }
+
+            function renderDashboardExpiringTable(expiringSoonDevices) {
+                if (!dashboardExpiringBody) {
+                    return;
+                }
+
+                if (!Array.isArray(expiringSoonDevices) || expiringSoonDevices.length === 0) {
+                    dashboardExpiringBody.innerHTML = `
+                        <tr>
+                            <td colspan="9" class="text-center text-muted py-4">Tidak ada perangkat yang akan expired dalam 28 hari.</td>
+                        </tr>
+                    `;
+                    return;
+                }
+
+                dashboardExpiringBody.innerHTML = expiringSoonDevices.slice(0, 20).map((row, index) => `
+                    <tr>
+                        <td>${index + 1}</td>
+                        <td>${escapeHtml(toDisplayText(row?.siteCode))}</td>
+                        <td>${escapeHtml(toDisplayText(row?.picName))}</td>
+                        <td>${escapeHtml(toDisplayText(row?.serialNo))}</td>
+                        <td>${escapeHtml(toDisplayText(row?.category))}</td>
+                        <td>${escapeHtml(toDisplayText(row?.model))}</td>
+                        <td>${escapeHtml(toDisplayText(row?.hostName))}</td>
+                        <td><span class="badge bg-soft-warning text-warning">${formatNumber(row?.daysLease)} hari</span></td>
+                        <td>${escapeHtml(toDisplayText(row?.endDate))}</td>
+                    </tr>
+                `).join("");
+            }
+
+            function renderDashboardSiteChart(bySite) {
+                if (!dashboardSiteChartContainer) {
+                    return;
+                }
+
+                const chartTarget = document.getElementById("dashboardSiteChart");
+                if (!chartTarget) {
+                    return;
+                }
+
+                const ApexChartsCtor = window.ApexCharts;
+                if (typeof ApexChartsCtor !== "function") {
+                    chartTarget.innerHTML = '<div class="dashboard-chart-empty">Library chart tidak tersedia.</div>';
+                    return;
+                }
+
+                if (!Array.isArray(bySite) || bySite.length === 0) {
+                    chartTarget.innerHTML = '<div class="dashboard-chart-empty">Belum ada data perangkat per site.</div>';
+                    if (dashboardSiteChart) {
+                        dashboardSiteChart.destroy();
+                        dashboardSiteChart = null;
+                    }
+                    return;
+                }
+
+                const categories = bySite.map((site) => toDisplayText(site?.siteCode));
+                const totals = bySite.map((site) => Number(site?.total) || 0);
+
+                const chartOptions = {
+                    chart: {
+                        type: "bar",
+                        height: 340,
+                        toolbar: { show: false },
+                    },
+                    series: [
+                        {
+                            name: "Perangkat",
+                            data: totals,
+                        },
+                    ],
+                    xaxis: {
+                        categories,
+                        labels: {
+                            style: { colors: "#64748b", fontSize: "11px" },
+                        },
+                    },
+                    yaxis: {
+                        labels: {
+                            style: { colors: "#64748b", fontSize: "11px" },
+                        },
+                    },
+                    plotOptions: {
+                        bar: {
+                            horizontal: true,
+                            borderRadius: 4,
+                            barHeight: "58%",
+                            distributed: false,
+                        },
+                    },
+                    dataLabels: {
+                        enabled: true,
+                        style: {
+                            fontSize: "11px",
+                            fontWeight: 700,
+                            colors: ["#0f172a"],
+                        },
+                    },
+                    colors: ["#1d4ed8"],
+                    grid: {
+                        borderColor: "#e2e8f0",
+                    },
+                    tooltip: {
+                        y: {
+                            formatter: (val) => `${formatNumber(val)} perangkat`,
+                        },
+                    },
+                };
+
+                if (dashboardSiteChart) {
+                    dashboardSiteChart.updateOptions(chartOptions, true, true);
+                    return;
+                }
+
+                chartTarget.innerHTML = "";
+                dashboardSiteChart = new ApexChartsCtor(chartTarget, chartOptions);
+                dashboardSiteChart.render();
+            }
+
+            function applyDashboardSummary(summary) {
+                const totals = summary?.totals || {};
+                const status = totals?.status || {};
+                const category = totals?.category || {};
+                const bySite = Array.isArray(summary?.bySite) ? summary.bySite : [];
+                const expiringSoonDevices = Array.isArray(summary?.expiringSoonDevices) ? summary.expiringSoonDevices : [];
+
+                setMetricValue(dashboardMetricTotal, totals?.all);
+                setMetricValue(dashboardMetricActive, status?.active);
+                setMetricValue(dashboardMetricExpired, status?.expired);
+                setMetricValue(dashboardMetricBackToKddi, status?.backToKddi);
+                setMetricValue(dashboardMetricLaptop, category?.laptop);
+                setMetricValue(dashboardMetricDesktop, category?.desktop);
+                setMetricValue(dashboardMetricExpiringSoon, totals?.expiringSoon);
+                setMetricValue(dashboardMetricSiteCount, bySite.length);
+
+                if (dashboardExpiringSoonBadge) {
+                    const soonCount = Number(totals?.expiringSoon) || 0;
+                    dashboardExpiringSoonBadge.textContent = `${formatNumber(soonCount)} Device`;
+                }
+
+                if (dashboardGeneratedAt) {
+                    dashboardGeneratedAt.textContent = `Update: ${formatDateTime(summary?.generatedAt)}`;
+                }
+
+                renderDashboardSiteList(bySite);
+                renderDashboardExpiringTable(expiringSoonDevices);
+                renderDashboardSiteChart(bySite);
+            }
+
+            function showDashboardSummaryError(message) {
+                const safeMessage = toDisplayText(message);
+                if (dashboardGeneratedAt) {
+                    dashboardGeneratedAt.textContent = safeMessage;
+                }
+
+                if (dashboardExpiringBody) {
+                    dashboardExpiringBody.innerHTML = `
+                        <tr>
+                            <td colspan="9" class="text-center text-danger py-4">${safeMessage}</td>
+                        </tr>
+                    `;
+                }
+
+                if (dashboardSiteSummaryList) {
+                    dashboardSiteSummaryList.innerHTML = `
+                        <li>
+                            <div>
+                                <div class="site-name">Gagal memuat data</div>
+                                <div class="site-detail">${safeMessage}</div>
+                            </div>
+                            <div class="site-count">-</div>
+                        </li>
+                    `;
+                }
+            }
+
+            async function refreshDashboardSummary() {
+                if (!window.AuthClient || !dashboardMetricTotal) {
+                    return;
+                }
+
+                try {
+                    const response = await window.AuthClient.fetchWithAuth(
+                        `${API_BASE}/device-records/dashboard-summary`,
+                        { method: "GET" },
+                    );
+                    const result = await response.json().catch(() => ({}));
+                    if (!response.ok) {
+                        throw new Error(result?.message || "Gagal memuat ringkasan dashboard.");
+                    }
+
+                    applyDashboardSummary(result?.data || {});
+                } catch (error) {
+                    const message = error instanceof Error ? error.message : "Gagal memuat ringkasan dashboard.";
+                    showDashboardSummaryError(message);
+                }
+            }
+
+            function startDashboardSummaryPolling() {
+                if (dashboardSummaryPollTimer) {
+                    window.clearInterval(dashboardSummaryPollTimer);
+                }
+
+                refreshDashboardSummary();
+                dashboardSummaryPollTimer = window.setInterval(refreshDashboardSummary, 60000);
+            }
+
             async function refreshFlowStatusBadges() {
                 if (!window.AuthClient || (flowPendingBadges.length === 0 && flowRejectedBadges.length === 0)) {
                     return;
@@ -3737,6 +4293,7 @@
             setActiveNav(dashboardLink);
             setActiveBreadcrumb(pageTitle.textContent.trim());
             startFlowPendingBadgePolling();
+            startDashboardSummaryPolling();
 
             if (inlineFrame) {
                 inlineFrame.addEventListener("load", () => {
@@ -3747,6 +4304,10 @@
             window.addEventListener("beforeunload", () => {
                 if (flowPendingPollTimer) {
                     window.clearInterval(flowPendingPollTimer);
+                }
+
+                if (dashboardSummaryPollTimer) {
+                    window.clearInterval(dashboardSummaryPollTimer);
                 }
             });
         })();

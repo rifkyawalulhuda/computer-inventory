@@ -652,6 +652,9 @@
             </div>
             <div class="confirm-modal-footer">
                 <button type="button" class="btn btn-light border" id="confirmCancelButton">Batal</button>
+                <button type="button" class="btn btn-warning d-none" id="confirmSecondaryButton">
+                    <i class="feather-corner-up-left me-1"></i>Back to KDDI
+                </button>
                 <button type="button" class="btn btn-danger" id="confirmConfirmButton">
                     <i class="feather-trash-2 me-1"></i>Hapus
                 </button>
@@ -711,6 +714,7 @@
         const confirmModalMessage = document.getElementById("confirmModalMessage");
         const confirmCloseButton = document.getElementById("confirmCloseButton");
         const confirmCancelButton = document.getElementById("confirmCancelButton");
+        const confirmSecondaryButton = document.getElementById("confirmSecondaryButton");
         const confirmConfirmButton = document.getElementById("confirmConfirmButton");
 
         let masterUsers = [];
@@ -933,6 +937,14 @@
                 .replaceAll(">", "&gt;")
                 .replaceAll('"', "&quot;")
                 .replaceAll("'", "&#39;");
+        }
+
+        function normalizeLeaseStatusKey(value) {
+            return String(value ?? "").trim().toUpperCase().replaceAll("_", " ");
+        }
+
+        function isBackToKddiStatus(value) {
+            return normalizeLeaseStatusKey(value) === "BACK TO KDDI";
         }
 
         function resolveUserJobCodeId(user) {
@@ -1409,7 +1421,10 @@
                 return;
             }
 
-            tableBody.innerHTML = rows.map((row, index) => `
+            tableBody.innerHTML = rows.map((row, index) => {
+                const isBackToKddi = isBackToKddiStatus(row["Lease Status"]);
+
+                return `
                 <tr>
                     <td>${index + 1}</td>
                     <td>${escapeHtml(row["Department"])}</td>
@@ -1427,7 +1442,14 @@
                             <button type="button" class="btn btn-light border text-info" data-action="view" data-id="${escapeHtml(row.id)}" title="Lihat">
                                 <i class="feather-eye"></i>
                             </button>
-                            <button type="button" class="btn btn-light border text-primary" data-action="edit" data-id="${escapeHtml(row.id)}" title="Edit">
+                            <button
+                                type="button"
+                                class="btn btn-light border text-primary${isBackToKddi ? " disabled" : ""}"
+                                data-action="edit"
+                                data-id="${escapeHtml(row.id)}"
+                                title="${isBackToKddi ? "Data Back To KDDI tidak dapat diedit" : "Edit"}"
+                                ${isBackToKddi ? "disabled" : ""}
+                            >
                                 <i class="feather-edit-2"></i>
                             </button>
                             <button type="button" class="btn btn-light border text-danger" data-action="delete" data-id="${escapeHtml(row.id)}" title="Hapus">
@@ -1436,7 +1458,8 @@
                         </div>
                     </td>
                 </tr>
-            `).join("");
+            `;
+            }).join("");
         }
 
         async function loadRows() {
@@ -1514,6 +1537,9 @@
         }
 
         let confirmResolve = null;
+        let confirmResolveValue = false;
+        let confirmConfirmValue = true;
+        let confirmSecondaryValue = "secondary";
 
         function openConfirmModal(options) {
             const settings = typeof options === "string"
@@ -1529,6 +1555,13 @@
                 : "";
             confirmConfirmButton.className = "btn " + (settings.confirmClass || "btn-primary");
             confirmConfirmButton.innerHTML = confirmIcon + confirmText;
+            confirmConfirmValue = true;
+            confirmResolveValue = false;
+
+            confirmSecondaryButton.classList.add("d-none");
+            confirmSecondaryButton.innerHTML = "";
+            confirmSecondaryValue = "secondary";
+            confirmCancelButton.textContent = settings.cancelText || "Batal";
 
             confirmModalOverlay.classList.add("open");
             confirmModalOverlay.setAttribute("aria-hidden", "false");
@@ -1539,9 +1572,37 @@
             });
         }
 
-        function closeConfirmModal(confirmed = false) {
+        function openDeleteActionModal(row) {
+            const serialNo = toDisplayValue(row?.["Serial No."]);
+            confirmModalTitle.textContent = "Pilih Aksi Data";
+            confirmModalMessage.textContent = `Pilih aksi untuk data perangkat dengan Serial No. ${serialNo}.`;
+
+            confirmCancelButton.textContent = "Batal";
+
+            confirmSecondaryButton.className = "btn btn-warning";
+            confirmSecondaryButton.innerHTML = '<i class="feather-corner-up-left me-1"></i>Back to KDDI';
+            confirmSecondaryButton.classList.remove("d-none");
+            confirmSecondaryValue = "back-to-kddi";
+
+            confirmConfirmButton.className = "btn btn-danger";
+            confirmConfirmButton.innerHTML = '<i class="feather-trash-2 me-1"></i>Hapus';
+            confirmConfirmValue = "delete";
+            confirmResolveValue = "cancel";
+
+            confirmModalOverlay.classList.add("open");
+            confirmModalOverlay.setAttribute("aria-hidden", "false");
+            document.body.style.overflow = "hidden";
+
+            return new Promise((resolve) => {
+                confirmResolve = resolve;
+            });
+        }
+
+        function closeConfirmModal(confirmed = confirmResolveValue) {
             confirmModalOverlay.classList.remove("open");
             confirmModalOverlay.setAttribute("aria-hidden", "true");
+            confirmSecondaryButton.classList.add("d-none");
+            confirmSecondaryButton.innerHTML = "";
             if (confirmResolve) {
                 confirmResolve(confirmed);
                 confirmResolve = null;
@@ -1605,6 +1666,11 @@
         }
 
         function editRow(row) {
+            if (isBackToKddiStatus(row["Lease Status"])) {
+                showAlert("Data dengan Lease Status Back To KDDI tidak dapat diedit.", "warning");
+                return;
+            }
+
             const resolvedJobCodeId = findJobCodeIdByCode(row["Department"]);
             jobCodeIdInput.value = resolvedJobCodeId;
             populatePicOptionsByJobCode();
@@ -1646,18 +1712,34 @@
         }
 
         async function deleteRow(row) {
-            const yes = await openConfirmModal({
-                title: "Konfirmasi Hapus",
-                message: `Hapus data perangkat dengan Serial No. ${row["Serial No."] || "-"}?`,
-                confirmText: "Hapus",
-                confirmClass: "btn-danger",
-                confirmIcon: "feather-trash-2"
-            });
-            if (!yes) {
+            const action = await openDeleteActionModal(row);
+            if (action === "cancel") {
                 return;
             }
 
             hideAlert();
+
+            if (action === "back-to-kddi") {
+                const response = await apiFetch(`${API_BASE}/device-records/${row.id}/back-to-kddi`, {
+                    method: "POST",
+                    headers: {
+                        "Content-Type": "application/json"
+                    }
+                });
+
+                const result = await response.json().catch(() => ({}));
+                if (!response.ok) {
+                    throw new Error(result.message || "Gagal mengubah Lease Status ke Back To KDDI.");
+                }
+
+                showAlert(result.message || "Lease Status berhasil diubah menjadi Back To KDDI.", "success");
+                if (editingDeviceId === row.id) {
+                    resetForm();
+                    setFormVisibility(false);
+                }
+                await loadRows();
+                return;
+            }
 
             const response = await apiFetch(`${API_BASE}/device-records/${row.id}`, {
                 method: "DELETE"
@@ -1859,12 +1941,13 @@
         closeFormButton.addEventListener("click", () => {
             goToDeviceTablePage();
         });
-        confirmCloseButton.addEventListener("click", () => closeConfirmModal(false));
-        confirmCancelButton.addEventListener("click", () => closeConfirmModal(false));
-        confirmConfirmButton.addEventListener("click", () => closeConfirmModal(true));
+        confirmCloseButton.addEventListener("click", () => closeConfirmModal());
+        confirmCancelButton.addEventListener("click", () => closeConfirmModal());
+        confirmSecondaryButton.addEventListener("click", () => closeConfirmModal(confirmSecondaryValue));
+        confirmConfirmButton.addEventListener("click", () => closeConfirmModal(confirmConfirmValue));
         confirmModalOverlay.addEventListener("click", (event) => {
             if (event.target === confirmModalOverlay) {
-                closeConfirmModal(false);
+                closeConfirmModal();
             }
         });
         refreshButton.addEventListener("click", initialize);
@@ -1883,7 +1966,7 @@
         });
         document.addEventListener("keydown", (event) => {
             if (event.key === "Escape" && confirmModalOverlay.classList.contains("open")) {
-                closeConfirmModal(false);
+                closeConfirmModal();
                 return;
             }
 

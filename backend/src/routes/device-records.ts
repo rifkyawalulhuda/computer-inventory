@@ -115,6 +115,7 @@ const DEVICE_IMPORT_TEMPLATE_HEADERS = [
 const MAX_DEVICE_IMPORT_FILE_SIZE = 5 * 1024 * 1024;
 const DEVICE_IMPORT_DROPDOWN_MAX_ROWS = 1000;
 const LEGACY_NO_LOCK_KEY = 8042026;
+const DASHBOARD_EXPIRING_SOON_DAYS = 28;
 
 const deviceImportUpload = multer({
   storage: multer.memoryStorage(),
@@ -316,11 +317,23 @@ function isDateOnOrBeforeToday(date: Date | null | undefined): boolean {
   return getUtcDateStartMs(date) <= todayMs;
 }
 
+function normalizeLeaseStatusText(value: unknown): string {
+  return cleanText(value).replaceAll("_", " ").toUpperCase();
+}
+
+function isBackToKddiLeaseStatus(value: unknown): boolean {
+  return normalizeLeaseStatusText(value) === "BACK TO KDDI";
+}
+
 function resolveLeaseStatus(
   leaseStatus: string | null | undefined,
   daysLease: number | string | null | undefined,
   endDate: Date | null | undefined,
 ): string | null {
+  if (isBackToKddiLeaseStatus(leaseStatus)) {
+    return "Back To KDDI";
+  }
+
   if (hasExpiredDaysLeaseValue(daysLease) || isDateOnOrBeforeToday(endDate)) {
     return "EXPIRED";
   }
@@ -1600,6 +1613,227 @@ deviceRecordRouter.get("/device-records", async (req, res, next) => {
   }
 });
 
+deviceRecordRouter.get("/device-records/dashboard-summary", async (req, res, next) => {
+  try {
+    const scope = await resolveDataScope(req);
+    const where: Prisma.DeviceWhereInput = {
+      flowStatus: DEVICE_FLOW_STATUS_APPROVED,
+    };
+
+    if (scope.editorRole === "user") {
+      where.jobCodeId = scope.userJobCodeId ?? undefined;
+    }
+
+    const rows = await prisma.device.findMany({
+      where,
+      orderBy: { createdAt: "desc" },
+      select: {
+        id: true,
+        serialNumber: true,
+        hostName: true,
+        picNameRaw: true,
+        jobCode: {
+          select: {
+            code: true,
+          },
+        },
+        category: {
+          select: {
+            name: true,
+          },
+        },
+        model: {
+          select: {
+            name: true,
+          },
+        },
+        leaseContracts: {
+          orderBy: { createdAt: "desc" },
+          take: 1,
+          select: {
+            startDate: true,
+            endDate: true,
+            daysLease: true,
+            leaseStatus: true,
+          },
+        },
+      },
+    });
+
+    const totals = {
+      all: 0,
+      status: {
+        active: 0,
+        expired: 0,
+        backToKddi: 0,
+        other: 0,
+      },
+      category: {
+        laptop: 0,
+        desktop: 0,
+        other: 0,
+      },
+      expiringSoon: 0,
+    };
+
+    const bySiteMap = new Map<string, {
+      siteCode: string;
+      total: number;
+      active: number;
+      expired: number;
+      backToKddi: number;
+      otherStatus: number;
+      laptop: number;
+      desktop: number;
+      otherCategory: number;
+      expiringSoon: number;
+    }>();
+
+    const expiringSoonDevices: Array<{
+      id: string;
+      siteCode: string;
+      picName: string;
+      serialNo: string;
+      category: string;
+      model: string;
+      hostName: string;
+      daysLease: number;
+      endDate: string;
+    }> = [];
+
+    rows.forEach((row) => {
+      totals.all += 1;
+
+      const latestLease = row.leaseContracts[0] ?? null;
+      const calculatedDaysLease = calculateDaysLease(
+        latestLease?.startDate ?? null,
+        latestLease?.endDate ?? null,
+      );
+      const normalizedDaysLease = calculatedDaysLease ?? latestLease?.daysLease ?? null;
+      const leaseStatus = resolveLeaseStatus(
+        latestLease?.leaseStatus ?? null,
+        normalizedDaysLease,
+        latestLease?.endDate ?? null,
+      );
+
+      const normalizedLeaseStatus = normalizeLeaseStatusText(leaseStatus);
+      if (normalizedLeaseStatus === "ACTIVE") {
+        totals.status.active += 1;
+      } else if (normalizedLeaseStatus === "EXPIRED") {
+        totals.status.expired += 1;
+      } else if (normalizedLeaseStatus === "BACK TO KDDI") {
+        totals.status.backToKddi += 1;
+      } else {
+        totals.status.other += 1;
+      }
+
+      const normalizedCategory = cleanText(row.category?.name).toUpperCase();
+      if (normalizedCategory === "LAPTOP") {
+        totals.category.laptop += 1;
+      } else if (normalizedCategory === "DESKTOP") {
+        totals.category.desktop += 1;
+      } else {
+        totals.category.other += 1;
+      }
+
+      const isExpiringSoon = typeof normalizedDaysLease === "number"
+        && Number.isFinite(normalizedDaysLease)
+        && normalizedDaysLease > 0
+        && normalizedDaysLease <= DASHBOARD_EXPIRING_SOON_DAYS
+        && normalizedLeaseStatus !== "BACK TO KDDI";
+
+      if (isExpiringSoon) {
+        totals.expiringSoon += 1;
+      }
+
+      const siteCode = cleanText(row.jobCode?.code) || "-";
+      const siteSummary = bySiteMap.get(siteCode) ?? {
+        siteCode,
+        total: 0,
+        active: 0,
+        expired: 0,
+        backToKddi: 0,
+        otherStatus: 0,
+        laptop: 0,
+        desktop: 0,
+        otherCategory: 0,
+        expiringSoon: 0,
+      };
+      siteSummary.total += 1;
+
+      if (normalizedLeaseStatus === "ACTIVE") {
+        siteSummary.active += 1;
+      } else if (normalizedLeaseStatus === "EXPIRED") {
+        siteSummary.expired += 1;
+      } else if (normalizedLeaseStatus === "BACK TO KDDI") {
+        siteSummary.backToKddi += 1;
+      } else {
+        siteSummary.otherStatus += 1;
+      }
+
+      if (normalizedCategory === "LAPTOP") {
+        siteSummary.laptop += 1;
+      } else if (normalizedCategory === "DESKTOP") {
+        siteSummary.desktop += 1;
+      } else {
+        siteSummary.otherCategory += 1;
+      }
+
+      if (isExpiringSoon) {
+        siteSummary.expiringSoon += 1;
+      }
+
+      bySiteMap.set(siteCode, siteSummary);
+
+      if (isExpiringSoon) {
+        expiringSoonDevices.push({
+          id: row.id,
+          siteCode,
+          picName: cleanText(row.picNameRaw),
+          serialNo: cleanText(row.serialNumber),
+          category: cleanText(row.category?.name),
+          model: cleanText(row.model?.name),
+          hostName: cleanText(row.hostName),
+          daysLease: normalizedDaysLease,
+          endDate: formatDate(latestLease?.endDate),
+        });
+      }
+    });
+
+    const bySite = [...bySiteMap.values()]
+      .sort((a, b) => {
+        if (b.total !== a.total) {
+          return b.total - a.total;
+        }
+
+        return a.siteCode.localeCompare(b.siteCode);
+      });
+
+    expiringSoonDevices.sort((a, b) => {
+      if (a.daysLease !== b.daysLease) {
+        return a.daysLease - b.daysLease;
+      }
+
+      return a.siteCode.localeCompare(b.siteCode);
+    });
+
+    res.json({
+      data: {
+        generatedAt: new Date().toISOString(),
+        totals,
+        bySite,
+        expiringSoonDevices,
+      },
+    });
+  } catch (error) {
+    if (error instanceof Error && error.message === "ROLE_USER_JOB_CODE_NOT_FOUND") {
+      return res.status(403).json({ message: "Department user tidak ditemukan. Hubungi admin." });
+    }
+
+    next(error);
+  }
+});
+
 deviceRecordRouter.get("/device-records/flows", async (req, res, next) => {
   try {
     const scope = await resolveDataScope(req);
@@ -2272,6 +2506,10 @@ deviceRecordRouter.put("/device-records/:id", async (req, res, next) => {
       const { categoryId, modelId, locationId } = await resolveLookupIds(tx, payload);
       const latestLease = existing.leaseContracts[0] ?? null;
 
+      if (isBackToKddiLeaseStatus(latestLease?.leaseStatus)) {
+        throw new Error("LEASE_STATUS_BACK_TO_KDDI_LOCKED");
+      }
+
       let resolvedLegacyNo = existing.legacyNo;
       if (!(typeof resolvedLegacyNo === "number" && Number.isFinite(resolvedLegacyNo) && resolvedLegacyNo > 0)) {
         await lockLegacyNoSequence(tx);
@@ -2500,6 +2738,10 @@ deviceRecordRouter.put("/device-records/:id", async (req, res, next) => {
       return res.status(403).json({
         message: `Role user hanya boleh edit kolom Job Code, User Name, User Email, Location, IP List, dan Keterangan. Kolom tidak diizinkan: ${changedColumns}.`,
       });
+    }
+
+    if (error instanceof Error && error.message === "LEASE_STATUS_BACK_TO_KDDI_LOCKED") {
+      return res.status(400).json({ message: "Data perangkat dengan Lease Status Back To KDDI tidak dapat diedit." });
     }
 
     if (error instanceof Error) {
@@ -3270,6 +3512,88 @@ deviceRecordRouter.post("/device-records/:id/flow/sender-signature", requireRole
   } catch (error) {
     if (error instanceof Error && error.message === "DATA_PERANGKAT_NOT_FOUND") {
       return res.status(404).json({ message: "Data perangkat tidak ditemukan." });
+    }
+
+    if (error instanceof Error) {
+      return res.status(400).json({ message: error.message });
+    }
+
+    next(error);
+  }
+});
+
+deviceRecordRouter.post("/device-records/:id/back-to-kddi", requireRole("admin"), async (req, res, next) => {
+  try {
+    const id = cleanText(req.params.id);
+    if (!id) {
+      return res.status(400).json({ message: "ID tidak valid." });
+    }
+
+    const actorName = getHistoryActorName(req);
+
+    const updated = await prisma.$transaction(async (tx) => {
+      const existing = await tx.device.findUnique({
+        where: { id },
+        select: {
+          id: true,
+          serialNumber: true,
+          leaseContracts: {
+            orderBy: { createdAt: "desc" },
+            take: 1,
+            select: {
+              id: true,
+              leaseStatus: true,
+              historyLog: true,
+            },
+          },
+        },
+      });
+
+      if (!existing) {
+        throw new Error("DATA_PERANGKAT_NOT_FOUND");
+      }
+
+      const latestLease = existing.leaseContracts[0] ?? null;
+      if (!latestLease) {
+        throw new Error("LEASE_CONTRACT_NOT_FOUND");
+      }
+
+      if (isBackToKddiLeaseStatus(latestLease.leaseStatus)) {
+        throw new Error("LEASE_STATUS_ALREADY_BACK_TO_KDDI");
+      }
+
+      const updatedHistoryLog = appendHistoryEntries(
+        latestLease.historyLog,
+        [
+          buildHistoryEntry(
+            `Lease Status diubah menjadi Back To KDDI oleh ${actorName}${existing.serialNumber ? ` (Serial No: ${existing.serialNumber})` : ""}.`,
+          ),
+        ],
+      );
+
+      await tx.leaseContract.update({
+        where: { id: latestLease.id },
+        data: {
+          leaseStatus: "Back To KDDI",
+          historyLog: updatedHistoryLog,
+        },
+      });
+
+      return getMappedDeviceById(tx, id);
+    });
+
+    res.json({ data: updated, message: "Lease Status berhasil diubah menjadi Back To KDDI." });
+  } catch (error) {
+    if (error instanceof Error && error.message === "DATA_PERANGKAT_NOT_FOUND") {
+      return res.status(404).json({ message: "Data perangkat tidak ditemukan." });
+    }
+
+    if (error instanceof Error && error.message === "LEASE_CONTRACT_NOT_FOUND") {
+      return res.status(400).json({ message: "Data lease perangkat tidak ditemukan." });
+    }
+
+    if (error instanceof Error && error.message === "LEASE_STATUS_ALREADY_BACK_TO_KDDI") {
+      return res.status(400).json({ message: "Lease Status sudah Back To KDDI." });
     }
 
     if (error instanceof Error) {
