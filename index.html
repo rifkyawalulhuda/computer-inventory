@@ -292,6 +292,45 @@
         .dashboard-sortable.is-active .sort-indicator {
             color: #1d4ed8;
         }
+
+        .search-items-wrapper .search-result-item {
+            border: 0;
+            border-bottom: 1px solid #e2e8f0;
+            padding: 10px 16px;
+            background: #fff;
+        }
+
+        .search-items-wrapper .search-result-item:last-child {
+            border-bottom: 0;
+        }
+
+        .search-items-wrapper .search-result-item:hover,
+        .search-items-wrapper .search-result-item:focus-visible {
+            background: #f8fbff;
+        }
+
+        .search-items-wrapper .search-result-item .result-title {
+            font-size: 0.83rem;
+            font-weight: 700;
+            color: #0f172a;
+            margin-bottom: 2px;
+        }
+
+        .search-items-wrapper .search-result-item .result-subtitle {
+            font-size: 0.74rem;
+            color: #64748b;
+        }
+
+        .search-items-wrapper .search-result-item .result-tag {
+            font-size: 0.65rem;
+            font-weight: 700;
+            color: #1d4ed8;
+            background: #dbeafe;
+            border-radius: 999px;
+            padding: 2px 8px;
+            text-transform: uppercase;
+            letter-spacing: 0.03em;
+        }
     </style>
     <!--! HTML5 shim and Respond.js for IE8 support of HTML5 elements and media queries !-->
     <!--! WARNING: Respond.js doesn"t work if you view the page via file: !-->
@@ -1805,291 +1844,18 @@
                                 <span class="input-group-text">
                                     <i class="feather-search fs-6 text-muted"></i>
                                 </span>
-                                <input type="text" class="form-control search-input-field" placeholder="Search...." />
+                                <input type="text" class="form-control search-input-field" id="headerSearchInput" placeholder="Cari menu atau halaman..." />
                                 <span class="input-group-text">
-                                    <button type="button" class="btn-close"></button>
+                                    <button type="button" class="btn-close" id="headerSearchClearButton" aria-label="Bersihkan pencarian"></button>
                                 </span>
                             </div>
                             <div class="dropdown-divider mt-0"></div>
-                            <div class="search-items-wrapper">
-                                <div class="searching-for px-4 py-2">
-                                    <p class="fs-11 fw-medium text-muted">I'm searching for...</p>
-                                    <div class="d-flex flex-wrap gap-1">
-                                        <a href="javascript:void(0);" class="flex-fill border rounded py-1 px-2 text-center fs-11 fw-semibold">Projects</a>
-                                        <a href="javascript:void(0);" class="flex-fill border rounded py-1 px-2 text-center fs-11 fw-semibold">Leads</a>
-                                        <a href="javascript:void(0);" class="flex-fill border rounded py-1 px-2 text-center fs-11 fw-semibold">Contacts</a>
-                                        <a href="javascript:void(0);" class="flex-fill border rounded py-1 px-2 text-center fs-11 fw-semibold">Inbox</a>
-                                        <a href="javascript:void(0);" class="flex-fill border rounded py-1 px-2 text-center fs-11 fw-semibold">Invoices</a>
-                                        <a href="javascript:void(0);" class="flex-fill border rounded py-1 px-2 text-center fs-11 fw-semibold">Tasks</a>
-                                        <a href="javascript:void(0);" class="flex-fill border rounded py-1 px-2 text-center fs-11 fw-semibold">Customers</a>
-                                        <a href="javascript:void(0);" class="flex-fill border rounded py-1 px-2 text-center fs-11 fw-semibold">Notes</a>
-                                        <a href="javascript:void(0);" class="flex-fill border rounded py-1 px-2 text-center fs-11 fw-semibold">Affiliate</a>
-                                        <a href="javascript:void(0);" class="flex-fill border rounded py-1 px-2 text-center fs-11 fw-semibold">Storage</a>
-                                        <a href="javascript:void(0);" class="flex-fill border rounded py-1 px-2 text-center fs-11 fw-semibold">Calendar</a>
-                                    </div>
+                            <div class="search-items-wrapper p-0">
+                                <div class="px-4 py-2 border-bottom">
+                                    <p class="fs-11 fw-medium text-muted mb-0" id="headerSearchResultMeta">Ketik kata kunci untuk mencari menu.</p>
                                 </div>
-                                <div class="dropdown-divider"></div>
-                                <div class="recent-result px-4 py-2">
-                                    <h4 class="fs-13 fw-normal text-gray-600 mb-3">Recnet <span class="badge small bg-gray-200 rounded ms-1 text-dark">3</span></h4>
-                                    <div class="d-flex align-items-center justify-content-between mb-4">
-                                        <div class="d-flex align-items-center gap-3">
-                                            <div class="avatar-text rounded">
-                                                <i class="feather-airplay"></i>
-                                            </div>
-                                            <div>
-                                                <a href="javascript:void(0);" class="font-body fw-bold d-block mb-1">CRM dashboard redesign</a>
-                                                <p class="fs-11 text-muted mb-0">Home / project / crm</p>
-                                            </div>
-                                        </div>
-                                        <div>
-                                            <a href="javascript:void(0);" class="badge border rounded text-dark">/<i class="feather-command ms-1 fs-10"></i></a>
-                                        </div>
-                                    </div>
-                                    <div class="d-flex align-items-center justify-content-between mb-4">
-                                        <div class="d-flex align-items-center gap-3">
-                                            <div class="avatar-text rounded">
-                                                <i class="feather-file-plus"></i>
-                                            </div>
-                                            <div>
-                                                <a href="javascript:void(0);" class="font-body fw-bold d-block mb-1">Create new document</a>
-                                                <p class="fs-11 text-muted mb-0">Home / tasks / docs</p>
-                                            </div>
-                                        </div>
-                                        <div>
-                                            <a href="javascript:void(0);" class="badge border rounded text-dark">N /<i class="feather-command ms-1 fs-10"></i></a>
-                                        </div>
-                                    </div>
-                                    <div class="d-flex align-items-center justify-content-between">
-                                        <div class="d-flex align-items-center gap-3">
-                                            <div class="avatar-text rounded">
-                                                <i class="feather-user-plus"></i>
-                                            </div>
-                                            <div>
-                                                <a href="javascript:void(0);" class="font-body fw-bold d-block mb-1">Invite project colleagues</a>
-                                                <p class="fs-11 text-muted mb-0">Home / project / invite</p>
-                                            </div>
-                                        </div>
-                                        <div>
-                                            <a href="javascript:void(0);" class="badge border rounded text-dark">P /<i class="feather-command ms-1 fs-10"></i></a>
-                                        </div>
-                                    </div>
-                                </div>
-                                <div class="dropdown-divider my-3"></div>
-                                <div class="users-result px-4 py-2">
-                                    <h4 class="fs-13 fw-normal text-gray-600 mb-3">Users <span class="badge small bg-gray-200 rounded ms-1 text-dark">5</span></h4>
-                                    <div class="d-flex align-items-center justify-content-between mb-4">
-                                        <div class="d-flex align-items-center gap-3">
-                                            <div class="avatar-image rounded">
-                                                <img src="assets/images/avatar/1.png" alt="" class="img-fluid" />
-                                            </div>
-                                            <div>
-                                                <a href="javascript:void(0);" class="font-body fw-bold d-block mb-1">Alexandra Della</a>
-                                                <p class="fs-11 text-muted mb-0">alex@example.com</p>
-                                            </div>
-                                        </div>
-                                        <a href="javascript:void(0);" class="avatar-text avatar-md">
-                                            <i class="feather-chevron-right"></i>
-                                        </a>
-                                    </div>
-                                    <div class="d-flex align-items-center justify-content-between mb-4">
-                                        <div class="d-flex align-items-center gap-3">
-                                            <div class="avatar-image rounded">
-                                                <img src="assets/images/avatar/2.png" alt="" class="img-fluid" />
-                                            </div>
-                                            <div>
-                                                <a href="javascript:void(0);" class="font-body fw-bold d-block mb-1">Green Cute</a>
-                                                <p class="fs-11 text-muted mb-0">green.cute@outlook.com</p>
-                                            </div>
-                                        </div>
-                                        <a href="javascript:void(0);" class="avatar-text avatar-md">
-                                            <i class="feather-chevron-right"></i>
-                                        </a>
-                                    </div>
-                                    <div class="d-flex align-items-center justify-content-between mb-4">
-                                        <div class="d-flex align-items-center gap-3">
-                                            <div class="avatar-image rounded">
-                                                <img src="assets/images/avatar/3.png" alt="" class="img-fluid" />
-                                            </div>
-                                            <div>
-                                                <a href="javascript:void(0);" class="font-body fw-bold d-block mb-1">Malanie Hanvey</a>
-                                                <p class="fs-11 text-muted mb-0">malanie.anvey@outlook.com</p>
-                                            </div>
-                                        </div>
-                                        <a href="javascript:void(0);" class="avatar-text avatar-md">
-                                            <i class="feather-chevron-right"></i>
-                                        </a>
-                                    </div>
-                                    <div class="d-flex align-items-center justify-content-between mb-4">
-                                        <div class="d-flex align-items-center gap-3">
-                                            <div class="avatar-image rounded">
-                                                <img src="assets/images/avatar/4.png" alt="" class="img-fluid" />
-                                            </div>
-                                            <div>
-                                                <a href="javascript:void(0);" class="font-body fw-bold d-block mb-1">Kenneth Hune</a>
-                                                <p class="fs-11 text-muted mb-0">kenth.hune@outlook.com</p>
-                                            </div>
-                                        </div>
-                                        <a href="javascript:void(0);" class="avatar-text avatar-md">
-                                            <i class="feather-chevron-right"></i>
-                                        </a>
-                                    </div>
-                                    <div class="d-flex align-items-center justify-content-between mb-0">
-                                        <div class="d-flex align-items-center gap-3">
-                                            <div class="avatar-image rounded">
-                                                <img src="assets/images/avatar/5.png" alt="" class="img-fluid" />
-                                            </div>
-                                            <div>
-                                                <a href="javascript:void(0);" class="font-body fw-bold d-block mb-1">Archie Cantones</a>
-                                                <p class="fs-11 text-muted mb-0">archie.cones@outlook.com</p>
-                                            </div>
-                                        </div>
-                                        <a href="javascript:void(0);" class="avatar-text avatar-md">
-                                            <i class="feather-chevron-right"></i>
-                                        </a>
-                                    </div>
-                                </div>
-                                <div class="dropdown-divider my-3"></div>
-                                <div class="file-result px-4 py-2">
-                                    <h4 class="fs-13 fw-normal text-gray-600 mb-3">Files <span class="badge small bg-gray-200 rounded ms-1 text-dark">3</span></h4>
-                                    <div class="d-flex align-items-center justify-content-between mb-4">
-                                        <div class="d-flex align-items-center gap-3">
-                                            <div class="avatar-image bg-gray-200 rounded">
-                                                <img src="assets/images/file-icons/css.png" alt="" class="img-fluid" />
-                                            </div>
-                                            <div>
-                                                <a href="javascript:void(0);" class="font-body fw-bold d-block mb-1">Project Style CSS</a>
-                                                <p class="fs-11 text-muted mb-0">05.74 MB</p>
-                                            </div>
-                                        </div>
-                                        <a href="javascript:void(0);" class="avatar-text avatar-md">
-                                            <i class="feather-download"></i>
-                                        </a>
-                                    </div>
-                                    <div class="d-flex align-items-center justify-content-between mb-4">
-                                        <div class="d-flex align-items-center gap-3">
-                                            <div class="avatar-image bg-gray-200 rounded">
-                                                <img src="assets/images/file-icons/zip.png" alt="" class="img-fluid" />
-                                            </div>
-                                            <div>
-                                                <a href="javascript:void(0);" class="font-body fw-bold d-block mb-1">Dashboard Project Zip</a>
-                                                <p class="fs-11 text-muted mb-0">46.83 MB</p>
-                                            </div>
-                                        </div>
-                                        <a href="javascript:void(0);" class="avatar-text avatar-md">
-                                            <i class="feather-download"></i>
-                                        </a>
-                                    </div>
-                                    <div class="d-flex align-items-center justify-content-between mb-0">
-                                        <div class="d-flex align-items-center gap-3">
-                                            <div class="avatar-image bg-gray-200 rounded">
-                                                <img src="assets/images/file-icons/pdf.png" alt="" class="img-fluid" />
-                                            </div>
-                                            <div>
-                                                <a href="javascript:void(0);" class="font-body fw-bold d-block mb-1">Project Document PDF</a>
-                                                <p class="fs-11 text-muted mb-0">12.85 MB</p>
-                                            </div>
-                                        </div>
-                                        <a href="javascript:void(0);" class="avatar-text avatar-md">
-                                            <i class="feather-download"></i>
-                                        </a>
-                                    </div>
-                                </div>
-                                <div class="dropdown-divider mt-3 mb-0"></div>
-                                <a href="javascript:void(0);" class="p-3 fs-10 fw-bold text-uppercase text-center d-block">Loar More</a>
-                            </div>
-                        </div>
-                    </div>
-                    <div class="dropdown nxl-h-item nxl-header-language d-none d-sm-flex">
-                        <a href="javascript:void(0);" class="nxl-head-link me-0 nxl-language-link" data-bs-toggle="dropdown" data-bs-auto-close="outside">
-                            <img src="assets/vendors/img/flags/4x3/us.svg" alt="" class="img-fluid wd-20" />
-                        </a>
-                        <div class="dropdown-menu dropdown-menu-end nxl-h-dropdown nxl-language-dropdown">
-                            <div class="dropdown-divider mt-0"></div>
-                            <div class="language-items-wrapper">
-                                <div class="select-language px-4 py-2 hstack justify-content-between gap-4">
-                                    <div class="lh-lg">
-                                        <h6 class="mb-0">Select Language</h6>
-                                        <p class="fs-11 text-muted mb-0">12 languages avaiable!</p>
-                                    </div>
-                                    <a href="javascript:void(0);" class="avatar-text avatar-md" data-bs-toggle="tooltip" title="Add Language">
-                                        <i class="feather-plus"></i>
-                                    </a>
-                                </div>
-                                <div class="dropdown-divider"></div>
-                                <div class="row px-4 pt-3">
-                                    <div class="col-sm-4 col-6 language_select">
-                                        <a href="javascript:void(0);" class="d-flex align-items-center gap-2">
-                                            <div class="avatar-image avatar-sm"><img src="assets/vendors/img/flags/1x1/sa.svg" alt="" class="img-fluid" /></div>
-                                            <span>Arabic</span>
-                                        </a>
-                                    </div>
-                                    <div class="col-sm-4 col-6 language_select">
-                                        <a href="javascript:void(0);" class="d-flex align-items-center gap-2">
-                                            <div class="avatar-image avatar-sm"><img src="assets/vendors/img/flags/1x1/bd.svg" alt="" class="img-fluid" /></div>
-                                            <span>Bengali</span>
-                                        </a>
-                                    </div>
-                                    <div class="col-sm-4 col-6 language_select">
-                                        <a href="javascript:void(0);" class="d-flex align-items-center gap-2">
-                                            <div class="avatar-image avatar-sm"><img src="assets/vendors/img/flags/1x1/ch.svg" alt="" class="img-fluid" /></div>
-                                            <span>Chinese</span>
-                                        </a>
-                                    </div>
-                                    <div class="col-sm-4 col-6 language_select">
-                                        <a href="javascript:void(0);" class="d-flex align-items-center gap-2">
-                                            <div class="avatar-image avatar-sm"><img src="assets/vendors/img/flags/1x1/nl.svg" alt="" class="img-fluid" /></div>
-                                            <span>Dutch</span>
-                                        </a>
-                                    </div>
-                                    <div class="col-sm-4 col-6 language_select active">
-                                        <a href="javascript:void(0);" class="d-flex align-items-center gap-2">
-                                            <div class="avatar-image avatar-sm"><img src="assets/vendors/img/flags/1x1/us.svg" alt="" class="img-fluid" /></div>
-                                            <span>English</span>
-                                        </a>
-                                    </div>
-                                    <div class="col-sm-4 col-6 language_select">
-                                        <a href="javascript:void(0);" class="d-flex align-items-center gap-2">
-                                            <div class="avatar-image avatar-sm"><img src="assets/vendors/img/flags/1x1/fr.svg" alt="" class="img-fluid" /></div>
-                                            <span>French</span>
-                                        </a>
-                                    </div>
-                                    <div class="col-sm-4 col-6 language_select">
-                                        <a href="javascript:void(0);" class="d-flex align-items-center gap-2">
-                                            <div class="avatar-image avatar-sm"><img src="assets/vendors/img/flags/1x1/de.svg" alt="" class="img-fluid" /></div>
-                                            <span>German</span>
-                                        </a>
-                                    </div>
-                                    <div class="col-sm-4 col-6 language_select">
-                                        <a href="javascript:void(0);" class="d-flex align-items-center gap-2">
-                                            <div class="avatar-image avatar-sm"><img src="assets/vendors/img/flags/1x1/in.svg" alt="" class="img-fluid" /></div>
-                                            <span>Hindi</span>
-                                        </a>
-                                    </div>
-                                    <div class="col-sm-4 col-6 language_select">
-                                        <a href="javascript:void(0);" class="d-flex align-items-center gap-2">
-                                            <div class="avatar-image avatar-sm"><img src="assets/vendors/img/flags/1x1/ru.svg" alt="" class="img-fluid" /></div>
-                                            <span>Russian</span>
-                                        </a>
-                                    </div>
-                                    <div class="col-sm-4 col-6 language_select">
-                                        <a href="javascript:void(0);" class="d-flex align-items-center gap-2">
-                                            <div class="avatar-image avatar-sm"><img src="assets/vendors/img/flags/1x1/es.svg" alt="" class="img-fluid" /></div>
-                                            <span>Spanish</span>
-                                        </a>
-                                    </div>
-                                    <div class="col-sm-4 col-6 language_select">
-                                        <a href="javascript:void(0);" class="d-flex align-items-center gap-2">
-                                            <div class="avatar-image avatar-sm"><img src="assets/vendors/img/flags/1x1/tr.svg" alt="" class="img-fluid" /></div>
-                                            <span>Turkish</span>
-                                        </a>
-                                    </div>
-                                    <div class="col-sm-4 col-6 language_select">
-                                        <a href="javascript:void(0);" class="d-flex align-items-center gap-2">
-                                            <div class="avatar-image avatar-sm"><img src="assets/vendors/img/flags/1x1/pk.svg" alt="" class="img-fluid" /></div>
-                                            <span>Urdo</span>
-                                        </a>
-                                    </div>
-                                </div>
+                                <div class="list-group list-group-flush" id="headerSearchResultList"></div>
+                                <div class="px-4 py-3 text-muted fs-12 d-none" id="headerSearchEmptyState">Tidak ada hasil pencarian.</div>
                             </div>
                         </div>
                     </div>
@@ -2108,29 +1874,6 @@
                         <a href="javascript:void(0);" class="nxl-head-link me-0 light-button" style="display: none">
                             <i class="feather-sun"></i>
                         </a>
-                    </div>
-                    <div class="dropdown nxl-h-item">
-                        <a href="javascript:void(0);" class="nxl-head-link me-0" data-bs-toggle="dropdown" role="button" data-bs-auto-close="outside">
-                            <i class="feather-clock"></i>
-                            <span class="badge bg-success nxl-h-badge">2</span>
-                        </a>
-                        <div class="dropdown-menu dropdown-menu-end nxl-h-dropdown nxl-timesheets-menu">
-                            <div class="d-flex justify-content-between align-items-center timesheets-head">
-                                <h6 class="fw-bold text-dark mb-0">Timesheets</h6>
-                                <a href="javascript:void(0);" class="fs-11 text-success text-end ms-auto" data-bs-toggle="tooltip" title="Upcomming Timers">
-                                    <i class="feather-clock"></i>
-                                    <span>3 Upcomming</span>
-                                </a>
-                            </div>
-                            <div class="d-flex justify-content-between align-items-center flex-column timesheets-body">
-                                <i class="feather-clock fs-1 mb-4"></i>
-                                <p class="text-muted">No started timers found yes!</p>
-                                <a href="javascript:void(0);" class="btn btn-sm btn-primary">Started Timer</a>
-                            </div>
-                            <div class="text-center timesheets-footer">
-                                <a href="javascript:void(0);" class="fs-13 fw-semibold text-dark">Alls Timesheets</a>
-                            </div>
-                        </div>
                     </div>
                     <div class="dropdown nxl-h-item">
                         <a class="nxl-head-link me-3" data-bs-toggle="dropdown" href="#" role="button" data-bs-auto-close="outside">
@@ -3847,6 +3590,13 @@
             const breadcrumbHomeItem = breadcrumbItems[0];
             const breadcrumbCurrentItem = breadcrumbItems[1];
             const pageHeaderRight = document.querySelector(".page-header-right");
+            const headerSearchContainer = document.querySelector(".nxl-header-search");
+            const headerSearchToggle = document.querySelector('.nxl-header-search .nxl-head-link[data-bs-toggle="dropdown"]');
+            const headerSearchInput = document.getElementById("headerSearchInput");
+            const headerSearchClearButton = document.getElementById("headerSearchClearButton");
+            const headerSearchResultMeta = document.getElementById("headerSearchResultMeta");
+            const headerSearchResultList = document.getElementById("headerSearchResultList");
+            const headerSearchEmptyState = document.getElementById("headerSearchEmptyState");
             const currentUserRole = window.AuthClient ? window.AuthClient.getUserRole() : "";
             const adminOnlyElements = document.querySelectorAll('[data-admin-only="true"]');
             const masterDataMenuItem = document.getElementById("masterDataMenuItem");
@@ -3885,6 +3635,13 @@
             let dashboardExpiringRowsCache = [];
             let dashboardExpiringPageSize = 15;
             let dashboardExpiringCurrentPage = 1;
+            let headerSearchActions = [];
+            let headerSearchRenderedActions = [];
+            let headerSearchDeviceRows = [];
+            let headerSearchDeviceRowsLoaded = false;
+            let headerSearchDeviceRowsLoading = false;
+            let headerSearchDeviceRowsPromise = null;
+            let headerSearchRenderToken = 0;
 
             if (!inlineContainer || !inlineFrame || !mainContent || !pageTitle || breadcrumbItems.length < 2) {
                 return;
@@ -3936,6 +3693,21 @@
                 pageTitle.textContent = title;
                 setActiveBreadcrumb(title);
                 inlineFrame.src = url;
+                window.scrollTo({ top: 0, behavior: "smooth" });
+            }
+
+            function showDashboardHome() {
+                inlineContainer.classList.add("d-none");
+                mainContent.classList.remove("d-none");
+                if (pageHeaderRight) {
+                    pageHeaderRight.classList.remove("d-none");
+                }
+                pageTitle.textContent = "Computer Inventory";
+                setActiveBreadcrumb("Computer Inventory");
+                setActiveNav(dashboardLink);
+                if (inlineFrame) {
+                    inlineFrame.src = "about:blank";
+                }
                 window.scrollTo({ top: 0, behavior: "smooth" });
             }
 
@@ -4001,6 +3773,415 @@
 
                 if (!isAdmin && masterDataMenuItem) {
                     masterDataMenuItem.classList.remove("is-open");
+                }
+            }
+
+            function closeHeaderSearchDropdown() {
+                if (!headerSearchToggle) {
+                    return;
+                }
+
+                const DropdownCtor = window.bootstrap?.Dropdown;
+                if (typeof DropdownCtor !== "function") {
+                    return;
+                }
+
+                DropdownCtor.getOrCreateInstance(headerSearchToggle).hide();
+            }
+
+            function normalizeHeaderSearchText(value) {
+                return String(value || "")
+                    .toLowerCase()
+                    .trim()
+                    .replace(/\s+/g, " ");
+            }
+
+            function buildHeaderSearchActions() {
+                const actions = [];
+                const seen = new Set();
+
+                actions.push({
+                    title: "Dashboard",
+                    subtitle: "Buka ringkasan Computer Inventory",
+                    tag: "Page",
+                    searchable: "dashboard home computer inventory ringkasan",
+                    run: () => {
+                        showDashboardHome();
+                    },
+                });
+
+                inlineLinks.forEach((link) => {
+                    if (!(link instanceof HTMLElement)) {
+                        return;
+                    }
+
+                    const url = String(link.getAttribute("href") || "").trim();
+                    if (!url || url === "index.html") {
+                        return;
+                    }
+
+                    const adminOnly = String(link.getAttribute("data-admin-only") || "").trim().toLowerCase() === "true";
+                    if (adminOnly && currentUserRole !== "admin") {
+                        return;
+                    }
+
+                    const title = String(link.getAttribute("data-master-title") || link.textContent || "").trim();
+                    if (!title) {
+                        return;
+                    }
+
+                    const dedupeKey = `${title}|${url}`;
+                    if (seen.has(dedupeKey)) {
+                        return;
+                    }
+                    seen.add(dedupeKey);
+
+                    const navLink = document.querySelector(`.nxl-navigation .nxl-link[href="${url}"]`);
+                    const tag = url.includes("flow-proses") ? "Flow" : "Menu";
+                    const searchable = `${title} ${url} perangkat data flow proses department master user`;
+
+                    actions.push({
+                        title,
+                        subtitle: `Buka ${title}`,
+                        tag,
+                        searchable,
+                        run: () => {
+                            setActiveNav(navLink instanceof HTMLElement ? navLink : null);
+                            openInlinePage(url, title);
+                        },
+                    });
+                });
+
+                actions.push({
+                    title: "Profile Details",
+                    subtitle: "Buka halaman profil pengguna",
+                    tag: "Profile",
+                    searchable: "profile details akun pengguna",
+                    run: () => {
+                        window.location.href = "profile-details.html";
+                    },
+                });
+
+                return actions;
+            }
+
+            function openDataPerangkatWithHeaderSearch(keyword) {
+                const navLink = document.querySelector('.nxl-navigation .nxl-link[href="data-perangkat.html"]');
+                const searchText = String(keyword || "").trim();
+                const encodedSearch = encodeURIComponent(searchText);
+                const url = searchText
+                    ? `data-perangkat.html?globalSearch=${encodedSearch}`
+                    : "data-perangkat.html";
+
+                setActiveNav(navLink instanceof HTMLElement ? navLink : null);
+                openInlinePage(url, "Data Perangkat");
+            }
+
+            function getHeaderDeviceSearchBlob(row) {
+                return normalizeHeaderSearchText([
+                    row?.["Department"],
+                    row?.["Job Code"],
+                    row?.["PIC Name"],
+                    row?.["Serial No."],
+                    row?.["Category"],
+                    row?.["Model"],
+                    row?.["Host Name"],
+                    row?.["User Name"],
+                    row?.["User Email"],
+                    row?.["Location"],
+                    row?.["IP List"],
+                    row?.["Lease Status"],
+                ].join(" "));
+            }
+
+            async function ensureHeaderSearchDeviceRowsLoaded() {
+                if (headerSearchDeviceRowsLoaded) {
+                    return headerSearchDeviceRows;
+                }
+
+                if (headerSearchDeviceRowsLoading && headerSearchDeviceRowsPromise) {
+                    return headerSearchDeviceRowsPromise;
+                }
+
+                if (!window.AuthClient) {
+                    headerSearchDeviceRows = [];
+                    headerSearchDeviceRowsLoaded = true;
+                    return headerSearchDeviceRows;
+                }
+
+                headerSearchDeviceRowsLoading = true;
+                headerSearchDeviceRowsPromise = (async () => {
+                    const response = await window.AuthClient.fetchWithAuth(
+                        `${API_BASE}/device-records`,
+                        { method: "GET" },
+                    );
+                    const result = await response.json().catch(() => ({}));
+                    if (!response.ok) {
+                        throw new Error(result?.message || "Gagal memuat data perangkat.");
+                    }
+
+                    headerSearchDeviceRows = Array.isArray(result?.data) ? result.data : [];
+                    headerSearchDeviceRowsLoaded = true;
+                    return headerSearchDeviceRows;
+                })();
+
+                try {
+                    return await headerSearchDeviceRowsPromise;
+                } finally {
+                    headerSearchDeviceRowsLoading = false;
+                    headerSearchDeviceRowsPromise = null;
+                }
+            }
+
+            function buildHeaderDeviceSearchActions(rawQuery) {
+                const query = normalizeHeaderSearchText(rawQuery);
+                if (!query || query.length < 2) {
+                    return [];
+                }
+
+                const tokens = query.split(" ").filter(Boolean);
+                const scoredRows = headerSearchDeviceRows
+                    .map((row) => {
+                        const serialNo = toDisplayText(row?.["Serial No."]);
+                        const department = toDisplayText(row?.["Department"]);
+                        const picName = toDisplayText(row?.["PIC Name"]);
+                        const hostName = toDisplayText(row?.["Host Name"]);
+                        const leaseStatus = toDisplayText(row?.["Lease Status"]);
+                        const searchable = getHeaderDeviceSearchBlob(row);
+
+                        if (!searchable) {
+                            return null;
+                        }
+
+                        const score = computeHeaderSearchScore({
+                            title: `Serial ${serialNo}`,
+                            subtitle: `${department} | ${picName} | ${hostName}`,
+                            searchable,
+                        }, query, tokens);
+
+                        if (score <= 0) {
+                            return null;
+                        }
+
+                        const fallbackKeyword = [serialNo, hostName, picName, department].find((value) => value && value !== "-") || "";
+                        return {
+                            row,
+                            score,
+                            title: `Serial ${serialNo}`,
+                            subtitle: `${department} | ${picName} | ${hostName}`,
+                            tag: leaseStatus !== "-" ? leaseStatus : "Device",
+                            keyword: String(rawQuery || "").trim() || fallbackKeyword,
+                        };
+                    })
+                    .filter((entry) => entry !== null)
+                    .sort((a, b) => {
+                        if (b.score !== a.score) {
+                            return b.score - a.score;
+                        }
+
+                        const serialA = String(a?.row?.["Serial No."] || "");
+                        const serialB = String(b?.row?.["Serial No."] || "");
+                        return serialA.localeCompare(serialB, "id", { sensitivity: "base" });
+                    })
+                    .slice(0, 6);
+
+                return scoredRows.map((entry) => ({
+                    title: entry.title,
+                    subtitle: entry.subtitle,
+                    tag: entry.tag,
+                    searchable: getHeaderDeviceSearchBlob(entry.row),
+                    run: () => {
+                        openDataPerangkatWithHeaderSearch(entry.keyword);
+                    },
+                }));
+            }
+
+            function computeHeaderSearchScore(action, query, tokens) {
+                const title = normalizeHeaderSearchText(action?.title);
+                const subtitle = normalizeHeaderSearchText(action?.subtitle);
+                const searchable = normalizeHeaderSearchText(action?.searchable);
+                let score = 0;
+
+                if (!query) {
+                    return 1;
+                }
+
+                if (title.startsWith(query)) {
+                    score += 120;
+                } else if (title.includes(query)) {
+                    score += 80;
+                }
+
+                if (subtitle.includes(query)) {
+                    score += 40;
+                }
+
+                if (searchable.includes(query)) {
+                    score += 24;
+                }
+
+                tokens.forEach((token) => {
+                    if (!token) {
+                        return;
+                    }
+
+                    if (title.includes(token)) {
+                        score += 14;
+                    } else if (searchable.includes(token)) {
+                        score += 8;
+                    }
+                });
+
+                return score;
+            }
+
+            async function renderHeaderSearchResults(rawQuery) {
+                if (!headerSearchResultList || !headerSearchResultMeta || !headerSearchEmptyState) {
+                    return;
+                }
+
+                const runToken = ++headerSearchRenderToken;
+                const queryText = String(rawQuery || "");
+                const query = normalizeHeaderSearchText(queryText);
+                const tokens = query ? query.split(" ").filter(Boolean) : [];
+                let deviceActions = [];
+                let deviceSearchError = "";
+
+                if (query.length >= 2) {
+                    try {
+                        await ensureHeaderSearchDeviceRowsLoaded();
+                        deviceActions = buildHeaderDeviceSearchActions(queryText);
+                    } catch (error) {
+                        deviceSearchError = error instanceof Error ? error.message : "Gagal memuat data perangkat.";
+                    }
+                }
+
+                if (runToken !== headerSearchRenderToken) {
+                    return;
+                }
+
+                const allActions = [...headerSearchActions, ...deviceActions];
+                const scoredActions = allActions
+                    .map((action, index) => ({
+                        action,
+                        index,
+                        score: computeHeaderSearchScore(action, query, tokens),
+                    }))
+                    .filter((entry) => entry.score > 0)
+                    .sort((a, b) => {
+                        if (b.score !== a.score) {
+                            return b.score - a.score;
+                        }
+                        return String(a.action?.title || "").localeCompare(String(b.action?.title || ""), "id", { sensitivity: "base" });
+                    });
+
+                const limited = scoredActions.slice(0, 8);
+                headerSearchRenderedActions = limited.map((entry) => entry.action);
+
+                if (!query) {
+                    headerSearchResultMeta.textContent = "Akses cepat halaman utama.";
+                } else if (deviceSearchError) {
+                    headerSearchResultMeta.textContent = `${limited.length} hasil untuk "${queryText}" (pencarian perangkat belum tersedia).`;
+                } else {
+                    headerSearchResultMeta.textContent = `${limited.length} hasil untuk "${queryText}".`;
+                }
+
+                if (limited.length === 0) {
+                    headerSearchRenderedActions = [];
+                    headerSearchResultList.innerHTML = "";
+                    headerSearchEmptyState.classList.remove("d-none");
+                    return;
+                }
+
+                headerSearchEmptyState.classList.add("d-none");
+                headerSearchResultList.innerHTML = limited.map((entry, renderedIndex) => {
+                    const { action } = entry;
+                    return `
+                        <button type="button" class="list-group-item list-group-item-action search-result-item" data-search-action-index="${renderedIndex}">
+                            <div class="d-flex align-items-center justify-content-between gap-2">
+                                <div class="text-start">
+                                    <div class="result-title">${escapeHtml(action?.title || "-")}</div>
+                                    <div class="result-subtitle">${escapeHtml(action?.subtitle || "-")}</div>
+                                </div>
+                                <span class="result-tag">${escapeHtml(action?.tag || "Menu")}</span>
+                            </div>
+                        </button>
+                    `;
+                }).join("");
+            }
+
+            function runHeaderSearchActionByIndex(index) {
+                if (!Number.isInteger(index) || index < 0 || index >= headerSearchRenderedActions.length) {
+                    return;
+                }
+
+                const action = headerSearchRenderedActions[index];
+                if (!action || typeof action.run !== "function") {
+                    return;
+                }
+
+                action.run();
+                closeHeaderSearchDropdown();
+            }
+
+            function initializeHeaderSearch() {
+                if (!headerSearchInput || !headerSearchResultList) {
+                    return;
+                }
+
+                headerSearchActions = buildHeaderSearchActions();
+                void renderHeaderSearchResults("");
+
+                headerSearchInput.addEventListener("input", () => {
+                    void renderHeaderSearchResults(headerSearchInput.value);
+                });
+
+                headerSearchInput.addEventListener("keydown", (event) => {
+                    if (event.key !== "Enter") {
+                        return;
+                    }
+
+                    event.preventDefault();
+                    if (headerSearchRenderedActions.length === 0) {
+                        return;
+                    }
+
+                    runHeaderSearchActionByIndex(0);
+                });
+
+                headerSearchResultList.addEventListener("click", (event) => {
+                    const target = event.target;
+                    if (!(target instanceof Element)) {
+                        return;
+                    }
+
+                    const actionButton = target.closest("[data-search-action-index]");
+                    if (!(actionButton instanceof HTMLElement)) {
+                        return;
+                    }
+
+                    const actionIndex = Number(actionButton.getAttribute("data-search-action-index"));
+                    if (!Number.isInteger(actionIndex)) {
+                        return;
+                    }
+
+                    runHeaderSearchActionByIndex(actionIndex);
+                });
+
+                if (headerSearchClearButton) {
+                    headerSearchClearButton.addEventListener("click", () => {
+                        headerSearchInput.value = "";
+                        void renderHeaderSearchResults("");
+                        headerSearchInput.focus();
+                    });
+                }
+
+                if (headerSearchContainer) {
+                    headerSearchContainer.addEventListener("shown.bs.dropdown", () => {
+                        void renderHeaderSearchResults(headerSearchInput.value);
+                        headerSearchInput.focus();
+                        headerSearchInput.select();
+                    });
                 }
             }
 
@@ -4907,6 +5088,7 @@
 
             setDropdownUserProfile();
             applyRoleBasedNavigation();
+            initializeHeaderSearch();
             setActiveNav(dashboardLink);
             setActiveBreadcrumb(pageTitle.textContent.trim());
             initializeDashboardDetailTriggers();

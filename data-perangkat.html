@@ -1033,6 +1033,8 @@
             "Bitlocker Key"
         ];
         let currentSearchQuery = "";
+        const initialGlobalSearchQuery = String(new URLSearchParams(window.location.search).get("globalSearch") || "").trim();
+        let hasAppliedInitialGlobalSearch = false;
         const activeJobCodeFilters = new Set();
         const activeLeaseStatusFilters = new Set();
         let isExportingExcel = false;
@@ -1804,6 +1806,19 @@
 
         function normalizeSearchValue(value) {
             return String(value ?? "").toLowerCase().trim();
+        }
+
+        function applyGlobalSearchKeyword(keyword) {
+            const rawKeyword = String(keyword ?? "").trim();
+            const normalized = normalizeSearchValue(rawKeyword);
+            if (!normalized) {
+                return;
+            }
+
+            tableSearchInput.value = rawKeyword;
+            currentSearchQuery = normalized;
+            currentPage = 1;
+            renderRows(deviceRows);
         }
 
         function tokenizeSearchQuery(query) {
@@ -2767,6 +2782,10 @@
                 hideAlert();
                 await loadMasterData();
                 await loadRows();
+                if (!hasAppliedInitialGlobalSearch && initialGlobalSearchQuery) {
+                    applyGlobalSearchKeyword(initialGlobalSearchQuery);
+                    hasAppliedInitialGlobalSearch = true;
+                }
             } catch (error) {
                 showAlert(error.message, "danger");
                 tableBody.innerHTML = `
