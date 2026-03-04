@@ -1,0 +1,227 @@
+:root {
+  --ci-bg-light: #f2f6fc;
+  --ci-surface-light: #ffffff;
+  --ci-border-light: #dbe4f0;
+  --ci-text-light: #0f172a;
+  --ci-muted-light: #5b6f88;
+
+  --ci-bg-dark: #0b1220;
+  --ci-surface-dark: #121c31;
+  --ci-surface-dark-soft: #17243d;
+  --ci-border-dark: #273753;
+  --ci-text-dark: #e4ecf7;
+  --ci-muted-dark: #9eb1cb;
+}
+
+body,
+.card,
+.form-control,
+.form-select,
+.dropdown-menu,
+.table,
+.view-drawer,
+.form-modal {
+  transition: background-color 0.22s ease, color 0.22s ease, border-color 0.22s ease, box-shadow 0.22s ease;
+}
+
+html.app-skin-dark {
+  color-scheme: dark;
+}
+
+html.app-skin-dark body,
+html.app-skin-dark .main-content,
+html.app-skin-dark .nxl-content,
+html.app-skin-dark .nxl-container,
+html.app-skin-dark .nxl-container .main-content,
+html.app-skin-dark .content-area,
+html.app-skin-dark .content,
+html.app-skin-dark .page-shell {
+  background: var(--ci-bg-dark) !important;
+  color: var(--ci-text-dark) !important;
+}
+
+html.app-skin-dark .page-shell {
+  background: linear-gradient(160deg, #0b1220 0%, #111a2f 45%, #152238 100%) !important;
+}
+
+html.app-skin-dark .card,
+html.app-skin-dark .card-shadow,
+html.app-skin-dark .modal-content,
+html.app-skin-dark .view-drawer,
+html.app-skin-dark .form-modal,
+html.app-skin-dark .dropdown-menu,
+html.app-skin-dark .nxl-h-dropdown,
+html.app-skin-dark .device-table-filters,
+html.app-skin-dark .dashboard-site-list li,
+html.app-skin-dark .table-responsive,
+html.app-skin-dark .dashboard-chart-empty,
+html.app-skin-dark .history-log-card,
+html.app-skin-dark .status-filter-tabs {
+  background-color: var(--ci-surface-dark) !important;
+  border-color: var(--ci-border-dark) !important;
+  color: var(--ci-text-dark) !important;
+  box-shadow: none !important;
+}
+
+html.app-skin-dark .nxl-navigation .nxl-link:hover {
+  background: #1a2943 !important;
+  border-color: #2a3a58 !important;
+  color: #c6d6f0 !important;
+}
+
+html.app-skin-dark .nxl-navigation .nxl-link:hover .nxl-micon i,
+html.app-skin-dark .nxl-navigation .nxl-link:hover .nxl-arrow i {
+  color: #c6d6f0 !important;
+}
+
+html.app-skin-dark .nxl-navigation .nxl-link.is-active {
+  background: #223354 !important;
+  border-color: #33486f !important;
+  color: #dbe7ff !important;
+}
+
+html.app-skin-dark .nxl-navigation .nxl-link.is-active .nxl-micon i,
+html.app-skin-dark .nxl-navigation .nxl-link.is-active .nxl-arrow i {
+  color: #dbe7ff !important;
+}
+
+html.app-skin-dark .page-header .breadcrumb .breadcrumb-item.is-current {
+  background: #223354 !important;
+  color: #c9d8ff !important;
+}
+
+html.app-skin-dark .page-header .breadcrumb .breadcrumb-item.is-current::before {
+  color: #c9d8ff !important;
+}
+
+html.app-skin-dark .page-title,
+html.app-skin-dark .device-form-section-title,
+html.app-skin-dark .view-drawer-title,
+html.app-skin-dark .view-drawer-value,
+html.app-skin-dark .inventory-metric-card .metric-value,
+html.app-skin-dark .dashboard-site-list .site-name,
+html.app-skin-dark .dashboard-table td,
+html.app-skin-dark .dashboard-detail-modal .modal-title {
+  color: var(--ci-text-dark) !important;
+}
+
+html.app-skin-dark .page-subtitle,
+html.app-skin-dark .inventory-metric-card .metric-label,
+html.app-skin-dark .inventory-metric-card .metric-subtext,
+html.app-skin-dark .dashboard-site-list .site-detail,
+html.app-skin-dark .dashboard-generated-at,
+html.app-skin-dark .dashboard-table th,
+html.app-skin-dark .view-drawer-label,
+html.app-skin-dark .search-items-wrapper .result-subtitle,
+html.app-skin-dark .table td,
+html.app-skin-dark .table th,
+html.app-skin-dark .text-muted,
+html.app-skin-dark .small,
+html.app-skin-dark .form-text {
+  color: var(--ci-muted-dark) !important;
+}
+
+html.app-skin-dark .form-control,
+html.app-skin-dark .form-select,
+html.app-skin-dark .input-group-text,
+html.app-skin-dark textarea,
+html.app-skin-dark input,
+html.app-skin-dark select {
+  background-color: #0f1a2d !important;
+  border-color: var(--ci-border-dark) !important;
+  color: var(--ci-text-dark) !important;
+}
+
+html.app-skin-dark .form-control::placeholder,
+html.app-skin-dark textarea::placeholder,
+html.app-skin-dark input::placeholder {
+  color: #7f95b3 !important;
+}
+
+html.app-skin-dark .form-control:disabled,
+html.app-skin-dark .form-select:disabled,
+html.app-skin-dark .form-control[readonly],
+html.app-skin-dark .form-select[readonly] {
+  background-color: #111f37 !important;
+  color: #a9bbd4 !important;
+}
+
+html.app-skin-dark .btn-light,
+html.app-skin-dark .btn-outline-secondary {
+  color: var(--ci-text-dark) !important;
+  border-color: var(--ci-border-dark) !important;
+  background: #1a2843 !important;
+}
+
+html.app-skin-dark .select2-container--default .select2-selection--single,
+html.app-skin-dark .select2-container--default .select2-selection--multiple {
+  background-color: #0f1a2d !important;
+  border-color: var(--ci-border-dark) !important;
+  color: var(--ci-text-dark) !important;
+}
+
+html.app-skin-dark .select2-container--default .select2-selection--single .select2-selection__rendered,
+html.app-skin-dark .select2-container--default .select2-selection--multiple .select2-selection__choice,
+html.app-skin-dark .select2-container--default .select2-selection--multiple .select2-search__field {
+  color: var(--ci-text-dark) !important;
+}
+
+html.app-skin-dark .select2-dropdown,
+html.app-skin-dark .select2-search__field,
+html.app-skin-dark .select2-results__option,
+html.app-skin-dark .select2-container--default .select2-results > .select2-results__options {
+  background-color: var(--ci-surface-dark) !important;
+  border-color: var(--ci-border-dark) !important;
+  color: var(--ci-text-dark) !important;
+}
+
+html.app-skin-dark .search-items-wrapper .search-result-item {
+  background: transparent !important;
+  border-bottom-color: var(--ci-border-dark) !important;
+}
+
+html.app-skin-dark .search-items-wrapper .result-title {
+  color: var(--ci-text-dark) !important;
+}
+
+html.app-skin-dark .search-items-wrapper .result-tag {
+  background: #1f3254 !important;
+  color: #c7d6f2 !important;
+}
+
+html.app-skin-dark .view-drawer-overlay,
+html.app-skin-dark .signature-modal-overlay,
+html.app-skin-dark .confirm-modal-overlay,
+html.app-skin-dark .note-modal-overlay {
+  background: rgba(3, 8, 18, 0.7) !important;
+}
+
+html.app-skin-dark .table,
+html.app-skin-dark .table > :not(caption) > * > * {
+  color: var(--ci-text-dark) !important;
+  border-color: var(--ci-border-dark) !important;
+}
+
+html.app-skin-dark .table-hover > tbody > tr:hover > * {
+  --bs-table-accent-bg: #182742 !important;
+  color: #eef4ff !important;
+}
+
+html.app-skin-dark .theme-customizer {
+  background-color: #111a2f !important;
+  border-color: var(--ci-border-dark) !important;
+}
+
+html.app-skin-dark .theme-customizer .customizer-sidebar-header,
+html.app-skin-dark .theme-customizer .customizer-sidebar-body {
+  background-color: #111a2f !important;
+}
+
+html.app-skin-dark .theme-customizer .options-label {
+  color: var(--ci-text-dark) !important;
+}
+
+html.app-skin-dark .apexcharts-canvas .apexcharts-text,
+html.app-skin-dark .apexcharts-canvas text {
+  fill: #c7d6f0 !important;
+}

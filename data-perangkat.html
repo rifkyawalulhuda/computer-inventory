@@ -12,7 +12,9 @@
     <link rel="stylesheet" type="text/css" href="assets/vendors/css/select2.min.css">
     <link rel="stylesheet" type="text/css" href="assets/vendors/css/select2-theme.min.css">
     <link rel="stylesheet" type="text/css" href="assets/css/theme.min.css">
+    <link rel="stylesheet" type="text/css" href="assets/css/theme-mode.css">
     <script src="assets/js/auth-client.js"></script>
+    <script src="assets/js/theme-mode.js"></script>
     <script>
         if (window.AuthClient) {
             window.AuthClient.requireAuth();
@@ -819,17 +821,17 @@
                         <table class="table table-hover align-middle mb-0 device-table">
                             <thead>
                                 <tr>
-                                    <th><button type="button" class="table-sort-btn" data-sort-key="NO" aria-label="Sort by NO">NO <span class="table-sort-indicator">↕</span></button></th>
-                                    <th><button type="button" class="table-sort-btn" data-sort-key="Department" aria-label="Sort by Department">Department <span class="table-sort-indicator">↕</span></button></th>
-                                    <th><button type="button" class="table-sort-btn" data-sort-key="PIC Name" aria-label="Sort by PIC Name">PIC Name <span class="table-sort-indicator">↕</span></button></th>
-                                    <th><button type="button" class="table-sort-btn" data-sort-key="Serial No." aria-label="Sort by Serial No">Serial No. <span class="table-sort-indicator">↕</span></button></th>
-                                    <th><button type="button" class="table-sort-btn" data-sort-key="Category" aria-label="Sort by Category">Category <span class="table-sort-indicator">↕</span></button></th>
-                                    <th><button type="button" class="table-sort-btn" data-sort-key="Model" aria-label="Sort by Model">Model <span class="table-sort-indicator">↕</span></button></th>
-                                    <th><button type="button" class="table-sort-btn" data-sort-key="Host Name" aria-label="Sort by Host Name">Host Name <span class="table-sort-indicator">↕</span></button></th>
-                                    <th><button type="button" class="table-sort-btn" data-sort-key="User Name" aria-label="Sort by User Name">User Name <span class="table-sort-indicator">↕</span></button></th>
-                                    <th><button type="button" class="table-sort-btn" data-sort-key="User Email" aria-label="Sort by User Email">User Email <span class="table-sort-indicator">↕</span></button></th>
-                                    <th><button type="button" class="table-sort-btn" data-sort-key="Days Lease" aria-label="Sort by Days Lease">Days Lease <span class="table-sort-indicator">↕</span></button></th>
-                                    <th><button type="button" class="table-sort-btn" data-sort-key="Lease Status" aria-label="Sort by Lease Status">Lease Status <span class="table-sort-indicator">↕</span></button></th>
+                                    <th><button type="button" class="table-sort-btn" data-sort-key="NO" aria-label="Sort by NO">NO <span class="table-sort-indicator">&#8597;</span></button></th>
+                                    <th><button type="button" class="table-sort-btn" data-sort-key="Department" aria-label="Sort by Department">Department <span class="table-sort-indicator">&#8597;</span></button></th>
+                                    <th><button type="button" class="table-sort-btn" data-sort-key="PIC Name" aria-label="Sort by PIC Name">PIC Name <span class="table-sort-indicator">&#8597;</span></button></th>
+                                    <th><button type="button" class="table-sort-btn" data-sort-key="Serial No." aria-label="Sort by Serial No">Serial No. <span class="table-sort-indicator">&#8597;</span></button></th>
+                                    <th><button type="button" class="table-sort-btn" data-sort-key="Category" aria-label="Sort by Category">Category <span class="table-sort-indicator">&#8597;</span></button></th>
+                                    <th><button type="button" class="table-sort-btn" data-sort-key="Model" aria-label="Sort by Model">Model <span class="table-sort-indicator">&#8597;</span></button></th>
+                                    <th><button type="button" class="table-sort-btn" data-sort-key="Host Name" aria-label="Sort by Host Name">Host Name <span class="table-sort-indicator">&#8597;</span></button></th>
+                                    <th><button type="button" class="table-sort-btn" data-sort-key="User Name" aria-label="Sort by User Name">User Name <span class="table-sort-indicator">&#8597;</span></button></th>
+                                    <th><button type="button" class="table-sort-btn" data-sort-key="User Email" aria-label="Sort by User Email">User Email <span class="table-sort-indicator">&#8597;</span></button></th>
+                                    <th><button type="button" class="table-sort-btn" data-sort-key="Days Lease" aria-label="Sort by Days Lease">Days Lease <span class="table-sort-indicator">&#8597;</span></button></th>
+                                    <th><button type="button" class="table-sort-btn" data-sort-key="Lease Status" aria-label="Sort by Lease Status">Lease Status <span class="table-sort-indicator">&#8597;</span></button></th>
                                     <th>Action</th>
                                 </tr>
                             </thead>
@@ -1900,8 +1902,8 @@
 
                 if (indicator) {
                     indicator.textContent = isActive
-                        ? (currentSortDirection === "asc" ? "↑" : "↓")
-                        : "↕";
+                        ? (currentSortDirection === "asc" ? "\u2191" : "\u2193")
+                        : "\u2195";
                 }
             });
         }
@@ -3029,3 +3031,4 @@ if (event.key === "Escape" && confirmModalOverlay.classList.contains("open")) {
 </body>
 
 </html>
+

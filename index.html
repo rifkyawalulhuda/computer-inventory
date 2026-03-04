@@ -13,6 +13,7 @@
     <title>Computer Inventory || Dashboard</title>
     <!--! END:  Apps Title-->
     <script src="assets/js/auth-client.js"></script>
+    <script src="assets/js/theme-mode.js"></script>
     <script>
         if (window.AuthClient) {
             window.AuthClient.requireAuth();
@@ -31,6 +32,7 @@
     <!--! END: Vendors CSS-->
     <!--! BEGIN: Custom CSS-->
     <link rel="stylesheet" type="text/css" href="assets/css/theme.min.css" />
+    <link rel="stylesheet" type="text/css" href="assets/css/theme-mode.css" />
     <!--! END: Custom CSS-->
     <style>
         .master-inline-frame {
@@ -4777,8 +4779,8 @@
 
                             const isActiveSort = dashboardDetailSort.key === column.key;
                             const indicator = isActiveSort
-                                ? (dashboardDetailSort.direction === "desc" ? "↓" : "↑")
-                                : "↕";
+                                ? (dashboardDetailSort.direction === "desc" ? "\u2193" : "\u2191")
+                                : "\u2195";
                             const activeClass = isActiveSort ? " is-active" : "";
 
                             return `<th class="dashboard-sortable${activeClass}" data-dashboard-sort-key="${escapeHtml(column.key)}">${escapeHtml(column.label)} <span class="sort-indicator">${indicator}</span></th>`;
@@ -5526,6 +5528,7 @@
 </body>
 
 </html>
+
 
 
 
