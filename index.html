@@ -224,6 +224,28 @@
             color: #64748b;
         }
 
+        .dashboard-expiring-toolbar {
+            display: flex;
+            align-items: center;
+            justify-content: flex-end;
+            gap: 8px;
+            margin-bottom: 12px;
+        }
+
+        .dashboard-expiring-toolbar .form-select {
+            width: auto;
+            min-width: 78px;
+            padding-top: 0.3rem;
+            padding-bottom: 0.3rem;
+        }
+
+        .dashboard-expiring-pagination .page-link {
+            min-width: 34px;
+            text-align: center;
+            font-size: 0.78rem;
+            padding: 0.32rem 0.5rem;
+        }
+
         .dashboard-detail-trigger {
             cursor: pointer;
             transition: transform 0.18s ease, box-shadow 0.18s ease;
@@ -2496,6 +2518,15 @@
                                 <span class="badge bg-soft-warning text-warning" id="dashboardExpiringSoonBadge">0 Device</span>
                             </div>
                             <div class="card-body">
+                                <div class="dashboard-expiring-toolbar">
+                                    <span class="dashboard-generated-at">Rows</span>
+                                    <select id="dashboardExpiringRowsPerPage" class="form-select form-select-sm" aria-label="Rows per page perangkat akan expired">
+                                        <option value="15" selected>15</option>
+                                        <option value="50">50</option>
+                                        <option value="100">100</option>
+                                    </select>
+                                    <span class="dashboard-generated-at" id="dashboardExpiringPaginationInfo">0-0 dari 0</span>
+                                </div>
                                 <div class="table-responsive">
                                     <table class="table dashboard-table align-middle mb-0">
                                         <thead>
@@ -2517,6 +2548,9 @@
                                             </tr>
                                         </tbody>
                                     </table>
+                                </div>
+                                <div class="d-flex justify-content-end mt-3">
+                                    <ul class="pagination pagination-sm mb-0 dashboard-expiring-pagination" id="dashboardExpiringPagination"></ul>
                                 </div>
                             </div>
                         </div>
@@ -3836,6 +3870,9 @@
             const dashboardSiteSummaryList = document.getElementById("dashboardSiteSummaryList");
             const dashboardExpiringBody = document.getElementById("dashboardExpiringBody");
             const dashboardExpiringSoonBadge = document.getElementById("dashboardExpiringSoonBadge");
+            const dashboardExpiringRowsPerPage = document.getElementById("dashboardExpiringRowsPerPage");
+            const dashboardExpiringPagination = document.getElementById("dashboardExpiringPagination");
+            const dashboardExpiringPaginationInfo = document.getElementById("dashboardExpiringPaginationInfo");
             const dashboardGeneratedAt = document.getElementById("dashboardGeneratedAt");
             const dashboardSiteChartContainer = document.getElementById("dashboardSiteChartContainer");
             let flowPendingPollTimer = null;
@@ -3845,6 +3882,9 @@
             let dashboardDetailModalInstance = null;
             let dashboardDetailCurrent = null;
             let dashboardDetailSort = { key: "", direction: "asc" };
+            let dashboardExpiringRowsCache = [];
+            let dashboardExpiringPageSize = 15;
+            let dashboardExpiringCurrentPage = 1;
 
             if (!inlineContainer || !inlineFrame || !mainContent || !pageTitle || breadcrumbItems.length < 2) {
                 return;
@@ -4430,23 +4470,112 @@
                 }).join("");
             }
 
-            function renderDashboardExpiringTable(expiringSoonDevices) {
+            function setDashboardExpiringPaginationInfo(start, end, total) {
+                if (!dashboardExpiringPaginationInfo) {
+                    return;
+                }
+
+                dashboardExpiringPaginationInfo.textContent = `${formatNumber(start)}-${formatNumber(end)} dari ${formatNumber(total)}`;
+            }
+
+            function buildDashboardPaginationItems(totalPages, currentPage) {
+                if (totalPages <= 7) {
+                    return Array.from({ length: totalPages }, (_, index) => index + 1);
+                }
+
+                const items = [1];
+                const left = Math.max(2, currentPage - 1);
+                const right = Math.min(totalPages - 1, currentPage + 1);
+
+                if (left > 2) {
+                    items.push("...");
+                }
+
+                for (let page = left; page <= right; page += 1) {
+                    items.push(page);
+                }
+
+                if (right < totalPages - 1) {
+                    items.push("...");
+                }
+
+                items.push(totalPages);
+                return items;
+            }
+
+            function renderDashboardExpiringPagination(totalRows) {
+                if (!dashboardExpiringPagination) {
+                    return;
+                }
+
+                if (totalRows <= 0) {
+                    dashboardExpiringPagination.innerHTML = "";
+                    setDashboardExpiringPaginationInfo(0, 0, 0);
+                    return;
+                }
+
+                const totalPages = Math.max(1, Math.ceil(totalRows / dashboardExpiringPageSize));
+                if (dashboardExpiringCurrentPage > totalPages) {
+                    dashboardExpiringCurrentPage = totalPages;
+                }
+
+                const start = ((dashboardExpiringCurrentPage - 1) * dashboardExpiringPageSize) + 1;
+                const end = Math.min(start + dashboardExpiringPageSize - 1, totalRows);
+                setDashboardExpiringPaginationInfo(start, end, totalRows);
+
+                const pageItems = buildDashboardPaginationItems(totalPages, dashboardExpiringCurrentPage);
+                const previousDisabled = dashboardExpiringCurrentPage <= 1 ? " disabled" : "";
+                const nextDisabled = dashboardExpiringCurrentPage >= totalPages ? " disabled" : "";
+
+                dashboardExpiringPagination.innerHTML = `
+                    <li class="page-item${previousDisabled}">
+                        <button type="button" class="page-link" data-page-nav="prev" ${previousDisabled ? "disabled" : ""}>Prev</button>
+                    </li>
+                    ${pageItems.map((item) => {
+                        if (item === "...") {
+                            return '<li class="page-item disabled"><span class="page-link">...</span></li>';
+                        }
+
+                        const isActive = item === dashboardExpiringCurrentPage;
+                        return `
+                            <li class="page-item${isActive ? " active" : ""}">
+                                <button type="button" class="page-link" data-page-number="${item}" ${isActive ? "aria-current=\"page\"" : ""}>${item}</button>
+                            </li>
+                        `;
+                    }).join("")}
+                    <li class="page-item${nextDisabled}">
+                        <button type="button" class="page-link" data-page-nav="next" ${nextDisabled ? "disabled" : ""}>Next</button>
+                    </li>
+                `;
+            }
+
+            function renderDashboardExpiringTablePage() {
                 if (!dashboardExpiringBody) {
                     return;
                 }
 
-                if (!Array.isArray(expiringSoonDevices) || expiringSoonDevices.length === 0) {
+                const totalRows = dashboardExpiringRowsCache.length;
+                if (totalRows <= 0) {
                     dashboardExpiringBody.innerHTML = `
                         <tr>
                             <td colspan="9" class="text-center text-muted py-4">Tidak ada perangkat yang akan expired dalam 28 hari.</td>
                         </tr>
                     `;
+                    renderDashboardExpiringPagination(0);
                     return;
                 }
 
-                dashboardExpiringBody.innerHTML = expiringSoonDevices.slice(0, 20).map((row, index) => `
+                const totalPages = Math.max(1, Math.ceil(totalRows / dashboardExpiringPageSize));
+                if (dashboardExpiringCurrentPage > totalPages) {
+                    dashboardExpiringCurrentPage = totalPages;
+                }
+
+                const startIndex = (dashboardExpiringCurrentPage - 1) * dashboardExpiringPageSize;
+                const pageRows = dashboardExpiringRowsCache.slice(startIndex, startIndex + dashboardExpiringPageSize);
+
+                dashboardExpiringBody.innerHTML = pageRows.map((row, index) => `
                     <tr>
-                        <td>${index + 1}</td>
+                        <td>${startIndex + index + 1}</td>
                         <td>${escapeHtml(toDisplayText(row?.siteCode))}</td>
                         <td>${escapeHtml(toDisplayText(row?.picName))}</td>
                         <td>${escapeHtml(toDisplayText(row?.serialNo))}</td>
@@ -4457,6 +4586,62 @@
                         <td>${escapeHtml(toDisplayText(row?.endDate))}</td>
                     </tr>
                 `).join("");
+
+                renderDashboardExpiringPagination(totalRows);
+            }
+
+            function renderDashboardExpiringTable(expiringSoonDevices) {
+                dashboardExpiringRowsCache = Array.isArray(expiringSoonDevices) ? [...expiringSoonDevices] : [];
+                dashboardExpiringCurrentPage = 1;
+                renderDashboardExpiringTablePage();
+            }
+
+            function initializeDashboardExpiringTableControls() {
+                if (dashboardExpiringRowsPerPage) {
+                    const initialSize = Number(dashboardExpiringRowsPerPage.value);
+                    if ([15, 50, 100].includes(initialSize)) {
+                        dashboardExpiringPageSize = initialSize;
+                    }
+
+                    dashboardExpiringRowsPerPage.addEventListener("change", () => {
+                        const nextSize = Number(dashboardExpiringRowsPerPage.value);
+                        if (![15, 50, 100].includes(nextSize)) {
+                            return;
+                        }
+
+                        dashboardExpiringPageSize = nextSize;
+                        dashboardExpiringCurrentPage = 1;
+                        renderDashboardExpiringTablePage();
+                    });
+                }
+
+                if (dashboardExpiringPagination) {
+                    dashboardExpiringPagination.addEventListener("click", (event) => {
+                        const target = event.target;
+                        if (!(target instanceof HTMLElement)) {
+                            return;
+                        }
+
+                        const pageNumber = Number(target.getAttribute("data-page-number"));
+                        if (Number.isFinite(pageNumber) && pageNumber > 0) {
+                            dashboardExpiringCurrentPage = pageNumber;
+                            renderDashboardExpiringTablePage();
+                            return;
+                        }
+
+                        const nav = String(target.getAttribute("data-page-nav") || "").trim().toLowerCase();
+                        const totalRows = dashboardExpiringRowsCache.length;
+                        const totalPages = Math.max(1, Math.ceil(totalRows / dashboardExpiringPageSize));
+
+                        if (nav === "prev" && dashboardExpiringCurrentPage > 1) {
+                            dashboardExpiringCurrentPage -= 1;
+                            renderDashboardExpiringTablePage();
+                        } else if (nav === "next" && dashboardExpiringCurrentPage < totalPages) {
+                            dashboardExpiringCurrentPage += 1;
+                            renderDashboardExpiringTablePage();
+                        }
+                    });
+                }
             }
 
             function renderDashboardSiteChart(bySite) {
@@ -4591,6 +4776,9 @@
                     dashboardGeneratedAt.textContent = safeMessage;
                 }
 
+                dashboardExpiringRowsCache = [];
+                dashboardExpiringCurrentPage = 1;
+
                 if (dashboardExpiringBody) {
                     dashboardExpiringBody.innerHTML = `
                         <tr>
@@ -4598,6 +4786,7 @@
                         </tr>
                     `;
                 }
+                renderDashboardExpiringPagination(0);
 
                 if (dashboardSiteSummaryList) {
                     dashboardSiteSummaryList.innerHTML = `
@@ -4721,6 +4910,7 @@
             setActiveNav(dashboardLink);
             setActiveBreadcrumb(pageTitle.textContent.trim());
             initializeDashboardDetailTriggers();
+            initializeDashboardExpiringTableControls();
             startFlowPendingBadgePolling();
             startDashboardSummaryPolling();
 

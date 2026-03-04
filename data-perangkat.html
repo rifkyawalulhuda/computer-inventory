@@ -137,7 +137,7 @@
         .table-sort-btn {
             display: inline-flex;
             align-items: center;
-            gap: 6px;
+            gap: 0;
             border: 0;
             background: transparent;
             padding: 0;
@@ -156,11 +156,11 @@
         }
 
         .table-sort-btn .table-sort-indicator {
-            min-width: 10px;
-            text-align: center;
+            margin-left: 6px;
             color: #94a3b8;
-            font-size: 0.7rem;
+            font-size: 0.68rem;
             font-weight: 700;
+            vertical-align: middle;
         }
 
         .table-sort-btn.is-active {
@@ -819,17 +819,17 @@
                         <table class="table table-hover align-middle mb-0 device-table">
                             <thead>
                                 <tr>
-                                    <th><button type="button" class="table-sort-btn" data-sort-key="NO" aria-label="Sort by NO">NO <span class="table-sort-indicator">-</span></button></th>
-                                    <th><button type="button" class="table-sort-btn" data-sort-key="Department" aria-label="Sort by Department">Department <span class="table-sort-indicator">-</span></button></th>
-                                    <th><button type="button" class="table-sort-btn" data-sort-key="PIC Name" aria-label="Sort by PIC Name">PIC Name <span class="table-sort-indicator">-</span></button></th>
-                                    <th><button type="button" class="table-sort-btn" data-sort-key="Serial No." aria-label="Sort by Serial No">Serial No. <span class="table-sort-indicator">-</span></button></th>
-                                    <th><button type="button" class="table-sort-btn" data-sort-key="Category" aria-label="Sort by Category">Category <span class="table-sort-indicator">-</span></button></th>
-                                    <th><button type="button" class="table-sort-btn" data-sort-key="Model" aria-label="Sort by Model">Model <span class="table-sort-indicator">-</span></button></th>
-                                    <th><button type="button" class="table-sort-btn" data-sort-key="Host Name" aria-label="Sort by Host Name">Host Name <span class="table-sort-indicator">-</span></button></th>
-                                    <th><button type="button" class="table-sort-btn" data-sort-key="User Name" aria-label="Sort by User Name">User Name <span class="table-sort-indicator">-</span></button></th>
-                                    <th><button type="button" class="table-sort-btn" data-sort-key="User Email" aria-label="Sort by User Email">User Email <span class="table-sort-indicator">-</span></button></th>
-                                    <th><button type="button" class="table-sort-btn" data-sort-key="Days Lease" aria-label="Sort by Days Lease">Days Lease <span class="table-sort-indicator">-</span></button></th>
-                                    <th><button type="button" class="table-sort-btn" data-sort-key="Lease Status" aria-label="Sort by Lease Status">Lease Status <span class="table-sort-indicator">-</span></button></th>
+                                    <th><button type="button" class="table-sort-btn" data-sort-key="NO" aria-label="Sort by NO">NO <span class="table-sort-indicator">↕</span></button></th>
+                                    <th><button type="button" class="table-sort-btn" data-sort-key="Department" aria-label="Sort by Department">Department <span class="table-sort-indicator">↕</span></button></th>
+                                    <th><button type="button" class="table-sort-btn" data-sort-key="PIC Name" aria-label="Sort by PIC Name">PIC Name <span class="table-sort-indicator">↕</span></button></th>
+                                    <th><button type="button" class="table-sort-btn" data-sort-key="Serial No." aria-label="Sort by Serial No">Serial No. <span class="table-sort-indicator">↕</span></button></th>
+                                    <th><button type="button" class="table-sort-btn" data-sort-key="Category" aria-label="Sort by Category">Category <span class="table-sort-indicator">↕</span></button></th>
+                                    <th><button type="button" class="table-sort-btn" data-sort-key="Model" aria-label="Sort by Model">Model <span class="table-sort-indicator">↕</span></button></th>
+                                    <th><button type="button" class="table-sort-btn" data-sort-key="Host Name" aria-label="Sort by Host Name">Host Name <span class="table-sort-indicator">↕</span></button></th>
+                                    <th><button type="button" class="table-sort-btn" data-sort-key="User Name" aria-label="Sort by User Name">User Name <span class="table-sort-indicator">↕</span></button></th>
+                                    <th><button type="button" class="table-sort-btn" data-sort-key="User Email" aria-label="Sort by User Email">User Email <span class="table-sort-indicator">↕</span></button></th>
+                                    <th><button type="button" class="table-sort-btn" data-sort-key="Days Lease" aria-label="Sort by Days Lease">Days Lease <span class="table-sort-indicator">↕</span></button></th>
+                                    <th><button type="button" class="table-sort-btn" data-sort-key="Lease Status" aria-label="Sort by Lease Status">Lease Status <span class="table-sort-indicator">↕</span></button></th>
                                     <th>Action</th>
                                 </tr>
                             </thead>
@@ -1885,8 +1885,8 @@
 
                 if (indicator) {
                     indicator.textContent = isActive
-                        ? (currentSortDirection === "asc" ? "^" : "v")
-                        : "-";
+                        ? (currentSortDirection === "asc" ? "↑" : "↓")
+                        : "↕";
                 }
             });
         }
