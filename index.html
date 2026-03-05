@@ -334,6 +334,233 @@
             letter-spacing: 0.03em;
         }
 
+        .nxl-notifications-menu {
+            width: min(390px, calc(100vw - 18px));
+            max-height: min(76vh, 560px);
+            padding: 0;
+            border-radius: 16px;
+            border: 1px solid #dbe5f2;
+            background: #fff;
+            overflow: hidden;
+            box-shadow: 0 18px 42px rgba(15, 23, 42, 0.2);
+        }
+
+        .nxl-notifications-menu.show {
+            display: flex;
+            flex-direction: column;
+        }
+
+        .nxl-notifications-menu .notifications-head {
+            padding: 14px 16px;
+            border-bottom: 1px solid #e5edf7;
+            background: linear-gradient(180deg, #ffffff 0%, #f8fbff 100%);
+        }
+
+        .nxl-notifications-menu .notifications-title {
+            margin: 0;
+            font-size: 1rem;
+            font-weight: 800;
+            color: #1e293b;
+            letter-spacing: 0.01em;
+        }
+
+        .nxl-notifications-menu .notifications-mark-read {
+            font-size: 0.72rem;
+            font-weight: 700;
+            color: #16a34a;
+            letter-spacing: 0.02em;
+            text-transform: uppercase;
+            text-decoration: none;
+        }
+
+        .nxl-notifications-menu .notifications-mark-read.disabled {
+            opacity: 0.45;
+            pointer-events: none;
+        }
+
+        #headerNotificationsList {
+            max-height: min(44vh, 320px);
+            padding: 9px;
+            overflow-y: auto;
+            overscroll-behavior: contain;
+            scrollbar-width: thin;
+            scrollbar-color: #b8c8dd transparent;
+        }
+
+        #headerNotificationsList::-webkit-scrollbar {
+            width: 6px;
+        }
+
+        #headerNotificationsList::-webkit-scrollbar-thumb {
+            background: #b8c8dd;
+            border-radius: 999px;
+        }
+
+        #headerNotificationsList .notifications-item {
+            display: flex;
+            align-items: flex-start;
+            gap: 10px;
+            padding: 10px;
+            margin-bottom: 8px;
+            border: 1px solid #e5edf7;
+            border-radius: 12px;
+            background: #ffffff;
+            transition: border-color 0.2s ease, box-shadow 0.2s ease, transform 0.2s ease;
+        }
+
+        #headerNotificationsList .notifications-item:last-child {
+            margin-bottom: 0;
+        }
+
+        #headerNotificationsList .notifications-item:hover {
+            border-color: #c7d8ef;
+            box-shadow: 0 10px 20px rgba(15, 23, 42, 0.08);
+            transform: translateY(-1px);
+        }
+
+        #headerNotificationsList .notifications-item.is-read {
+            opacity: 0.88;
+        }
+
+        .notification-open-btn {
+            border: 0;
+            background: transparent;
+            padding: 0;
+            width: 100%;
+            display: flex;
+            align-items: flex-start;
+            gap: 10px;
+            color: inherit;
+            text-align: left;
+        }
+
+        .notification-icon {
+            width: 32px;
+            min-width: 32px;
+            height: 32px;
+            border-radius: 999px;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            margin-top: 2px;
+            box-shadow: inset 0 0 0 1px rgba(15, 23, 42, 0.06);
+        }
+
+        .notification-content {
+            flex: 1;
+            min-width: 0;
+        }
+
+        .notification-topline {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 8px;
+            margin-bottom: 2px;
+        }
+
+        .notification-title {
+            font-size: 0.73rem;
+            letter-spacing: 0.03em;
+            text-transform: uppercase;
+            color: #64748b;
+            margin: 0;
+            line-height: 1.25;
+        }
+
+        .notification-title.notification-title-read {
+            color: #8ea1ba;
+        }
+
+        .notification-message {
+            margin: 0;
+            font-size: 0.86rem;
+            line-height: 1.35;
+            color: #1e293b;
+            display: -webkit-box;
+            -webkit-line-clamp: 2;
+            -webkit-box-orient: vertical;
+            overflow: hidden;
+            text-align: left;
+        }
+
+        .notification-meta {
+            margin-top: 6px;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 8px;
+        }
+
+        .notification-time {
+            font-size: 0.7rem;
+            font-weight: 700;
+            letter-spacing: 0.04em;
+            color: #7a8aa3;
+            text-transform: uppercase;
+        }
+
+        .notification-unread-dot {
+            width: 7px;
+            min-width: 7px;
+            height: 7px;
+            border-radius: 999px;
+            background: #ef4444;
+            display: inline-block;
+        }
+
+        .notification-status-badge {
+            font-size: 0.63rem;
+            font-weight: 700;
+            letter-spacing: 0.03em;
+            padding: 3px 7px;
+            text-transform: uppercase;
+            border-radius: 999px;
+        }
+
+        .notification-dismiss-btn {
+            border: 0;
+            width: 22px;
+            height: 22px;
+            border-radius: 999px;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            background: rgba(239, 68, 68, 0.08);
+            color: #ef4444;
+            padding: 0;
+            line-height: 1;
+            margin-top: 4px;
+            transition: background-color 0.2s ease, color 0.2s ease;
+        }
+
+        .notification-dismiss-btn:hover {
+            background: rgba(239, 68, 68, 0.16);
+            color: #dc2626;
+        }
+
+        .nxl-notifications-menu .notifications-empty {
+            padding: 18px 16px;
+            color: #64748b;
+            font-size: 0.79rem;
+            text-align: center;
+        }
+
+        .nxl-notifications-menu .notifications-footer {
+            border-top: 1px solid #e5edf7;
+            padding: 11px 14px;
+            background: linear-gradient(180deg, #ffffff 0%, #f8fbff 100%);
+        }
+
+        .nxl-notifications-menu .notifications-footer-link {
+            font-size: 0.76rem;
+            font-weight: 700;
+            letter-spacing: 0.02em;
+            color: #1e293b;
+            text-transform: uppercase;
+            text-decoration: none;
+        }
+
         .profile-detail-modal .modal-dialog {
             max-width: 960px;
         }
@@ -1905,16 +2132,16 @@
                         </a>
                         <div class="dropdown-menu dropdown-menu-end nxl-h-dropdown nxl-notifications-menu">
                             <div class="d-flex justify-content-between align-items-center notifications-head">
-                                <h6 class="fw-bold text-dark mb-0">Notifications</h6>
-                                <a href="javascript:void(0);" class="fs-11 text-success text-end ms-auto" id="headerNotificationsMarkRead" data-bs-toggle="tooltip" title="Make as Read">
+                                <h6 class="notifications-title">Notifications</h6>
+                                <a href="javascript:void(0);" class="text-end ms-auto notifications-mark-read" id="headerNotificationsMarkRead" data-bs-toggle="tooltip" title="Make as Read">
                                     <i class="feather-check"></i>
                                     <span>Make as Read</span>
                                 </a>
                             </div>
                             <div id="headerNotificationsList"></div>
-                            <div class="px-4 py-3 text-muted fs-12 d-none" id="headerNotificationsEmptyState">Belum ada notifikasi.</div>
+                            <div class="notifications-empty d-none" id="headerNotificationsEmptyState">Belum ada notifikasi.</div>
                             <div class="text-center notifications-footer">
-                                <a href="javascript:void(0);" class="fs-13 fw-semibold text-dark" id="headerNotificationsFooterLink">All Notifications</a>
+                                <a href="javascript:void(0);" class="notifications-footer-link" id="headerNotificationsFooterLink">All Notifications</a>
                             </div>
                         </div>
                     </div>
@@ -3603,6 +3830,7 @@
             const flowPendingBadges = document.querySelectorAll('[data-flow-pending-badge="true"]');
             const flowRejectedBadges = document.querySelectorAll('[data-flow-rejected-badge="true"]');
             const API_BASE = `${window.location.protocol === "https:" ? "https:" : "http:"}//${window.location.hostname || "localhost"}:3001/api`;
+            const NOTIFICATION_EXPIRING_SOON_DAYS = 28;
             const dashboardMetricTotal = document.getElementById("dashboardMetricTotal");
             const dashboardMetricActive = document.getElementById("dashboardMetricActive");
             const dashboardMetricExpired = document.getElementById("dashboardMetricExpired");
@@ -3645,7 +3873,10 @@
             let headerSearchDeviceRowsLoading = false;
             let headerSearchDeviceRowsPromise = null;
             let headerSearchRenderToken = 0;
-            let headerNotificationRowsCache = [];
+            let headerNotificationRowsCache = {
+                flowRows: [],
+                leaseRows: [],
+            };
             let headerNotificationsRenderedItems = [];
             let headerNotificationReadKeys = new Set();
             let headerNotificationDismissedKeys = new Set();
@@ -4377,6 +4608,7 @@
                         badgeClass: "bg-soft-warning text-warning",
                         badgeLabel: "PENDING",
                         iconClass: "feather-clock",
+                        priority: 2,
                     };
                 }
 
@@ -4385,6 +4617,7 @@
                         badgeClass: "bg-soft-danger text-danger",
                         badgeLabel: "REJECTED",
                         iconClass: "feather-x-circle",
+                        priority: 3,
                     };
                 }
 
@@ -4393,6 +4626,7 @@
                         badgeClass: "bg-soft-success text-success",
                         badgeLabel: "APPROVED",
                         iconClass: "feather-check-circle",
+                        priority: 1,
                     };
                 }
 
@@ -4400,6 +4634,7 @@
                     badgeClass: "bg-soft-secondary text-secondary",
                     badgeLabel: "INFO",
                     iconClass: "feather-bell",
+                    priority: 0,
                 };
             }
 
@@ -4461,12 +4696,147 @@
                     department,
                     serialNo,
                     eventTimeRaw,
+                    targetPage: "flow-proses.html",
+                    targetTitle: "Flow Proses",
+                    priority: Number(meta?.priority) || 0,
                     sortTime: parsedEventDate ? parsedEventDate.getTime() : Number.NEGATIVE_INFINITY,
                     fallbackSortValue: Number.isFinite(fallbackSortValue) ? fallbackSortValue : 0,
                 };
             }
 
+            function normalizeLeaseStatusText(value) {
+                return String(value || "")
+                    .trim()
+                    .toUpperCase()
+                    .replace(/\s+/g, " ");
+            }
+
+            function parseIntegerLike(value) {
+                const num = Number(value);
+                return Number.isFinite(num) ? num : null;
+            }
+
+            function getLeaseNotificationType(row) {
+                const normalizedLeaseStatus = normalizeLeaseStatusText(row?.leaseStatus || row?.["Lease Status"]);
+                const daysLease = parseIntegerLike(row?.daysLease ?? row?.["Days Lease"]);
+
+                if (normalizedLeaseStatus === "BACK TO KDDI") {
+                    return null;
+                }
+
+                if (normalizedLeaseStatus === "EXPIRED") {
+                    return "EXPIRED";
+                }
+
+                if (typeof daysLease === "number" && daysLease <= 0) {
+                    return "EXPIRED";
+                }
+
+                if (typeof daysLease === "number" && daysLease > 0 && daysLease <= NOTIFICATION_EXPIRING_SOON_DAYS) {
+                    return "EXPIRING_SOON";
+                }
+
+                return null;
+            }
+
+            function getLeaseNotificationMeta(type) {
+                if (type === "EXPIRED") {
+                    return {
+                        badgeClass: "bg-soft-danger text-danger",
+                        badgeLabel: "EXPIRED",
+                        iconClass: "feather-alert-octagon",
+                        priority: 5,
+                    };
+                }
+
+                return {
+                    badgeClass: "bg-soft-warning text-warning",
+                    badgeLabel: "EXPIRING",
+                    iconClass: "feather-alert-triangle",
+                    priority: 4,
+                };
+            }
+
+            function buildLeaseNotificationMessage(row, type) {
+                const serialNo = toDisplayText(row?.serialNo ?? row?.["Serial No."]);
+                const department = toDisplayText(row?.siteCode ?? row?.department ?? row?.["Department"]);
+                const daysLease = parseIntegerLike(row?.daysLease ?? row?.["Days Lease"]);
+                const endDate = toDisplayText(row?.endDate ?? row?.["End Date"]);
+
+                if (type === "EXPIRED") {
+                    if (endDate !== "-") {
+                        return `Perangkat serial ${serialNo} (${department}) sudah expired pada ${endDate}.`;
+                    }
+                    return `Perangkat serial ${serialNo} (${department}) sudah expired dan perlu tindak lanjut.`;
+                }
+
+                if (typeof daysLease === "number") {
+                    return `Perangkat serial ${serialNo} (${department}) akan expired dalam ${daysLease} hari.`;
+                }
+
+                return `Perangkat serial ${serialNo} (${department}) akan segera expired.`;
+            }
+
+            function buildLeaseNotificationItem(row) {
+                const rowId = String(row?.id || "").trim();
+                if (!rowId) {
+                    return null;
+                }
+
+                const type = getLeaseNotificationType(row);
+                if (!type) {
+                    return null;
+                }
+
+                const endDateRaw = String(row?.endDate ?? row?.["End Date"] ?? "").trim();
+                const parsedEndDate = parseDateTimeSafe(endDateRaw);
+                const daysLease = parseIntegerLike(row?.daysLease ?? row?.["Days Lease"]);
+                const meta = getLeaseNotificationMeta(type);
+                const serialNo = toDisplayText(row?.serialNo ?? row?.["Serial No."]);
+                const department = toDisplayText(row?.siteCode ?? row?.department ?? row?.["Department"]);
+                const key = [
+                    "LEASE",
+                    rowId,
+                    type,
+                    String(daysLease ?? ""),
+                    endDateRaw || "-",
+                ].join("|");
+
+                return {
+                    key,
+                    status: type,
+                    message: buildLeaseNotificationMessage(row, type),
+                    meta,
+                    department,
+                    serialNo,
+                    eventTimeRaw: endDateRaw,
+                    targetPage: "data-perangkat.html",
+                    targetTitle: "Data Perangkat",
+                    priority: Number(meta?.priority) || 0,
+                    sortTime: parsedEndDate ? parsedEndDate.getTime() : Number.NEGATIVE_INFINITY,
+                    fallbackSortValue: Number.isFinite(daysLease) ? -daysLease : 0,
+                };
+            }
+
+            function toHeaderNotificationCache(input) {
+                if (input && typeof input === "object" && !Array.isArray(input)) {
+                    const cache = input;
+                    const flowRows = Array.isArray(cache.flowRows) ? cache.flowRows : [];
+                    const leaseRows = Array.isArray(cache.leaseRows) ? cache.leaseRows : [];
+                    return { flowRows, leaseRows };
+                }
+
+                return {
+                    flowRows: Array.isArray(input) ? input : [],
+                    leaseRows: [],
+                };
+            }
+
             function sortFlowNotifications(a, b) {
+                if (b.priority !== a.priority) {
+                    return b.priority - a.priority;
+                }
+
                 if (b.sortTime !== a.sortTime) {
                     return b.sortTime - a.sortTime;
                 }
@@ -4500,10 +4870,12 @@
                 headerNotificationsMarkRead.setAttribute("aria-disabled", hasUnread ? "false" : "true");
             }
 
-            function navigateToFlowPageFromNotification() {
-                const navLink = document.querySelector('.nxl-navigation .nxl-link[href="flow-proses.html"]');
+            function navigateToPageFromNotification(targetPage, targetTitle) {
+                const page = String(targetPage || "flow-proses.html").trim() || "flow-proses.html";
+                const title = String(targetTitle || "").trim() || (page === "data-perangkat.html" ? "Data Perangkat" : "Flow Proses");
+                const navLink = document.querySelector(`.nxl-navigation .nxl-link[href="${page}"]`);
                 setActiveNav(navLink instanceof HTMLElement ? navLink : null);
-                openInlinePage("flow-proses.html", "Flow Proses");
+                openInlinePage(page, title);
                 closeHeaderNotificationDropdown();
             }
 
@@ -4512,10 +4884,15 @@
                     return;
                 }
 
-                headerNotificationRowsCache = Array.isArray(rows) ? rows : [];
-                const notificationItems = Array.isArray(headerNotificationRowsCache)
-                    ? headerNotificationRowsCache.map((row) => buildFlowNotificationItem(row)).filter((entry) => entry !== null).sort(sortFlowNotifications)
-                    : [];
+                const notificationCache = toHeaderNotificationCache(rows);
+                headerNotificationRowsCache = notificationCache;
+                const flowItems = notificationCache.flowRows
+                    .map((row) => buildFlowNotificationItem(row))
+                    .filter((entry) => entry !== null);
+                const leaseItems = notificationCache.leaseRows
+                    .map((row) => buildLeaseNotificationItem(row))
+                    .filter((entry) => entry !== null);
+                const notificationItems = [...flowItems, ...leaseItems].sort(sortFlowNotifications);
 
                 if (notificationItems.length > 0) {
                     const activeKeys = new Set(notificationItems.map((item) => item.key));
@@ -4542,24 +4919,26 @@
                 headerNotificationsEmptyState.classList.add("d-none");
                 headerNotificationsList.innerHTML = visibleItems.map((item) => {
                     const isRead = headerNotificationReadKeys.has(item.key);
-                    const titleClass = isRead ? "fw-semibold text-muted" : "fw-bold text-dark";
                     const timeText = formatRelativeDateTime(item.eventTimeRaw);
                     return `
-                        <div class="notifications-item align-items-start" data-header-notification-key="${escapeHtml(item.key)}">
-                            <button type="button" class="btn btn-link p-0 d-flex align-items-start flex-grow-1 text-start text-decoration-none" data-header-notification-open="${escapeHtml(item.key)}">
-                                <span class="avatar-text wd-35 ht-35 rounded-circle ${item.meta.badgeClass} d-flex align-items-center justify-content-center mt-1 me-3">
+                        <div class="notifications-item ${isRead ? "is-read" : ""}" data-header-notification-key="${escapeHtml(item.key)}">
+                            <button type="button" class="notification-open-btn" data-header-notification-open="${escapeHtml(item.key)}" data-header-notification-target-page="${escapeHtml(item.targetPage || "flow-proses.html")}" data-header-notification-target-title="${escapeHtml(item.targetTitle || "Flow Proses")}">
+                                <span class="notification-icon ${item.meta.badgeClass}">
                                     <i class="${item.meta.iconClass}"></i>
                                 </span>
-                                <div class="notifications-desc">
-                                    <div class="d-flex align-items-center justify-content-between gap-2">
-                                        <span class="${titleClass}">${escapeHtml(item.department)} - ${escapeHtml(item.serialNo)}</span>
-                                        <span class="badge ${item.meta.badgeClass}">${escapeHtml(item.meta.badgeLabel)}</span>
+                                <div class="notification-content">
+                                    <div class="notification-topline">
+                                        <p class="notification-title ${isRead ? "notification-title-read" : ""}">${escapeHtml(item.department)} - ${escapeHtml(item.serialNo)}</p>
+                                        <span class="badge notification-status-badge ${item.meta.badgeClass}">${escapeHtml(item.meta.badgeLabel)}</span>
                                     </div>
-                                    <p class="text-body mb-1">${escapeHtml(item.message)}</p>
-                                    <p class="notifications-date text-muted mb-0">${escapeHtml(timeText)}</p>
+                                    <p class="notification-message">${escapeHtml(item.message)}</p>
+                                    <div class="notification-meta">
+                                        <span class="notification-time">${escapeHtml(timeText)}</span>
+                                        ${isRead ? "" : '<span class="notification-unread-dot" aria-hidden="true"></span>'}
+                                    </div>
                                 </div>
                             </button>
-                            <button type="button" class="btn btn-link btn-sm text-danger p-0 ms-2 mt-2" data-header-notification-dismiss="${escapeHtml(item.key)}" aria-label="Hapus notifikasi">
+                            <button type="button" class="notification-dismiss-btn" data-header-notification-dismiss="${escapeHtml(item.key)}" aria-label="Hapus notifikasi">
                                 <i class="feather-x"></i>
                             </button>
                         </div>
@@ -4638,8 +5017,10 @@
                     }
 
                     const openKey = String(openButton.getAttribute("data-header-notification-open") || "").trim();
+                    const targetPage = String(openButton.getAttribute("data-header-notification-target-page") || "flow-proses.html").trim() || "flow-proses.html";
+                    const targetTitle = String(openButton.getAttribute("data-header-notification-target-title") || "").trim();
                     markHeaderNotificationAsRead(openKey);
-                    navigateToFlowPageFromNotification();
+                    navigateToPageFromNotification(targetPage, targetTitle);
                     event.preventDefault();
                 });
 
@@ -4654,13 +5035,46 @@
                     headerNotificationsFooterLink.addEventListener("click", (event) => {
                         event.preventDefault();
                         markAllHeaderNotificationsAsRead();
-                        navigateToFlowPageFromNotification();
+                        navigateToPageFromNotification("flow-proses.html", "Flow Proses");
                     });
                 }
 
                 if (headerNotificationContainer) {
                     headerNotificationContainer.addEventListener("shown.bs.dropdown", () => {
                         void refreshFlowStatusBadges();
+                    });
+                }
+
+                if (headerNotificationToggle && headerNotificationContainer) {
+                    headerNotificationToggle.addEventListener("click", (event) => {
+                        const dropdownMenu = headerNotificationContainer.querySelector(".dropdown-menu");
+                        const isOpen = dropdownMenu instanceof HTMLElement && dropdownMenu.classList.contains("show");
+                        if (!isOpen) {
+                            return;
+                        }
+
+                        // Keep "outside" autoclose behavior, but allow closing when toggle is clicked again.
+                        event.preventDefault();
+                        event.stopPropagation();
+                        closeHeaderNotificationDropdown();
+                    });
+
+                    document.addEventListener("click", (event) => {
+                        const dropdownMenu = headerNotificationContainer.querySelector(".dropdown-menu");
+                        const isOpen = dropdownMenu instanceof HTMLElement && dropdownMenu.classList.contains("show");
+                        if (!isOpen) {
+                            return;
+                        }
+
+                        if (event.target instanceof Node && !headerNotificationContainer.contains(event.target)) {
+                            closeHeaderNotificationDropdown();
+                        }
+                    });
+
+                    document.addEventListener("keydown", (event) => {
+                        if (event.key === "Escape" || event.key === "Esc") {
+                            closeHeaderNotificationDropdown();
+                        }
                     });
                 }
             }
@@ -5493,6 +5907,33 @@
                 dashboardSummaryPollTimer = window.setInterval(refreshDashboardSummary, 60000);
             }
 
+            async function fetchFlowRowsForHeaderNotifications() {
+                const response = await window.AuthClient.fetchWithAuth(
+                    `${API_BASE}/device-records/flows`,
+                    { method: "GET" }
+                );
+                const result = await response.json().catch(() => ({}));
+                if (!response.ok) {
+                    throw new Error(result?.message || "Gagal memuat notifikasi flow.");
+                }
+
+                return Array.isArray(result?.data) ? result.data : [];
+            }
+
+            async function fetchLeaseRowsForHeaderNotifications() {
+                const response = await window.AuthClient.fetchWithAuth(
+                    `${API_BASE}/device-records/dashboard-summary`,
+                    { method: "GET" },
+                );
+                const result = await response.json().catch(() => ({}));
+                if (!response.ok) {
+                    throw new Error(result?.message || "Gagal memuat notifikasi lease.");
+                }
+
+                const summaryData = result?.data || {};
+                return Array.isArray(summaryData?.devices) ? summaryData.devices : [];
+            }
+
             async function refreshFlowStatusBadges() {
                 const hasFlowStatusBadges = flowPendingBadges.length > 0 || flowRejectedBadges.length > 0;
                 const hasHeaderNotifications = Boolean(headerNotificationsList || headerNotificationBadge);
@@ -5500,34 +5941,27 @@
                     return;
                 }
 
-                try {
-                    const response = await window.AuthClient.fetchWithAuth(
-                        `${API_BASE}/device-records/flows`,
-                        { method: "GET" }
-                    );
-                    const result = await response.json().catch(() => ({}));
-                    if (!response.ok) {
-                        throw new Error(result?.message || "Gagal memuat notifikasi flow.");
-                    }
+                const [flowResult, leaseResult] = await Promise.allSettled([
+                    fetchFlowRowsForHeaderNotifications(),
+                    hasHeaderNotifications ? fetchLeaseRowsForHeaderNotifications() : Promise.resolve([]),
+                ]);
 
-                    const rows = Array.isArray(result?.data) ? result.data : [];
-                    const pendingCount = rows.filter((row) => String(row?.["Flow Status"] || "").trim().toUpperCase() === "PENDING_CONFIRMATION").length;
-                    const rejectedCount = rows.filter((row) => String(row?.["Flow Status"] || "").trim().toUpperCase() === "REJECTED").length;
-                    if (hasFlowStatusBadges) {
-                        setFlowPendingBadgeCount(pendingCount);
-                        setFlowRejectedBadgeCount(rejectedCount);
-                    }
-                    if (hasHeaderNotifications) {
-                        renderHeaderNotifications(rows);
-                    }
-                } catch (_error) {
-                    if (hasFlowStatusBadges) {
-                        setFlowPendingBadgeCount(0);
-                        setFlowRejectedBadgeCount(0);
-                    }
-                    if (hasHeaderNotifications && headerNotificationRowsCache.length === 0) {
-                        renderHeaderNotifications([]);
-                    }
+                const flowRows = flowResult.status === "fulfilled" ? flowResult.value : [];
+                const leaseRows = leaseResult.status === "fulfilled" ? leaseResult.value : [];
+
+                const pendingCount = flowRows.filter((row) => String(row?.["Flow Status"] || "").trim().toUpperCase() === "PENDING_CONFIRMATION").length;
+                const rejectedCount = flowRows.filter((row) => String(row?.["Flow Status"] || "").trim().toUpperCase() === "REJECTED").length;
+
+                if (hasFlowStatusBadges) {
+                    setFlowPendingBadgeCount(pendingCount);
+                    setFlowRejectedBadgeCount(rejectedCount);
+                }
+
+                if (hasHeaderNotifications) {
+                    renderHeaderNotifications({
+                        flowRows,
+                        leaseRows,
+                    });
                 }
             }
 

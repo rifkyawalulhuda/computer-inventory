@@ -189,6 +189,86 @@ html.app-skin-dark .search-items-wrapper .result-tag {
   color: #c7d6f2 !important;
 }
 
+html.app-skin-dark .nxl-notifications-menu {
+  background: #111b30 !important;
+  border-color: #2a3a58 !important;
+  box-shadow: 0 20px 48px rgba(0, 0, 0, 0.45) !important;
+}
+
+html.app-skin-dark .nxl-notifications-menu .notifications-head {
+  background: linear-gradient(180deg, #141f36 0%, #101a2f 100%) !important;
+  border-bottom-color: #2a3a58 !important;
+}
+
+html.app-skin-dark .nxl-notifications-menu .notifications-title {
+  color: #e7effd !important;
+}
+
+html.app-skin-dark .nxl-notifications-menu .notifications-mark-read {
+  color: #34d399 !important;
+}
+
+html.app-skin-dark .nxl-notifications-menu .notifications-mark-read.disabled {
+  color: #5e7698 !important;
+}
+
+html.app-skin-dark #headerNotificationsList {
+  scrollbar-color: #45618a transparent !important;
+}
+
+html.app-skin-dark #headerNotificationsList::-webkit-scrollbar-thumb {
+  background: #45618a !important;
+}
+
+html.app-skin-dark #headerNotificationsList .notifications-item {
+  background: #15243d !important;
+  border-color: #2a3a58 !important;
+}
+
+html.app-skin-dark #headerNotificationsList .notifications-item:hover {
+  background: #1a2b47 !important;
+  border-color: #3a5176 !important;
+}
+
+html.app-skin-dark .notification-title {
+  color: #a9bdda !important;
+}
+
+html.app-skin-dark .notification-title.notification-title-read {
+  color: #7f95b5 !important;
+}
+
+html.app-skin-dark .notification-message {
+  color: #e4ecf7 !important;
+}
+
+html.app-skin-dark .notification-time {
+  color: #8fa4c2 !important;
+}
+
+html.app-skin-dark .notification-dismiss-btn {
+  background: rgba(248, 113, 113, 0.14) !important;
+  color: #fca5a5 !important;
+}
+
+html.app-skin-dark .notification-dismiss-btn:hover {
+  background: rgba(248, 113, 113, 0.25) !important;
+  color: #fecaca !important;
+}
+
+html.app-skin-dark .nxl-notifications-menu .notifications-empty {
+  color: #8fa4c2 !important;
+}
+
+html.app-skin-dark .nxl-notifications-menu .notifications-footer {
+  background: linear-gradient(180deg, #111b30 0%, #0f172a 100%) !important;
+  border-top-color: #2a3a58 !important;
+}
+
+html.app-skin-dark .nxl-notifications-menu .notifications-footer-link {
+  color: #d8e5fa !important;
+}
+
 html.app-skin-dark .view-drawer-overlay,
 html.app-skin-dark .signature-modal-overlay,
 html.app-skin-dark .confirm-modal-overlay,
