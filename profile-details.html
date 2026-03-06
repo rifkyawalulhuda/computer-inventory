@@ -12,11 +12,13 @@
     <link rel="stylesheet" type="text/css" href="assets/css/theme.min.css">
     <link rel="stylesheet" type="text/css" href="assets/css/theme-mode.css">
     <script src="assets/js/auth-client.js"></script>
+    <script src="assets/js/runtime-config.js"></script>
+    <script src="assets/js/app-config.js"></script>
     <script src="assets/js/theme-mode.js"></script>
     <script>
         if (window.AuthClient) {
             window.AuthClient.requireAuth();
-            window.AuthClient.validateSession(`${window.location.protocol === "https:" ? "https:" : "http:"}//${window.location.hostname || "localhost"}:3001/api`);
+            window.AuthClient.validateSession(window.AppConfig.API_BASE);
         }
     </script>
     <style>
@@ -115,7 +117,7 @@
     </main>
 
     <script>
-        const API_BASE = `${window.location.protocol === "https:" ? "https:" : "http:"}//${window.location.hostname || "localhost"}:3001/api`;
+        const API_BASE = window.AppConfig.API_BASE;
         const DEFAULT_AVATAR = "assets/images/avatar/1.png";
         const isPopupMode = new URLSearchParams(window.location.search).get("popup") === "1";
 
@@ -165,7 +167,7 @@
             }
 
             if (value.startsWith("/")) {
-                return `${window.location.protocol === "https:" ? "https:" : "http:"}//${window.location.hostname || "localhost"}:3001${value}`;
+                return window.AppConfig.resolveAssetUrl(value);
             }
 
             return value;

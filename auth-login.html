@@ -12,6 +12,8 @@
     <link rel="stylesheet" type="text/css" href="assets/css/theme.min.css">
     <link rel="stylesheet" type="text/css" href="assets/css/theme-mode.css">
     <script src="assets/js/auth-client.js"></script>
+    <script src="assets/js/runtime-config.js"></script>
+    <script src="assets/js/app-config.js"></script>
     <script src="assets/js/theme-mode.js"></script>
     <style>
         :root {
@@ -276,7 +278,7 @@
     </main>
 
     <script>
-        const API_BASE = `${window.location.protocol === "https:" ? "https:" : "http:"}//${window.location.hostname || "localhost"}:3001/api`;
+        const API_BASE = window.AppConfig.API_BASE;
         const loginForm = document.getElementById("loginForm");
         const alertBox = document.getElementById("alertBox");
         const submitButton = document.getElementById("submitButton");

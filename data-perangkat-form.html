@@ -14,11 +14,13 @@
     <link rel="stylesheet" type="text/css" href="assets/css/theme.min.css">
     <link rel="stylesheet" type="text/css" href="assets/css/theme-mode.css">
     <script src="assets/js/auth-client.js"></script>
+    <script src="assets/js/runtime-config.js"></script>
+    <script src="assets/js/app-config.js"></script>
     <script src="assets/js/theme-mode.js"></script>
     <script>
         if (window.AuthClient) {
             window.AuthClient.requireAuth();
-            window.AuthClient.validateSession(`${window.location.protocol === "https:" ? "https:" : "http:"}//${window.location.hostname || "localhost"}:3001/api`);
+            window.AuthClient.validateSession(window.AppConfig.API_BASE);
         }
     </script>
     <style>
@@ -667,7 +669,7 @@
     <script src="assets/vendors/js/jquery.min.js"></script>
     <script src="assets/vendors/js/select2.min.js"></script>
     <script>
-        const API_BASE = `${window.location.protocol === "https:" ? "https:" : "http:"}//${window.location.hostname || "localhost"}:3001/api`;
+        const API_BASE = window.AppConfig.API_BASE;
         async function apiFetch(url, options = {}) {
             if (window.AuthClient) {
                 return window.AuthClient.fetchWithAuth(url, options);
