@@ -1,0 +1,12 @@
+.cloudflared/
+.git/
+.github/
+backend/
+docs/
+node_modules/
+DB Auth.txt
+Note.txt
+README.md
+package-lock.json
+package.json
+running LAN Web.txt
