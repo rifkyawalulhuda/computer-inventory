@@ -12,9 +12,7 @@
         || host === "0.0.0.0"
         || privateIpv4Pattern.test(host);
 
-    // Local dev: biarkan kosong agar app-config fallback ke http://<host>:3001/api.
-    // Public domain: arahkan ke backend Railway.
-    window.APP_CONFIG.API_BASE = isLocalHost
-        ? ""
-        : "https://computer-inventory-production.up.railway.app/api";
+    // Local dev: fallback ke http://<host>:3001/api.
+    // Public domain: fallback ke /api pada origin yang sama.
+    window.APP_CONFIG.API_BASE = isLocalHost ? "" : "";
 })(window);
