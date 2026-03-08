@@ -1,0 +1,12 @@
+Login Cloudlared :
+
+cloudflared tunnel login
+
+Validasi script tunnel
+
+cloudflared tunnel --config C:\Users\<username>\.cloudflared\computer-inventory.yml ingress validate
+
+
+Running Cloudflare tunnel :
+
+cloudflared tunnel --config C:\Users\rifky\.cloudflared\computer-inventory.yml run computer-inventory

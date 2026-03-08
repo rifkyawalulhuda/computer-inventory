@@ -1,0 +1,13 @@
+tunnel: 96e4ea74-9e68-481f-888e-20e70f36ba87
+credentials-file: C:\Users\rifky\.cloudflared\96e4ea74-9e68-481f-888e-20e70f36ba87.json
+
+ingress:
+  - hostname: computer-inventory.web.id
+    path: ^/api/.*
+    service: http://localhost:3001
+  - hostname: computer-inventory.web.id
+    path: ^/img/.*
+    service: http://localhost:3001
+  - hostname: computer-inventory.web.id
+    service: http://localhost:88
+  - service: http_status:404
