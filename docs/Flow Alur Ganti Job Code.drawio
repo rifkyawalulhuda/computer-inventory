@@ -1,0 +1,181 @@
+<mxfile host="Electron" agent="Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) draw.io/29.6.6 Chrome/144.0.7559.236 Electron/40.8.4 Safari/537.36" version="29.6.6">
+  <diagram name="Page-1" id="2hXkLZaMl8u_rdQIZ8OY">
+    <mxGraphModel dx="1042" dy="-1028" grid="1" gridSize="10" guides="1" tooltips="1" connect="1" arrows="1" fold="1" page="1" pageScale="1" pageWidth="1169" pageHeight="827" math="0" shadow="0">
+      <root>
+        <mxCell id="0" />
+        <mxCell id="1" parent="0" />
+        <mxCell id="2EMuJ1eKQpOSewqbz9WB-6" edge="1" parent="1" source="2EMuJ1eKQpOSewqbz9WB-1" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;exitX=0.5;exitY=0.5;exitDx=0;exitDy=0;exitPerimeter=0;" target="2EMuJ1eKQpOSewqbz9WB-5">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="2EMuJ1eKQpOSewqbz9WB-1" parent="1" style="shape=umlActor;verticalLabelPosition=bottom;verticalAlign=top;html=1;outlineConnect=0;" value="User" vertex="1">
+          <mxGeometry height="60" width="30" x="240" y="1833" as="geometry" />
+        </mxCell>
+        <mxCell id="2EMuJ1eKQpOSewqbz9WB-10" edge="1" parent="1" source="2EMuJ1eKQpOSewqbz9WB-5" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;exitX=1;exitY=0.5;exitDx=0;exitDy=0;" target="2EMuJ1eKQpOSewqbz9WB-9">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="2EMuJ1eKQpOSewqbz9WB-5" parent="1" style="rounded=1;whiteSpace=wrap;html=1;absoluteArcSize=1;arcSize=14;strokeWidth=2;fillColor=#dae8fc;strokeColor=#6c8ebf;" value="Ubah Data Job Code" vertex="1">
+          <mxGeometry height="100" width="150" x="360" y="1813" as="geometry" />
+        </mxCell>
+        <mxCell id="2EMuJ1eKQpOSewqbz9WB-7" parent="1" style="rounded=1;whiteSpace=wrap;html=1;arcSize=40;fontColor=#000000;fillColor=#ffffc0;strokeColor=#ff0000;" value="Ganti Job Code&amp;nbsp;&lt;div&gt;masih dalam 1 Department yang sama&lt;/div&gt;" vertex="1">
+          <mxGeometry height="60" width="210" x="560" y="1703" as="geometry" />
+        </mxCell>
+        <mxCell id="2EMuJ1eKQpOSewqbz9WB-8" edge="1" parent="1" source="2EMuJ1eKQpOSewqbz9WB-7" style="edgeStyle=orthogonalEdgeStyle;html=1;verticalAlign=bottom;endArrow=open;endSize=8;strokeColor=#ff0000;rounded=0;" value="">
+          <mxGeometry relative="1" as="geometry">
+            <mxPoint x="255" y="1793" as="targetPoint" />
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="2EMuJ1eKQpOSewqbz9WB-14" edge="1" parent="1" source="2EMuJ1eKQpOSewqbz9WB-9" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;" target="2EMuJ1eKQpOSewqbz9WB-13" value="">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="2EMuJ1eKQpOSewqbz9WB-9" parent="1" style="pointerEvents=1;shadow=0;dashed=0;html=1;strokeColor=none;fillColor=#505050;labelPosition=center;verticalLabelPosition=bottom;verticalAlign=top;outlineConnect=0;align=center;shape=mxgraph.office.users.approver;" value="Approval langsung&amp;nbsp;&lt;div&gt;masuk ke Admin&lt;/div&gt;" vertex="1">
+          <mxGeometry height="55" width="59" x="610" y="1835.5" as="geometry" />
+        </mxCell>
+        <mxCell id="2EMuJ1eKQpOSewqbz9WB-16" edge="1" parent="1" source="2EMuJ1eKQpOSewqbz9WB-13" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;" target="2EMuJ1eKQpOSewqbz9WB-15" value="">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="2EMuJ1eKQpOSewqbz9WB-22" connectable="0" parent="2EMuJ1eKQpOSewqbz9WB-16" style="edgeLabel;html=1;align=center;verticalAlign=middle;resizable=0;points=[];" value="Reject" vertex="1">
+          <mxGeometry relative="1" x="-0.4667" y="-3" as="geometry">
+            <mxPoint as="offset" />
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="2EMuJ1eKQpOSewqbz9WB-21" edge="1" parent="1" source="2EMuJ1eKQpOSewqbz9WB-13" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;" target="2EMuJ1eKQpOSewqbz9WB-20" value="">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="2EMuJ1eKQpOSewqbz9WB-23" connectable="0" parent="2EMuJ1eKQpOSewqbz9WB-21" style="edgeLabel;html=1;align=center;verticalAlign=middle;resizable=0;points=[];" value="Approve" vertex="1">
+          <mxGeometry relative="1" x="-0.115" y="-3" as="geometry">
+            <mxPoint as="offset" />
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="2EMuJ1eKQpOSewqbz9WB-13" parent="1" style="strokeWidth=2;html=1;shape=mxgraph.flowchart.decision;whiteSpace=wrap;fillColor=#0050ef;fontColor=#ffffff;strokeColor=#001DBC;" value="Decision" vertex="1">
+          <mxGeometry height="80" width="80" x="750" y="1823" as="geometry" />
+        </mxCell>
+        <mxCell id="2EMuJ1eKQpOSewqbz9WB-17" edge="1" parent="1" source="2EMuJ1eKQpOSewqbz9WB-15" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;exitX=0;exitY=0.5;exitDx=0;exitDy=0;" target="2EMuJ1eKQpOSewqbz9WB-1">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="2EMuJ1eKQpOSewqbz9WB-39" connectable="0" parent="2EMuJ1eKQpOSewqbz9WB-17" style="edgeLabel;html=1;align=center;verticalAlign=middle;resizable=0;points=[];" value="Form akan langsung dikembalikan ke user dengan notifikasi" vertex="1">
+          <mxGeometry relative="1" x="-0.2608" as="geometry">
+            <mxPoint as="offset" />
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="2EMuJ1eKQpOSewqbz9WB-15" parent="1" style="whiteSpace=wrap;html=1;strokeWidth=2;fillColor=#f8cecc;strokeColor=#b85450;" value="Admin harus memasukan alasan &quot;Reject&quot;" vertex="1">
+          <mxGeometry height="60" width="120" x="730" y="1993" as="geometry" />
+        </mxCell>
+        <mxCell id="2EMuJ1eKQpOSewqbz9WB-20" parent="1" style="ellipse;whiteSpace=wrap;html=1;strokeWidth=2;fillColor=#d5e8d4;strokeColor=#82b366;" value="Data Job Code akan Berubah" vertex="1">
+          <mxGeometry height="80" width="80" x="980" y="1823" as="geometry" />
+        </mxCell>
+        <mxCell id="2EMuJ1eKQpOSewqbz9WB-24" edge="1" parent="1" source="2EMuJ1eKQpOSewqbz9WB-25" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;exitX=0.5;exitY=0.5;exitDx=0;exitDy=0;exitPerimeter=0;" target="2EMuJ1eKQpOSewqbz9WB-27">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="2EMuJ1eKQpOSewqbz9WB-25" parent="1" style="shape=umlActor;verticalLabelPosition=bottom;verticalAlign=top;html=1;outlineConnect=0;" value="User" vertex="1">
+          <mxGeometry height="60" width="30" x="190" y="2193" as="geometry" />
+        </mxCell>
+        <mxCell id="2EMuJ1eKQpOSewqbz9WB-26" edge="1" parent="1" source="2EMuJ1eKQpOSewqbz9WB-27" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;exitX=1;exitY=0.5;exitDx=0;exitDy=0;" target="2EMuJ1eKQpOSewqbz9WB-29">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="2EMuJ1eKQpOSewqbz9WB-27" parent="1" style="rounded=1;whiteSpace=wrap;html=1;absoluteArcSize=1;arcSize=14;strokeWidth=2;fillColor=#dae8fc;strokeColor=#6c8ebf;" value="Ubah Data Department" vertex="1">
+          <mxGeometry height="100" width="150" x="250" y="2173" as="geometry" />
+        </mxCell>
+        <mxCell id="2EMuJ1eKQpOSewqbz9WB-28" edge="1" parent="1" source="2EMuJ1eKQpOSewqbz9WB-29" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;" target="2EMuJ1eKQpOSewqbz9WB-34" value="">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="2EMuJ1eKQpOSewqbz9WB-29" parent="1" style="pointerEvents=1;shadow=0;dashed=0;html=1;strokeColor=none;fillColor=#505050;labelPosition=center;verticalLabelPosition=bottom;verticalAlign=top;outlineConnect=0;align=center;shape=mxgraph.office.users.approver;" value="Approval langsung&amp;nbsp;&lt;div&gt;masuk ke PIC Department yang dipiih&lt;/div&gt;" vertex="1">
+          <mxGeometry height="55" width="59" x="480" y="2195.5" as="geometry" />
+        </mxCell>
+        <mxCell id="2EMuJ1eKQpOSewqbz9WB-30" edge="1" parent="1" source="2EMuJ1eKQpOSewqbz9WB-34" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;" target="2EMuJ1eKQpOSewqbz9WB-36" value="">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="2EMuJ1eKQpOSewqbz9WB-31" connectable="0" parent="2EMuJ1eKQpOSewqbz9WB-30" style="edgeLabel;html=1;align=center;verticalAlign=middle;resizable=0;points=[];" value="Reject" vertex="1">
+          <mxGeometry relative="1" x="-0.4667" y="-3" as="geometry">
+            <mxPoint as="offset" />
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="2EMuJ1eKQpOSewqbz9WB-66" edge="1" parent="1" source="2EMuJ1eKQpOSewqbz9WB-34" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;exitX=1;exitY=0.5;exitDx=0;exitDy=0;exitPerimeter=0;entryX=0;entryY=0.5;entryDx=0;entryDy=0;" target="2EMuJ1eKQpOSewqbz9WB-65">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="2EMuJ1eKQpOSewqbz9WB-67" connectable="0" parent="2EMuJ1eKQpOSewqbz9WB-66" style="edgeLabel;html=1;align=center;verticalAlign=middle;resizable=0;points=[];" value="Approve" vertex="1">
+          <mxGeometry relative="1" x="-0.3905" y="2" as="geometry">
+            <mxPoint x="-9" y="-25" as="offset" />
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="2EMuJ1eKQpOSewqbz9WB-34" parent="1" style="strokeWidth=2;html=1;shape=mxgraph.flowchart.decision;whiteSpace=wrap;fillColor=#0050ef;fontColor=#ffffff;strokeColor=#001DBC;" value="Decision" vertex="1">
+          <mxGeometry height="80" width="80" x="630" y="2183" as="geometry" />
+        </mxCell>
+        <mxCell id="2EMuJ1eKQpOSewqbz9WB-35" edge="1" parent="1" source="2EMuJ1eKQpOSewqbz9WB-36" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;exitX=0;exitY=0.5;exitDx=0;exitDy=0;" target="2EMuJ1eKQpOSewqbz9WB-25">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="2EMuJ1eKQpOSewqbz9WB-50" connectable="0" parent="2EMuJ1eKQpOSewqbz9WB-35" style="edgeLabel;html=1;align=center;verticalAlign=middle;resizable=0;points=[];" value="Form akan langsung dikembalikan ke user dengan notifikasi" vertex="1">
+          <mxGeometry relative="1" x="-0.1716" y="-2" as="geometry">
+            <mxPoint as="offset" />
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="2EMuJ1eKQpOSewqbz9WB-36" parent="1" style="whiteSpace=wrap;html=1;strokeWidth=2;fillColor=#f8cecc;strokeColor=#b85450;" value="PIC tertuju harus memasukan alasan &quot;Reject&quot;" vertex="1">
+          <mxGeometry height="60" width="120" x="610" y="2353" as="geometry" />
+        </mxCell>
+        <mxCell id="2EMuJ1eKQpOSewqbz9WB-38" parent="1" style="pointerEvents=1;shadow=0;dashed=0;html=1;strokeColor=none;fillColor=#505050;labelPosition=center;verticalLabelPosition=bottom;verticalAlign=top;outlineConnect=0;align=center;shape=mxgraph.office.users.approver;" value="Approval lanjut ke Admin" vertex="1">
+          <mxGeometry height="55" width="59" x="880" y="2183" as="geometry" />
+        </mxCell>
+        <mxCell id="2EMuJ1eKQpOSewqbz9WB-54" edge="1" parent="1" source="2EMuJ1eKQpOSewqbz9WB-46" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;exitX=0.5;exitY=1;exitDx=0;exitDy=0;exitPerimeter=0;">
+          <mxGeometry relative="1" as="geometry">
+            <mxPoint x="940.5882352941178" y="2343" as="targetPoint" />
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="2EMuJ1eKQpOSewqbz9WB-55" connectable="0" parent="2EMuJ1eKQpOSewqbz9WB-54" style="edgeLabel;html=1;align=center;verticalAlign=middle;resizable=0;points=[];" value="Reject" vertex="1">
+          <mxGeometry relative="1" x="-0.0642" y="2" as="geometry">
+            <mxPoint as="offset" />
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="2EMuJ1eKQpOSewqbz9WB-69" edge="1" parent="1" source="2EMuJ1eKQpOSewqbz9WB-46" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;exitX=0;exitY=0.5;exitDx=0;exitDy=0;exitPerimeter=0;">
+          <mxGeometry relative="1" as="geometry">
+            <mxPoint x="940" y="2223.0588235294117" as="targetPoint" />
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="2EMuJ1eKQpOSewqbz9WB-71" edge="1" parent="1" source="2EMuJ1eKQpOSewqbz9WB-46" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;exitX=0.5;exitY=0;exitDx=0;exitDy=0;exitPerimeter=0;entryX=0.5;entryY=1;entryDx=0;entryDy=0;" target="2EMuJ1eKQpOSewqbz9WB-70">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="2EMuJ1eKQpOSewqbz9WB-72" connectable="0" parent="2EMuJ1eKQpOSewqbz9WB-71" style="edgeLabel;html=1;align=center;verticalAlign=middle;resizable=0;points=[];" value="Approve" vertex="1">
+          <mxGeometry relative="1" x="0.1302" y="-1" as="geometry">
+            <mxPoint as="offset" />
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="2EMuJ1eKQpOSewqbz9WB-46" parent="1" style="strokeWidth=2;html=1;shape=mxgraph.flowchart.decision;whiteSpace=wrap;fillColor=#0050ef;fontColor=#ffffff;strokeColor=#001DBC;" value="Decision" vertex="1">
+          <mxGeometry height="80" width="80" x="980" y="2183" as="geometry" />
+        </mxCell>
+        <mxCell id="2EMuJ1eKQpOSewqbz9WB-49" edge="1" parent="1" source="2EMuJ1eKQpOSewqbz9WB-48" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;exitX=0;exitY=0.5;exitDx=0;exitDy=0;">
+          <mxGeometry relative="1" as="geometry">
+            <Array as="points">
+              <mxPoint x="840" y="2383" />
+              <mxPoint x="840" y="2433" />
+              <mxPoint x="570" y="2433" />
+            </Array>
+            <mxPoint x="570" y="2383" as="targetPoint" />
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="2EMuJ1eKQpOSewqbz9WB-53" edge="1" parent="1" source="2EMuJ1eKQpOSewqbz9WB-48" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;exitX=0;exitY=0.25;exitDx=0;exitDy=0;entryX=1;entryY=0.25;entryDx=0;entryDy=0;dashed=1;" target="2EMuJ1eKQpOSewqbz9WB-36">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="2EMuJ1eKQpOSewqbz9WB-48" parent="1" style="whiteSpace=wrap;html=1;strokeWidth=2;fillColor=#f8cecc;strokeColor=#b85450;" value="Admin harus memasukan alasan &quot;Reject&quot;" vertex="1">
+          <mxGeometry height="60" width="120" x="860" y="2353" as="geometry" />
+        </mxCell>
+        <mxCell id="2EMuJ1eKQpOSewqbz9WB-59" parent="1" style="rounded=1;whiteSpace=wrap;html=1;arcSize=40;fontColor=#000000;fillColor=#ffffc0;strokeColor=#ff0000;" value="Ganti Department&amp;nbsp;&lt;span style=&quot;background-color: transparent; color: light-dark(rgb(0, 0, 0), rgb(237, 237, 237));&quot;&gt;yang berbeda&lt;/span&gt;" vertex="1">
+          <mxGeometry height="60" width="210" x="511" y="2083" as="geometry" />
+        </mxCell>
+        <mxCell id="2EMuJ1eKQpOSewqbz9WB-60" edge="1" parent="1" source="2EMuJ1eKQpOSewqbz9WB-59" style="edgeStyle=orthogonalEdgeStyle;html=1;verticalAlign=bottom;endArrow=open;endSize=8;strokeColor=#ff0000;rounded=0;" value="">
+          <mxGeometry relative="1" as="geometry">
+            <mxPoint x="206" y="2173" as="targetPoint" />
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="2EMuJ1eKQpOSewqbz9WB-68" edge="1" parent="1" source="2EMuJ1eKQpOSewqbz9WB-65" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;exitX=1;exitY=0.5;exitDx=0;exitDy=0;">
+          <mxGeometry relative="1" as="geometry">
+            <mxPoint x="870" y="2222.714285714286" as="targetPoint" />
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="2EMuJ1eKQpOSewqbz9WB-65" parent="1" style="rounded=1;whiteSpace=wrap;html=1;absoluteArcSize=1;arcSize=14;strokeWidth=2;" value="&lt;font style=&quot;font-size: 8px;&quot;&gt;PIC Tertuju harus memasukan Job Code di Department nya terlebih dulu&lt;/font&gt;" vertex="1">
+          <mxGeometry height="57" width="100" x="740" y="2194.5" as="geometry" />
+        </mxCell>
+        <mxCell id="2EMuJ1eKQpOSewqbz9WB-70" parent="1" style="ellipse;whiteSpace=wrap;html=1;strokeWidth=2;fillColor=#d5e8d4;strokeColor=#82b366;" value="Perangkat akan langsung di Transfer ke Dept. Tujuan" vertex="1">
+          <mxGeometry height="80" width="80" x="980" y="2040" as="geometry" />
+        </mxCell>
+      </root>
+    </mxGraphModel>
+  </diagram>
+</mxfile>
