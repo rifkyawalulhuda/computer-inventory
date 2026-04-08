@@ -634,7 +634,7 @@
                         <div>
                             <h5 class="card-title mb-1" id="formCardTitle">Form Input Data Perangkat</h5>
                             <p class="text-muted mb-0">Kolom NO dibuat otomatis oleh sistem.</p>
-                            <p class="text-warning mb-0 mt-1 d-none" id="roleEditHint">Role user hanya bisa edit: Job Code, User Name, User Email, Location, IP List, dan Keterangan.</p>
+                            <p class="text-warning mb-0 mt-1 d-none" id="roleEditHint">Role user hanya bisa edit: User Name, User Email, Location, IP List, dan Keterangan. Perubahan Job Code harus lewat workflow approval.</p>
                         </div>
                         <button type="button" class="btn btn-light border" id="closeFormButton">Tutup Form</button>
                     </div>
@@ -1064,7 +1064,7 @@
             keteranganInput,
             bitlockerKeyInput
         ];
-        const userAllowedEditInputIds = new Set(["departmentJobCodeId", "userName", "userEmail", "location", "ipList", "keterangan"]);
+        const userAllowedEditInputIds = new Set(["userName", "userEmail", "location", "ipList", "keterangan"]);
         const searchableSelectInputs = [jobCodeIdInput, picUserIdInput, departmentJobCodeIdInput, categoryInput, leaseStatusInput].filter(Boolean);
 
         function canUseSelect2() {

@@ -380,9 +380,35 @@
             pointer-events: none;
         }
 
+        .notifications-section {
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+            padding: 9px;
+        }
+
+        .notifications-section + .notifications-section {
+            padding-top: 0;
+        }
+
+        .notifications-section-title {
+            margin: 0;
+            padding: 0 2px;
+            font-size: 0.68rem;
+            font-weight: 800;
+            letter-spacing: 0.08em;
+            text-transform: uppercase;
+            color: #64748b;
+        }
+
+        .notifications-section-divider {
+            border: 0;
+            border-top: 1px solid #e5edf7;
+            margin: 0 9px;
+        }
+
         #headerNotificationsList {
             max-height: min(44vh, 320px);
-            padding: 9px;
             overflow-y: auto;
             overscroll-behavior: contain;
             scrollbar-width: thin;
@@ -4589,6 +4615,7 @@
             }
 
             function getFlowNotificationTime(row, normalizedStatus) {
+                const flowItemType = String(row?.flowItemType || "").trim().toUpperCase();
                 if (normalizedStatus === "REJECTED") {
                     return row?.["Flow Rejected At"] || "";
                 }
@@ -4597,15 +4624,18 @@
                     return row?.["Flow Sender Signed At"] || row?.["Flow Approved At"] || "";
                 }
 
-                if (normalizedStatus === "PENDING_CONFIRMATION") {
-                    return row?.["Flow Approved At"] || row?.["Flow Rejected At"] || "";
+                if (normalizedStatus === "PENDING_CONFIRMATION" || normalizedStatus === "PENDING") {
+                    if (flowItemType === "DEVICE_CHANGE_REQUEST") {
+                        return row?.["Created At"] || row?.["Flow Approved At"] || row?.["Flow Rejected At"] || "";
+                    }
+                    return row?.["Flow Approved At"] || row?.["Flow Rejected At"] || row?.["Created At"] || "";
                 }
 
-                return "";
+                return row?.["Created At"] || "";
             }
 
             function getFlowNotificationMeta(normalizedStatus) {
-                if (normalizedStatus === "PENDING_CONFIRMATION") {
+                if (normalizedStatus === "PENDING_CONFIRMATION" || normalizedStatus === "PENDING") {
                     return {
                         badgeClass: "bg-soft-warning text-warning",
                         badgeLabel: "PENDING",
@@ -4640,7 +4670,68 @@
                 };
             }
 
+            function buildDeviceChangeRequestNotificationMessage(row, normalizedStatus) {
+                const serialNo = toDisplayText(row?.["Serial No."]);
+                const requestTypeLabel = toDisplayText(row?.["Request Type"] || row?.requestTypeLabel);
+                const currentStepLabel = toDisplayText(row?.["Current Step"] || row?.currentStepLabel);
+                const requestedBy = toDisplayText(row?.["Requested By"] || row?.["Flow Submitted By"]);
+                const requestedJobCode = toDisplayText(row?.["Requested Job Code"]);
+                const targetDepartment = toDisplayText(row?.["Target Department"]);
+                const targetPicName = toDisplayText(row?.["Target PIC Name"]);
+                const targetJobCode = toDisplayText(row?.["Target Job Code"]);
+                const rejectReason = toDisplayText(row?.["Latest Reject Reason"] || row?.["Flow Reject Note"]);
+                const availableActions = Array.isArray(row?.availableActions)
+                    ? row.availableActions.map((action) => String(action || "").trim().toLowerCase())
+                    : [];
+                const canReview = availableActions.includes("approve") || availableActions.includes("reject");
+                const canAssignJobCode = availableActions.includes("assign-job-code");
+
+                if (normalizedStatus === "PENDING") {
+                    if (requestTypeLabel === "Ganti Job Code") {
+                        if (canReview) {
+                            return `Request Ganti Job Code dari ${requestedBy} menunggu review Anda. Usulan Job Code: ${requestedJobCode}.`;
+                        }
+                        return `Request Ganti Job Code untuk serial ${serialNo} sedang diproses pada tahap ${currentStepLabel}.`;
+                    }
+
+                    if (requestTypeLabel === "Transfer Site") {
+                        if (canAssignJobCode) {
+                            return `Transfer Site untuk serial ${serialNo} menunggu Anda memilih Job Code tujuan pada department ${targetDepartment}.`;
+                        }
+
+                        if (canReview) {
+                            if (currentStepLabel === "Final Admin Review") {
+                                return `Request Transfer Site ke ${targetDepartment} menunggu persetujuan final Anda. PIC tujuan: ${targetPicName}, Job Code tujuan: ${targetJobCode}.`;
+                            }
+                            return `Request Transfer Site dari ${requestedBy} ke department ${targetDepartment} menunggu review Anda sebagai PIC tujuan.`;
+                        }
+
+                        return `Request Transfer Site untuk serial ${serialNo} sedang diproses pada tahap ${currentStepLabel}.`;
+                    }
+                }
+
+                if (normalizedStatus === "REJECTED") {
+                    return rejectReason !== "-"
+                        ? `Request ${requestTypeLabel} untuk serial ${serialNo} ditolak. Alasan: ${rejectReason}`
+                        : `Request ${requestTypeLabel} untuk serial ${serialNo} ditolak.`;
+                }
+
+                if (normalizedStatus === "APPROVED") {
+                    if (requestTypeLabel === "Transfer Site") {
+                        return `Request Transfer Site untuk serial ${serialNo} telah disetujui. Department tujuan: ${targetDepartment}, Job Code: ${targetJobCode}.`;
+                    }
+                    return `Request Ganti Job Code untuk serial ${serialNo} telah disetujui. Job Code baru: ${requestedJobCode}.`;
+                }
+
+                return `Request ${requestTypeLabel} untuk serial ${serialNo} memiliki pembaruan pada tahap ${currentStepLabel}.`;
+            }
+
             function buildFlowNotificationMessage(row, normalizedStatus) {
+                const flowItemType = String(row?.flowItemType || "").trim().toUpperCase();
+                if (flowItemType === "DEVICE_CHANGE_REQUEST") {
+                    return buildDeviceChangeRequestNotificationMessage(row, normalizedStatus);
+                }
+
                 const serialNo = toDisplayText(row?.["Serial No."]);
                 const department = toDisplayText(row?.["Department"]);
                 const picName = toDisplayText(row?.["PIC Name"]);
@@ -4677,15 +4768,21 @@
                     return null;
                 }
 
+                const flowItemType = String(row?.flowItemType || "").trim().toUpperCase() || "DEVICE_FLOW";
                 const eventTimeRaw = String(getFlowNotificationTime(row, normalizedStatus) || "").trim();
                 const parsedEventDate = parseDateTimeSafe(eventTimeRaw);
                 const fallbackSortValue = Number(row?.NO);
                 const meta = getFlowNotificationMeta(normalizedStatus);
+                if (flowItemType === "DEVICE_CHANGE_REQUEST" && normalizedStatus === "REJECTED") {
+                    meta.priority = 0;
+                }
                 const serialNo = toDisplayText(row?.["Serial No."]);
                 const department = toDisplayText(row?.["Department"]);
                 const key = [
+                    flowItemType,
                     rowId,
                     normalizedStatus,
+                    String(row?.["Current Step"] || row?.currentStep || "").trim() || "-",
                     eventTimeRaw || "-",
                     String(row?.["Flow Reject Note"] || "").trim() || "-",
                 ].join("|");
@@ -4835,15 +4932,15 @@
             }
 
             function sortFlowNotifications(a, b) {
-                if (b.priority !== a.priority) {
-                    return b.priority - a.priority;
-                }
-
                 if (b.sortTime !== a.sortTime) {
                     return b.sortTime - a.sortTime;
                 }
 
-                return b.fallbackSortValue - a.fallbackSortValue;
+                if (b.fallbackSortValue !== a.fallbackSortValue) {
+                    return b.fallbackSortValue - a.fallbackSortValue;
+                }
+
+                return b.priority - a.priority;
             }
 
             function setHeaderNotificationBadgeCount(count) {
@@ -4894,7 +4991,12 @@
                 const leaseItems = notificationCache.leaseRows
                     .map((row) => buildLeaseNotificationItem(row))
                     .filter((entry) => entry !== null);
-                const notificationItems = [...flowItems, ...leaseItems].sort(sortFlowNotifications);
+                const workflowItems = flowItems
+                    .filter((item) => String(item?.meta?.badgeLabel || "").trim().toUpperCase() !== "EXPIRED")
+                    .sort(sortFlowNotifications);
+                const leaseSortedItems = leaseItems.sort(sortFlowNotifications);
+
+                const notificationItems = [...workflowItems, ...leaseSortedItems];
 
                 if (notificationItems.length > 0) {
                     const activeKeys = new Set(notificationItems.map((item) => item.key));
@@ -4903,9 +5005,14 @@
                     persistHeaderNotificationState();
                 }
 
-                const visibleItems = notificationItems
+                const visibleWorkflowItems = workflowItems
                     .filter((item) => !headerNotificationDismissedKeys.has(item.key))
-                    .slice(0, 10);
+                    .slice(0, 5);
+                const visibleLeaseItems = leaseSortedItems
+                    .filter((item) => !headerNotificationDismissedKeys.has(item.key))
+                    .slice(0, 5);
+
+                const visibleItems = [...visibleWorkflowItems, ...visibleLeaseItems];
 
                 headerNotificationsRenderedItems = visibleItems;
                 const unreadCount = visibleItems.filter((item) => !headerNotificationReadKeys.has(item.key)).length;
@@ -4919,7 +5026,8 @@
                 }
 
                 headerNotificationsEmptyState.classList.add("d-none");
-                headerNotificationsList.innerHTML = visibleItems.map((item) => {
+
+                function renderNotificationItem(item) {
                     const isRead = headerNotificationReadKeys.has(item.key);
                     const timeText = formatRelativeDateTime(item.eventTimeRaw);
                     return `
@@ -4945,7 +5053,32 @@
                             </button>
                         </div>
                     `;
-                }).join("");
+                }
+
+                const sections = [];
+                if (visibleWorkflowItems.length > 0) {
+                    sections.push(`
+                        <section class="notifications-section" aria-labelledby="workflowNotificationsTitle">
+                            <h6 class="notifications-section-title" id="workflowNotificationsTitle">Workflow</h6>
+                            ${visibleWorkflowItems.map((item) => renderNotificationItem(item)).join("")}
+                        </section>
+                    `);
+                }
+
+                if (visibleWorkflowItems.length > 0 && visibleLeaseItems.length > 0) {
+                    sections.push('<hr class="notifications-section-divider" aria-hidden="true">');
+                }
+
+                if (visibleLeaseItems.length > 0) {
+                    sections.push(`
+                        <section class="notifications-section" aria-labelledby="leaseNotificationsTitle">
+                            <h6 class="notifications-section-title" id="leaseNotificationsTitle">Lease</h6>
+                            ${visibleLeaseItems.map((item) => renderNotificationItem(item)).join("")}
+                        </section>
+                    `);
+                }
+
+                headerNotificationsList.innerHTML = sections.join("");
             }
 
             function markHeaderNotificationAsRead(key) {
@@ -5085,8 +5218,8 @@
                 const normalizedCount = Number.isFinite(count) && count > 0 ? Math.floor(count) : 0;
                 const badgeText = normalizedCount > 99 ? "99+" : String(normalizedCount);
                 const badgeTitle = currentUserRole === "admin"
-                    ? "Perangkat dengan status pending konfirmasi"
-                    : "Perangkat baru yang menunggu approve Anda";
+                    ? "Flow approval atau request perubahan yang menunggu tindak lanjut admin."
+                    : "Flow approval atau request perubahan yang menunggu tindak lanjut Anda.";
 
                 flowPendingBadges.forEach((badge) => {
                     if (!(badge instanceof HTMLElement)) {
@@ -5951,8 +6084,15 @@
                 const flowRows = flowResult.status === "fulfilled" ? flowResult.value : [];
                 const leaseRows = leaseResult.status === "fulfilled" ? leaseResult.value : [];
 
-                const pendingCount = flowRows.filter((row) => String(row?.["Flow Status"] || "").trim().toUpperCase() === "PENDING_CONFIRMATION").length;
-                const rejectedCount = flowRows.filter((row) => String(row?.["Flow Status"] || "").trim().toUpperCase() === "REJECTED").length;
+                const pendingCount = flowRows.filter((row) => {
+                    const normalizedStatus = normalizeFlowStatus(row?.["Flow Status"]);
+                    return normalizedStatus === "PENDING_CONFIRMATION" || normalizedStatus === "PENDING";
+                }).length;
+                const rejectedCount = flowRows.filter((row) => {
+                    const normalizedStatus = normalizeFlowStatus(row?.["Flow Status"]);
+                    const flowItemType = String(row?.flowItemType || "").trim().toUpperCase();
+                    return normalizedStatus === "REJECTED" && flowItemType !== "DEVICE_CHANGE_REQUEST";
+                }).length;
 
                 if (hasFlowStatusBadges) {
                     setFlowPendingBadgeCount(pendingCount);

@@ -16,6 +16,7 @@ Fokus domain aplikasi:
 - master user
 - data perangkat
 - flow approval perangkat
+- workflow perubahan Job Code dan transfer perangkat antar site/department
 - generate BAST PDF dan notifikasi email
 
 ## Cara Menjalankan
@@ -47,7 +48,7 @@ File halaman utama:
 - `master-user.html`: master user
 - `data-perangkat.html`: daftar data perangkat
 - `data-perangkat-form.html`: form tambah/edit perangkat
-- `flow-proses.html`: halaman flow approval perangkat
+- `flow-proses.html`: halaman flow approval perangkat dan request perubahan Job Code / transfer site
 - `profile-details.html`: profil user
 
 Folder penting:
@@ -89,7 +90,7 @@ Halaman operasional utama:
 
 - `data-perangkat.html`: list perangkat, filter, import/export, aksi data, dan drawer detail perangkat
 - `data-perangkat-form.html`: form create/update perangkat
-- `flow-proses.html`: monitoring approval, reject note, tanda tangan digital, cetak BAST
+- `flow-proses.html`: monitoring approval perangkat, request perubahan Job Code / transfer site, reject note, tanda tangan digital, cetak BAST
 - `department.html`: CRUD department dan import Excel
 - `master-user.html`: CRUD user admin/user
 
@@ -98,8 +99,24 @@ Perubahan UI terbaru yang penting:
 - `data-perangkat-form.html` memiliki field baru `Site Code Sistem POMS`
 - field `Site Code Sistem POMS` memakai dropdown yang mengambil opsi dari master `Department.code`
 - field `Site Code Sistem POMS` tidak menentukan relasi department perangkat, hanya menyimpan nilai site code terpisah
+- field `Site Code Sistem POMS` ditempatkan sebelum field `Department`
+- field `Site Code Sistem POMS` hanya bisa diedit oleh role admin saat edit perangkat
 - drawer detail di `data-perangkat.html` dan `data-perangkat-form.html` sudah menampilkan `Site Code Sistem POMS`
-- tabel utama di `flow-proses.html` sudah tidak menampilkan kolom `Lease Status`, tetapi status lease masih tersedia di data/detail lain
+- import Excel dan template Excel `Data Perangkat` sudah menyertakan kolom `Site Code Sistem POMS`
+- user tidak bisa lagi mengubah `Job Code` langsung dari form edit perangkat
+- form edit user menyediakan tombol `Ubah Job Code` yang membuka popup request workflow
+- popup request mendukung kategori `Ganti Job Code` dan `Transfer ke Site lain`
+- dropdown `PIC Tujuan` untuk kategori `Transfer ke Site lain` harus mengambil user dari `Department Tujuan`, bukan requester yang sedang login
+- `flow-proses.html` menampilkan item gabungan antara flow approval perangkat biasa dan request `DeviceChangeRequest`
+- tabel utama di `flow-proses.html` sudah tidak menampilkan kolom `Lease Status`, tetapi status lease masih tersedia di drawer detail
+- `flow-proses.html` mendukung aksi request baru: `approve`, `reject`, dan `assign-job-code`
+- confirm box aksi approve di `flow-proses.html` sudah tidak memakai `window.confirm`, tetapi modal custom yang mengikuti template
+- tab status `Pending` di `flow-proses.html` memakai warna aktif oranye mengikuti status pending
+- kolom `Department` dan `PIC Name` di tabel `Flow Proses` diprioritaskan dari requester/submitted-by agar tampil sebagai histori, bukan mengikuti PIC/department perangkat terbaru
+- `index.html` bell notification menampilkan request `Ganti Job Code` dan `Transfer Site` untuk admin atau PIC reviewer yang sedang dituju
+- dropdown notifikasi di `index.html` dipisah menjadi section `Workflow` dan `Lease`
+- urutan notifikasi sekarang mengutamakan item terbaru di paling atas; item lama terdorong ke bawah saat ada notifikasi baru
+- reject untuk flow `Ganti Job Code` dan `Transfer Site` tidak lagi menjadi prioritas utama di notifikasi workflow dan tidak menambah badge reject pada navbar/sidebar flow
 
 ## Backend
 
@@ -125,7 +142,7 @@ Library internal:
 
 - `backend/src/lib/auth.ts`: pembuatan dan validasi token auth
 - `backend/src/lib/prisma.ts`: singleton Prisma client
-- `backend/src/lib/mailer.ts`: email notifikasi flow approval/reject/BAST
+- `backend/src/lib/mailer.ts`: email notifikasi flow approval/reject/BAST dan email workflow `DeviceChangeRequest`
 - `backend/src/lib/bast-pdf.ts`: generate PDF BAST
 - `backend/src/lib/profile-photo.ts`: simpan dan resolve foto profil user
 
@@ -148,16 +165,29 @@ Endpoint penting yang terlihat dari source dan README backend:
 - `DELETE /api/master-users/:id`
 - `GET /api/device-records`
 - `POST /api/device-records`
+- `POST /api/device-records/:id/change-requests`
+- `POST /api/device-change-requests/:id/approve`
+- `POST /api/device-change-requests/:id/reject`
+- `POST /api/device-change-requests/:id/assign-job-code`
 
 Area `device-records` juga menangani:
 
 - import/export Excel
 - flow submit/approve/reject/resubmit
+- workflow request perubahan `Job Code` dan `Transfer Site`
 - tanda tangan digital user dan pengirim
 - generate/cetak BAST
 - update lease status tertentu seperti `Back To KDDI`
 - penyimpanan field `Site Code Sistem POMS`
 - pembatasan edit field tertentu berdasarkan role, termasuk `Site Code Sistem POMS` yang hanya boleh diubah admin saat edit
+- pembatasan perubahan `departmentJobCodeId` agar user wajib lewat workflow request
+- `GET /api/master-users` untuk role user harus tetap menghormati query `jobCodeId` saat form transfer site meminta daftar PIC department tujuan
+- `GET /api/device-records/flows` mengembalikan gabungan flow approval perangkat biasa dan item `DeviceChangeRequest`
+- `GET /api/device-records/flows` untuk role user harus menjaga dua perilaku sekaligus:
+- request perubahan (`DeviceChangeRequest`) tetap terlihat oleh requester, reviewer aktif, dan `targetPicUserId`
+- flow approval perangkat lama (`Device.flowStatus`) tidak ikut pindah ke PIC penerima baru; user hanya melihat flow lama yang memang pernah dia submit/proses atau yang sedang pending ke dirinya
+- mapping hasil `GET /api/device-records/flows` untuk kolom `Department` dan `PIC Name` diprioritaskan dari requester/submitted-by agar histori tetap stabil setelah perpindahan site/job code
+- payload flow gabungan membawa field seperti `flowItemType`, `requestTypeLabel`, `currentStepLabel`, `availableActions`, `Target PIC Name`, dan histori request
 
 ## Data Model
 
@@ -177,6 +207,8 @@ Model domain yang penting:
 - `DeviceAssignment`
 - `LeaseContract`
 - `RemoteAccessProfile`
+- `DeviceChangeRequest`
+- `DeviceChangeRequestEvent`
 
 Relasi bisnis utama:
 
@@ -184,12 +216,22 @@ Relasi bisnis utama:
 - `Device` terhubung ke category, model, location, assignment, IP, dan lease contract
 - `LeaseContract` menyimpan start/end date, days lease, lease status, history log
 - `Device` menyimpan metadata flow approval seperti `flowStatus`, approver, reject note, signatures
+- `DeviceChangeRequest` menyimpan workflow perubahan `Job Code` dan transfer site/device di luar `Device.flowStatus`
+- `DeviceChangeRequestEvent` menyimpan audit trail setiap aksi request seperti create, approve, reject, dan assign job code
 
 Field perangkat yang perlu diperhatikan:
 
 - `Device.pomsSiteCodeSystem`: site code tambahan untuk kebutuhan Sistem POMS
 - field ini bersifat independen dari `Device.jobCodeId`
 - validasinya tetap mengambil daftar site code dari master `Department`
+- `Device.departmentJobCodeId`: untuk role user tidak lagi boleh diedit langsung, perubahan dilakukan melalui `DeviceChangeRequest`
+
+Workflow baru yang perlu dipahami:
+
+- `Ganti Job Code`: user mengajukan perubahan job code dalam department yang sama, lalu admin review dan jika approve maka `Device.departmentJobCodeId` diperbarui
+- `Transfer ke Site lain`: user memilih department tujuan dan PIC tujuan, lalu request melewati review PIC tujuan, assign job code tujuan oleh PIC, dan final review admin
+- setiap device hanya boleh memiliki satu request perubahan aktif berstatus `PENDING`
+- PIC penerima tetap harus bisa melihat request transfer site yang ditujukan kepadanya di halaman `Flow Proses` walaupun request sudah berada di step `FINAL_ADMIN_REVIEW`
 
 ## Environment Backend
 
@@ -229,6 +271,8 @@ Isi migration menunjukkan evolusi schema seperti:
 - penambahan flow process perangkat
 - penambahan relasi pengirim approval
 - penambahan kolom `poms_site_code_system` pada tabel `devices`
+- penambahan tabel `device_change_requests`
+- penambahan tabel `device_change_request_events`
 
 ## Dokumentasi dan Aset Tambahan
 
@@ -250,9 +294,12 @@ Jika mau melanjutkan pengembangan, area yang paling sentral biasanya:
 - `flow-proses.html`
 - `data-perangkat.html`
 - `data-perangkat-form.html`
+- `index.html`
 - `backend/src/routes/device-records.ts`
+- `backend/src/lib/mailer.ts`
 - `backend/prisma/schema.prisma`
 - `backend/prisma/migrations/20260408193000_add_device_poms_site_code_system/migration.sql`
+- `backend/prisma/migrations/20260408214500_add_device_change_request_workflow/migration.sql`
 - `assets/js/app-config.js`
 - `assets/js/auth-client.js`
 

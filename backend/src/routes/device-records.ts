@@ -7,6 +7,9 @@ import { prisma } from "../lib/prisma";
 import { requireRole } from "../middleware/auth";
 import {
   sendDeviceFlowApprovedBastEmail,
+  sendDeviceChangeRequestCompletedEmail,
+  sendDeviceChangeRequestRejectedEmail,
+  sendDeviceChangeRequestReviewEmail,
   sendDeviceFlowPendingEmail,
   sendDeviceFlowRejectedEmail,
   sendDeviceFlowSenderSignedBastEmail,
@@ -47,9 +50,38 @@ type DeviceFlowStatus =
   | "APPROVED"
   | "REJECTED";
 
+type DeviceChangeRequestType =
+  | "CHANGE_JOB_CODE"
+  | "TRANSFER_SITE";
+
+type DeviceChangeRequestStatus =
+  | "PENDING"
+  | "APPROVED"
+  | "REJECTED";
+
+type DeviceChangeRequestStep =
+  | "ADMIN_REVIEW"
+  | "TARGET_PIC_REVIEW"
+  | "TARGET_PIC_ASSIGN_JOB_CODE"
+  | "FINAL_ADMIN_REVIEW"
+  | "COMPLETED"
+  | "REJECTED";
+
 type DeviceFlowActionPayload = {
   note: string | null;
   signatureDataUrl: string | null;
+};
+
+type DeviceChangeRequestCreatePayload = {
+  requestType: DeviceChangeRequestType;
+  requestedNote: string;
+  requestedDepartmentJobCodeId: number | null;
+  targetDepartmentId: number | null;
+  targetPicUserId: string | null;
+};
+
+type DeviceChangeRequestAssignPayload = {
+  targetDepartmentJobCodeId: number;
 };
 
 type DeviceImportFileRow = {
@@ -89,6 +121,17 @@ type EditorRole = "admin" | "user";
 const DEVICE_FLOW_STATUS_PENDING: DeviceFlowStatus = "PENDING_CONFIRMATION";
 const DEVICE_FLOW_STATUS_APPROVED: DeviceFlowStatus = "APPROVED";
 const DEVICE_FLOW_STATUS_REJECTED: DeviceFlowStatus = "REJECTED";
+const DEVICE_CHANGE_REQUEST_TYPE_CHANGE_JOB_CODE: DeviceChangeRequestType = "CHANGE_JOB_CODE";
+const DEVICE_CHANGE_REQUEST_TYPE_TRANSFER_SITE: DeviceChangeRequestType = "TRANSFER_SITE";
+const DEVICE_CHANGE_REQUEST_STATUS_PENDING: DeviceChangeRequestStatus = "PENDING";
+const DEVICE_CHANGE_REQUEST_STATUS_APPROVED: DeviceChangeRequestStatus = "APPROVED";
+const DEVICE_CHANGE_REQUEST_STATUS_REJECTED: DeviceChangeRequestStatus = "REJECTED";
+const DEVICE_CHANGE_REQUEST_STEP_ADMIN_REVIEW: DeviceChangeRequestStep = "ADMIN_REVIEW";
+const DEVICE_CHANGE_REQUEST_STEP_TARGET_PIC_REVIEW: DeviceChangeRequestStep = "TARGET_PIC_REVIEW";
+const DEVICE_CHANGE_REQUEST_STEP_TARGET_PIC_ASSIGN_JOB_CODE: DeviceChangeRequestStep = "TARGET_PIC_ASSIGN_JOB_CODE";
+const DEVICE_CHANGE_REQUEST_STEP_FINAL_ADMIN_REVIEW: DeviceChangeRequestStep = "FINAL_ADMIN_REVIEW";
+const DEVICE_CHANGE_REQUEST_STEP_COMPLETED: DeviceChangeRequestStep = "COMPLETED";
+const DEVICE_CHANGE_REQUEST_STEP_REJECTED: DeviceChangeRequestStep = "REJECTED";
 const DEVICE_FLOW_STATUSES = new Set<DeviceFlowStatus>([
   DEVICE_FLOW_STATUS_PENDING,
   DEVICE_FLOW_STATUS_APPROVED,
@@ -227,6 +270,21 @@ function formatDateTime(date: Date | null | undefined): string {
   return `${year}-${month}-${day} ${hours}:${minutes}:${seconds}`;
 }
 
+function parseFlowDateValue(value: unknown): number | null {
+  const text = cleanText(value);
+  if (!text) {
+    return null;
+  }
+
+  const normalized = text.includes("T") ? text : text.replace(" ", "T");
+  const date = new Date(normalized);
+  if (Number.isNaN(date.getTime())) {
+    return null;
+  }
+
+  return date.getTime();
+}
+
 function parseFlowStatusFilters(rawValue: unknown): DeviceFlowStatus[] {
   const text = cleanText(rawValue);
   if (!text) {
@@ -279,6 +337,110 @@ function parseFlowActionPayload(payload: unknown, options?: { requireSignature?:
     note,
     signatureDataUrl,
   };
+}
+
+function parseDeviceChangeRequestCreatePayload(payload: unknown): DeviceChangeRequestCreatePayload {
+  if (!payload || typeof payload !== "object") {
+    throw new Error("Payload request perubahan tidak valid.");
+  }
+
+  const body = payload as Record<string, unknown>;
+  const requestType = cleanText(body.requestType).toUpperCase() as DeviceChangeRequestType;
+  const requestedNote = toNullableText(body.requestedNote);
+  const requestedDepartmentJobCodeId = parseInteger(body.requestedDepartmentJobCodeId, "Job Code", { min: 1 });
+  const targetDepartmentId = parseInteger(body.targetDepartmentId, "Department tujuan", { min: 1 });
+  const targetPicUserId = toNullableText(body.targetPicUserId);
+
+  if (!requestedNote) {
+    throw new Error("Keterangan wajib diisi.");
+  }
+
+  if (requestedNote.length > 1000) {
+    throw new Error("Keterangan maksimal 1000 karakter.");
+  }
+
+  if (
+    requestType !== DEVICE_CHANGE_REQUEST_TYPE_CHANGE_JOB_CODE
+    && requestType !== DEVICE_CHANGE_REQUEST_TYPE_TRANSFER_SITE
+  ) {
+    throw new Error("Kategori request tidak valid.");
+  }
+
+  if (requestType === DEVICE_CHANGE_REQUEST_TYPE_CHANGE_JOB_CODE && !requestedDepartmentJobCodeId) {
+    throw new Error("Job Code baru wajib dipilih.");
+  }
+
+  if (requestType === DEVICE_CHANGE_REQUEST_TYPE_TRANSFER_SITE) {
+    if (!targetDepartmentId) {
+      throw new Error("Department tujuan wajib dipilih.");
+    }
+
+    if (!targetPicUserId) {
+      throw new Error("PIC tujuan wajib dipilih.");
+    }
+  }
+
+  return {
+    requestType,
+    requestedNote,
+    requestedDepartmentJobCodeId,
+    targetDepartmentId,
+    targetPicUserId,
+  };
+}
+
+function parseDeviceChangeRequestAssignPayload(payload: unknown): DeviceChangeRequestAssignPayload {
+  if (!payload || typeof payload !== "object") {
+    throw new Error("Payload assign Job Code tidak valid.");
+  }
+
+  const body = payload as Record<string, unknown>;
+  const targetDepartmentJobCodeId = parseInteger(body.targetDepartmentJobCodeId, "Job Code tujuan", { min: 1 });
+  if (!targetDepartmentJobCodeId) {
+    throw new Error("Job Code tujuan wajib dipilih.");
+  }
+
+  return { targetDepartmentJobCodeId };
+}
+
+function getDeviceChangeRequestTypeLabel(requestType: string | null | undefined): string {
+  if (requestType === DEVICE_CHANGE_REQUEST_TYPE_CHANGE_JOB_CODE) {
+    return "Ganti Job Code";
+  }
+
+  if (requestType === DEVICE_CHANGE_REQUEST_TYPE_TRANSFER_SITE) {
+    return "Transfer Site";
+  }
+
+  return "Request Perubahan";
+}
+
+function getDeviceChangeRequestStepLabel(step: string | null | undefined): string {
+  if (step === DEVICE_CHANGE_REQUEST_STEP_ADMIN_REVIEW) {
+    return "Admin Review";
+  }
+
+  if (step === DEVICE_CHANGE_REQUEST_STEP_TARGET_PIC_REVIEW) {
+    return "Review PIC Tujuan";
+  }
+
+  if (step === DEVICE_CHANGE_REQUEST_STEP_TARGET_PIC_ASSIGN_JOB_CODE) {
+    return "PIC Pilih Job Code";
+  }
+
+  if (step === DEVICE_CHANGE_REQUEST_STEP_FINAL_ADMIN_REVIEW) {
+    return "Final Admin Review";
+  }
+
+  if (step === DEVICE_CHANGE_REQUEST_STEP_COMPLETED) {
+    return "Completed";
+  }
+
+  if (step === DEVICE_CHANGE_REQUEST_STEP_REJECTED) {
+    return "Rejected";
+  }
+
+  return "-";
 }
 
 function getUtcDateStartMs(date: Date): number {
@@ -628,12 +790,28 @@ const deviceRecordInclude = {
     take: 1,
     select: latestLeaseSelect,
   },
+  changeRequests: {
+    where: { status: DEVICE_CHANGE_REQUEST_STATUS_PENDING },
+    orderBy: { createdAt: "desc" as const },
+    take: 1,
+    select: {
+      id: true,
+      requestType: true,
+      status: true,
+      currentStep: true,
+      requestedNote: true,
+      latestRejectReason: true,
+      createdAt: true,
+    },
+  },
 } as const;
 
 type MappedDeviceRow = {
   id: string;
   legacyNo: number | null;
   pomsSiteCodeSystem: string | null;
+  createdAt: Date;
+  updatedAt: Date;
   flowStatus: string;
   flowAssignedPicUserId: string | null;
   flowSubmittedByUserId: string | null;
@@ -667,10 +845,20 @@ type MappedDeviceRow = {
     leaseStatus: string | null;
     historyLog: string | null;
   }>;
+  changeRequests: Array<{
+    id: string;
+    requestType: string;
+    status: string;
+    currentStep: string;
+    requestedNote: string;
+    latestRejectReason: string | null;
+    createdAt: Date;
+  }>;
 };
 
 function mapDeviceToExcelRecord(row: MappedDeviceRow, fallbackNo?: number) {
   const latestLease = row.leaseContracts[0] ?? null;
+  const pendingChangeRequest = row.changeRequests[0] ?? null;
   const calculatedDaysLease = calculateDaysLease(
     latestLease?.startDate ?? null,
     latestLease?.endDate ?? null,
@@ -704,6 +892,14 @@ function mapDeviceToExcelRecord(row: MappedDeviceRow, fallbackNo?: number) {
     "Hystory Log": latestLease?.historyLog ?? "",
     Keterangan: row.notes ?? "",
     "Bitlocker Key": row.bitlockerKey ?? "",
+    "Has Pending Change Request": pendingChangeRequest ? "YES" : "NO",
+    "Pending Change Request ID": pendingChangeRequest?.id ?? "",
+    "Pending Change Request Type": pendingChangeRequest
+      ? getDeviceChangeRequestTypeLabel(pendingChangeRequest.requestType)
+      : "",
+    "Pending Change Request Step": pendingChangeRequest
+      ? getDeviceChangeRequestStepLabel(pendingChangeRequest.currentStep)
+      : "",
   };
 }
 
@@ -745,9 +941,19 @@ function mapDeviceToFlowRecord(
     ? userMetaById?.get(row.flowSubmittedByUserId) ?? { name: row.flowSubmittedByUserId, departmentCode: "" }
     : { name: "", departmentCode: "" };
 
-  return {
+  const mapped = {
     ...base,
+    "Department": submittedByMeta.departmentCode || base["Department"],
+    "PIC Name": submittedByMeta.name || base["PIC Name"],
+    flowItemType: "DEVICE_FLOW",
+    requestType: "DEVICE_FLOW",
+    requestTypeLabel: "Approval Perangkat",
+    currentStep: cleanText(row.flowStatus || DEVICE_FLOW_STATUS_APPROVED),
+    currentStepLabel: cleanText(row.flowStatus || DEVICE_FLOW_STATUS_APPROVED),
+    isSignatureFlow: true,
     "Flow Status": cleanText(row.flowStatus || DEVICE_FLOW_STATUS_APPROVED),
+    availableActions: [] as string[],
+    "Created At": formatDateTime(row.createdAt),
     "Flow Assigned PIC User ID": row.flowAssignedPicUserId ?? "",
     "Flow Submitted By User ID": row.flowSubmittedByUserId ?? "",
     "Flow Submitted By": submittedByMeta.name,
@@ -770,6 +976,9 @@ function mapDeviceToFlowRecord(
     "Flow Sender Signed By Department": senderSignedByMeta.departmentCode,
     "Flow Sender Signed At": formatDateTime(row.flowSenderSignedAt),
   };
+
+  mapped.availableActions = buildDeviceFlowAvailableActions(mapped);
+  return mapped;
 }
 
 function mapFlowRowsWithResolvedNo(
@@ -788,6 +997,287 @@ function mapFlowRowsWithResolvedNo(
 
     nextFallbackNo += 1;
     return mapDeviceToFlowRecord(row, nextFallbackNo, userMetaById);
+  });
+}
+
+const deviceChangeRequestInclude = {
+  device: {
+    include: deviceRecordInclude,
+  },
+  requestedByUser: {
+    select: {
+      id: true,
+      name: true,
+      email: true,
+      jobCode: {
+        select: {
+          code: true,
+        },
+      },
+    },
+  },
+  currentReviewerUser: {
+    select: {
+      id: true,
+      name: true,
+      email: true,
+      jobCode: {
+        select: {
+          code: true,
+        },
+      },
+    },
+  },
+  targetPicUser: {
+    select: {
+      id: true,
+      name: true,
+      email: true,
+      jobCode: {
+        select: {
+          code: true,
+        },
+      },
+    },
+  },
+  requestedByDepartment: {
+    select: {
+      id: true,
+      code: true,
+      siteName: true,
+    },
+  },
+  targetDepartment: {
+    select: {
+      id: true,
+      code: true,
+      siteName: true,
+    },
+  },
+  requestedDepartmentJobCode: {
+    select: {
+      id: true,
+      code: true,
+    },
+  },
+  targetDepartmentJobCode: {
+    select: {
+      id: true,
+      code: true,
+    },
+  },
+  events: {
+    orderBy: {
+      createdAt: "asc" as const,
+    },
+    select: {
+      id: true,
+      action: true,
+      note: true,
+      createdAt: true,
+      metadataJson: true,
+      actorUser: {
+        select: {
+          id: true,
+          name: true,
+          jobCode: {
+            select: {
+              code: true,
+            },
+          },
+        },
+      },
+    },
+  },
+} as const;
+
+type MappedDeviceChangeRequestRow = {
+  id: string;
+  requestType: string;
+  status: string;
+  currentStep: string;
+  requestedByUserId: string;
+  requestedByDepartmentId: number | null;
+  requestedNote: string;
+  requestedDepartmentJobCodeId: number | null;
+  targetDepartmentId: number | null;
+  targetPicUserId: string | null;
+  targetDepartmentJobCodeId: number | null;
+  latestRejectReason: string | null;
+  currentReviewerUserId: string | null;
+  approvedAt: Date | null;
+  rejectedAt: Date | null;
+  createdAt: Date;
+  updatedAt: Date;
+  device: MappedDeviceRow;
+  requestedByUser: {
+    id: string;
+    name: string;
+    email: string;
+    jobCode: { code: string } | null;
+  };
+  currentReviewerUser: {
+    id: string;
+    name: string;
+    email: string;
+    jobCode: { code: string } | null;
+  } | null;
+  targetPicUser: {
+    id: string;
+    name: string;
+    email: string;
+    jobCode: { code: string } | null;
+  } | null;
+  requestedByDepartment: {
+    id: number;
+    code: string;
+    siteName: string;
+  } | null;
+  targetDepartment: {
+    id: number;
+    code: string;
+    siteName: string;
+  } | null;
+  requestedDepartmentJobCode: {
+    id: number;
+    code: string;
+  } | null;
+  targetDepartmentJobCode: {
+    id: number;
+    code: string;
+  } | null;
+  events: Array<{
+    id: string;
+    action: string;
+    note: string | null;
+    createdAt: Date;
+    metadataJson: Prisma.JsonValue | null;
+    actorUser: {
+      id: string;
+      name: string;
+      jobCode: { code: string } | null;
+    } | null;
+  }>;
+};
+
+function buildDeviceFlowAvailableActions(row: ReturnType<typeof mapDeviceToFlowRecord>): string[] {
+  const actions = ["view"];
+  const status = cleanText(row["Flow Status"]).toUpperCase();
+  if (status === DEVICE_FLOW_STATUS_PENDING) {
+    actions.push("approve", "reject");
+  }
+  if (status === DEVICE_FLOW_STATUS_REJECTED) {
+    actions.push("resubmit");
+  }
+  if (status === DEVICE_FLOW_STATUS_APPROVED) {
+    actions.push("sender-sign", "print-bast");
+  }
+  return actions;
+}
+
+function buildDeviceChangeRequestAvailableActions(row: MappedDeviceChangeRequestRow): string[] {
+  const actions = ["view"];
+  if (row.status !== DEVICE_CHANGE_REQUEST_STATUS_PENDING) {
+    return actions;
+  }
+
+  if (
+    row.currentStep === DEVICE_CHANGE_REQUEST_STEP_ADMIN_REVIEW
+    || row.currentStep === DEVICE_CHANGE_REQUEST_STEP_TARGET_PIC_REVIEW
+    || row.currentStep === DEVICE_CHANGE_REQUEST_STEP_FINAL_ADMIN_REVIEW
+  ) {
+    actions.push("approve", "reject");
+  }
+
+  if (row.currentStep === DEVICE_CHANGE_REQUEST_STEP_TARGET_PIC_ASSIGN_JOB_CODE) {
+    actions.push("assign-job-code");
+  }
+
+  return actions;
+}
+
+function mapChangeRequestToFlowRecord(row: MappedDeviceChangeRequestRow, fallbackNo?: number) {
+  const base = mapDeviceToExcelRecord(row.device, fallbackNo);
+  const eventLines = row.events.map((event) => {
+    const actorName = cleanText(event.actorUser?.name) || "System";
+    const note = cleanText(event.note);
+    const suffix = note ? ` - ${note}` : "";
+    return `[${formatDateTime(event.createdAt)}] ${event.action} oleh ${actorName}${suffix}`;
+  });
+
+  return {
+    ...base,
+    "Department": row.requestedByDepartment?.code ?? base["Department"],
+    "PIC Name": row.requestedByUser?.name ?? base["PIC Name"],
+    id: row.id,
+    flowItemType: "DEVICE_CHANGE_REQUEST",
+    requestType: row.requestType,
+    requestTypeLabel: getDeviceChangeRequestTypeLabel(row.requestType),
+    currentStep: row.currentStep,
+    currentStepLabel: getDeviceChangeRequestStepLabel(row.currentStep),
+    isSignatureFlow: false,
+    availableActions: buildDeviceChangeRequestAvailableActions(row),
+    "Created At": formatDateTime(row.createdAt),
+    "Flow Status": cleanText(row.status || DEVICE_CHANGE_REQUEST_STATUS_PENDING),
+    "Flow Approved At": formatDateTime(row.approvedAt),
+    "Flow Reject Note": row.latestRejectReason ?? "",
+    "Flow Submitted By User ID": row.requestedByUserId,
+    "Flow Submitted By": row.requestedByUser?.name ?? "",
+    "Flow Submitted By Department": cleanText(row.requestedByUser?.jobCode?.code),
+    "Flow Assigned PIC User ID": row.currentReviewerUserId ?? "",
+    "Flow Assigned PIC Name": row.currentReviewerUser?.name ?? "",
+    "Flow Assigned PIC Department": cleanText(row.currentReviewerUser?.jobCode?.code),
+    "Flow Approved By User ID": "",
+    "Flow Approved By": "",
+    "Flow Approved Department": "",
+    "Flow Rejected By User ID": "",
+    "Flow Rejected By": "",
+    "Flow Rejected Department": "",
+    "Flow Rejected At": formatDateTime(row.rejectedAt),
+    "Flow Recipient Signature": "",
+    "Flow Sender Signature": "",
+    "Flow Sender Signed By User ID": "",
+    "Flow Sender Signed By": "",
+    "Flow Sender Signed By Department": "",
+    "Flow Sender Signed At": "",
+    "Request Type": getDeviceChangeRequestTypeLabel(row.requestType),
+    "Current Step": getDeviceChangeRequestStepLabel(row.currentStep),
+    "Requested By": row.requestedByUser?.name ?? "",
+    "Requested By Email": row.requestedByUser?.email ?? "",
+    "Requested Department": row.requestedByDepartment?.code ?? row.device.jobCode?.code ?? "",
+    "Requested Job Code": row.requestedDepartmentJobCode?.code ?? "",
+    "Requested Note": row.requestedNote,
+    "Target Department": row.targetDepartment?.code ?? "",
+    "Target Department Name": row.targetDepartment?.siteName ?? "",
+    "Target PIC User ID": row.targetPicUserId ?? "",
+    "Target PIC Name": row.targetPicUser?.name ?? "",
+    "Target PIC Email": row.targetPicUser?.email ?? "",
+    "Target Job Code": row.targetDepartmentJobCode?.code ?? "",
+    "Latest Reject Reason": row.latestRejectReason ?? "",
+    "History Log": eventLines.join("\n"),
+    "Hystory Log": eventLines.join("\n"),
+  };
+}
+
+function mapChangeRequestRowsWithResolvedNo(rows: MappedDeviceChangeRequestRow[]) {
+  let nextFallbackNo = rows.reduce((maxNo, row) => {
+    const value = typeof row.device?.legacyNo === "number" && Number.isFinite(row.device.legacyNo)
+      ? row.device.legacyNo
+      : 0;
+    return value > maxNo ? value : maxNo;
+  }, 0);
+
+  return rows.map((row) => {
+    if (
+      typeof row.device?.legacyNo === "number"
+      && Number.isFinite(row.device.legacyNo)
+      && row.device.legacyNo > 0
+    ) {
+      return mapChangeRequestToFlowRecord(row);
+    }
+
+    nextFallbackNo += 1;
+    return mapChangeRequestToFlowRecord(row, nextFallbackNo);
   });
 }
 
@@ -1633,6 +2123,94 @@ async function appendLatestLeaseHistory(
   });
 }
 
+async function createDeviceChangeRequestEvent(
+  tx: Prisma.TransactionClient,
+  requestId: string,
+  payload: {
+    actorUserId?: string | null;
+    action: string;
+    note?: string | null;
+    metadataJson?: Prisma.InputJsonValue;
+  },
+): Promise<void> {
+  await (tx as any).deviceChangeRequestEvent.create({
+    data: {
+      requestId,
+      actorUserId: cleanText(payload.actorUserId) || null,
+      action: cleanText(payload.action) || "UPDATED",
+      note: toNullableText(payload.note),
+      metadataJson: payload.metadataJson,
+    },
+  });
+}
+
+async function findPendingDeviceChangeRequestByDeviceId(
+  tx: Prisma.TransactionClient,
+  deviceId: string,
+): Promise<{ id: string } | null> {
+  return (tx as any).deviceChangeRequest.findFirst({
+    where: {
+      deviceId,
+      status: DEVICE_CHANGE_REQUEST_STATUS_PENDING,
+    },
+    orderBy: {
+      createdAt: "desc",
+    },
+    select: {
+      id: true,
+    },
+  });
+}
+
+async function getAdminReviewRecipients(client: { masterUser: typeof prisma.masterUser }) {
+  return client.masterUser.findMany({
+    where: {
+      role: "admin",
+      email: {
+        not: "",
+      },
+    },
+    select: {
+      id: true,
+      name: true,
+      email: true,
+    },
+    orderBy: {
+      name: "asc",
+    },
+  });
+}
+
+function canCurrentUserReviewDeviceChangeRequest(
+  request: {
+    currentStep: string;
+    currentReviewerUserId: string | null;
+  },
+  currentUser: { id: string | null; role: string | null },
+): boolean {
+  const currentRole = cleanText(currentUser.role).toLowerCase();
+  const currentUserId = cleanText(currentUser.id);
+  if (!currentUserId && currentRole !== "admin") {
+    return false;
+  }
+
+  if (
+    request.currentStep === DEVICE_CHANGE_REQUEST_STEP_ADMIN_REVIEW
+    || request.currentStep === DEVICE_CHANGE_REQUEST_STEP_FINAL_ADMIN_REVIEW
+  ) {
+    return currentRole === "admin";
+  }
+
+  if (
+    request.currentStep === DEVICE_CHANGE_REQUEST_STEP_TARGET_PIC_REVIEW
+    || request.currentStep === DEVICE_CHANGE_REQUEST_STEP_TARGET_PIC_ASSIGN_JOB_CODE
+  ) {
+    return Boolean(currentUserId && currentUserId === cleanText(request.currentReviewerUserId));
+  }
+
+  return false;
+}
+
 async function getMappedDeviceById(tx: Prisma.TransactionClient, id: string) {
   const row = await tx.device.findUniqueOrThrow({
     where: { id },
@@ -1940,8 +2518,18 @@ deviceRecordRouter.get("/device-records/flows", async (req, res, next) => {
     };
 
     if (scope.editorRole === "user") {
-      where.jobCodeId = scope.userJobCodeId ?? undefined;
-      where.flowAssignedPicUserId = scope.userId ?? undefined;
+      where.OR = [
+        { flowSubmittedByUserId: scope.userId ?? undefined },
+        { flowApprovedByUserId: scope.userId ?? undefined },
+        { flowRejectedByUserId: scope.userId ?? undefined },
+        { flowSenderSignedByUserId: scope.userId ?? undefined },
+        {
+          AND: [
+            { flowStatus: DEVICE_FLOW_STATUS_PENDING },
+            { flowAssignedPicUserId: scope.userId ?? undefined },
+          ],
+        },
+      ];
     }
 
     const rows = await prisma.device.findMany({
@@ -1985,7 +2573,53 @@ deviceRecordRouter.get("/device-records/flows", async (req, res, next) => {
       },
     ]));
 
-    const mappedRows = mapFlowRowsWithResolvedNo(rows as unknown as MappedDeviceRow[], userMetaById);
+    const mappedDeviceRows = mapFlowRowsWithResolvedNo(rows as unknown as MappedDeviceRow[], userMetaById);
+
+    const includePendingStatus = statusFilters.includes(DEVICE_FLOW_STATUS_PENDING);
+    const includeApprovedStatus = statusFilters.includes(DEVICE_FLOW_STATUS_APPROVED);
+    const includeRejectedStatus = statusFilters.includes(DEVICE_FLOW_STATUS_REJECTED);
+    const requestStatuses: DeviceChangeRequestStatus[] = [];
+    if (includePendingStatus) {
+      requestStatuses.push(DEVICE_CHANGE_REQUEST_STATUS_PENDING);
+    }
+    if (includeApprovedStatus) {
+      requestStatuses.push(DEVICE_CHANGE_REQUEST_STATUS_APPROVED);
+    }
+    if (includeRejectedStatus) {
+      requestStatuses.push(DEVICE_CHANGE_REQUEST_STATUS_REJECTED);
+    }
+
+    const changeRequestWhere: Record<string, unknown> = {
+      status: {
+        in: requestStatuses,
+      },
+    };
+
+    if (scope.editorRole === "user") {
+      changeRequestWhere.OR = [
+        { requestedByUserId: scope.userId ?? undefined },
+        { currentReviewerUserId: scope.userId ?? undefined },
+        { targetPicUserId: scope.userId ?? undefined },
+      ];
+    }
+
+    const changeRequests = await (prisma as any).deviceChangeRequest.findMany({
+      where: changeRequestWhere,
+      orderBy: { createdAt: "desc" },
+      include: deviceChangeRequestInclude,
+    });
+
+    const mappedChangeRequestRows = mapChangeRequestRowsWithResolvedNo(
+      changeRequests as unknown as MappedDeviceChangeRequestRow[],
+    );
+
+    const mappedRows = [...mappedDeviceRows, ...mappedChangeRequestRows]
+      .sort((left, right) => {
+        const leftDate = parseFlowDateValue(left["Flow Approved At"]) ?? parseFlowDateValue(left["Flow Rejected At"]) ?? parseFlowDateValue(left["Created At"]) ?? 0;
+        const rightDate = parseFlowDateValue(right["Flow Approved At"]) ?? parseFlowDateValue(right["Flow Rejected At"]) ?? parseFlowDateValue(right["Created At"]) ?? 0;
+        return rightDate - leftDate;
+      });
+
     res.json({ data: mappedRows });
   } catch (error) {
     if (error instanceof Error && error.message === "ROLE_USER_JOB_CODE_NOT_FOUND") {
@@ -2444,6 +3078,804 @@ deviceRecordRouter.get("/device-records/:id", async (req, res, next) => {
   }
 });
 
+deviceRecordRouter.post("/device-records/:id/change-requests", requireRole("user"), async (req, res, next) => {
+  try {
+    const deviceId = cleanText(req.params.id);
+    if (!deviceId) {
+      return res.status(400).json({ message: "ID perangkat tidak valid." });
+    }
+
+    const scope = await resolveDataScope(req);
+    const currentUserId = cleanText(req.authUser?.id);
+    const currentUserName = cleanText(req.authUser?.name) || "User";
+    const currentUserEmail = cleanText(req.authUser?.email);
+    const payload = parseDeviceChangeRequestCreatePayload(req.body);
+
+    if (scope.editorRole !== "user" || !currentUserId) {
+      return res.status(403).json({ message: "Hanya user yang dapat membuat request perubahan Job Code." });
+    }
+
+    const createdRequest = await prisma.$transaction(async (tx) => {
+      const device = await tx.device.findUnique({
+        where: { id: deviceId },
+        include: deviceRecordInclude,
+      });
+
+      if (!device) {
+        throw new Error("DATA_PERANGKAT_NOT_FOUND");
+      }
+
+      if (device.jobCodeId !== scope.userJobCodeId) {
+        throw new Error("ROLE_USER_SCOPE_FORBIDDEN");
+      }
+
+      const existingPendingRequest = await findPendingDeviceChangeRequestByDeviceId(tx, deviceId);
+      if (existingPendingRequest) {
+        throw new Error("DEVICE_CHANGE_REQUEST_ALREADY_PENDING");
+      }
+
+      if (!device.jobCodeId) {
+        throw new Error("DEVICE_DEPARTMENT_NOT_FOUND");
+      }
+
+      let requestedDepartmentJobCodeId: number | null = null;
+      let targetDepartmentId: number | null = null;
+      let targetPicUserId: string | null = null;
+      let currentStep: DeviceChangeRequestStep;
+      let currentReviewerUserId: string | null = null;
+
+      if (payload.requestType === DEVICE_CHANGE_REQUEST_TYPE_CHANGE_JOB_CODE) {
+        const requestedJobCode = payload.requestedDepartmentJobCodeId
+          ? await tx.departmentJobCode.findFirst({
+            where: {
+              id: payload.requestedDepartmentJobCodeId,
+              departmentId: device.jobCodeId,
+            },
+            select: {
+              id: true,
+              code: true,
+            },
+          })
+          : null;
+
+        if (!requestedJobCode) {
+          throw new Error("REQUESTED_JOB_CODE_INVALID");
+        }
+
+        if (requestedJobCode.id === device.departmentJobCodeId) {
+          throw new Error("REQUESTED_JOB_CODE_SAME_AS_CURRENT");
+        }
+
+        requestedDepartmentJobCodeId = requestedJobCode.id;
+        currentStep = DEVICE_CHANGE_REQUEST_STEP_ADMIN_REVIEW;
+      } else {
+        const targetDepartment = payload.targetDepartmentId
+          ? await tx.department.findUnique({
+            where: { id: payload.targetDepartmentId },
+            select: {
+              id: true,
+              code: true,
+            },
+          })
+          : null;
+
+        if (!targetDepartment) {
+          throw new Error("TARGET_DEPARTMENT_NOT_FOUND");
+        }
+
+        if (targetDepartment.id === device.jobCodeId) {
+          throw new Error("TARGET_DEPARTMENT_SAME_AS_CURRENT");
+        }
+
+        const targetPic = payload.targetPicUserId
+          ? await tx.masterUser.findUnique({
+            where: { id: payload.targetPicUserId },
+            select: {
+              id: true,
+              name: true,
+              email: true,
+              jobCodeId: true,
+            },
+          })
+          : null;
+
+        if (!targetPic) {
+          throw new Error("TARGET_PIC_NOT_FOUND");
+        }
+
+        if (targetPic.jobCodeId !== targetDepartment.id) {
+          throw new Error("TARGET_PIC_NOT_IN_TARGET_DEPARTMENT");
+        }
+
+        targetDepartmentId = targetDepartment.id;
+        targetPicUserId = targetPic.id;
+        currentReviewerUserId = targetPic.id;
+        currentStep = DEVICE_CHANGE_REQUEST_STEP_TARGET_PIC_REVIEW;
+      }
+
+      const request = await (tx as any).deviceChangeRequest.create({
+        data: {
+          deviceId,
+          requestType: payload.requestType,
+          status: DEVICE_CHANGE_REQUEST_STATUS_PENDING,
+          currentStep,
+          requestedByUserId: currentUserId,
+          requestedByDepartmentId: device.jobCodeId,
+          requestedNote: payload.requestedNote,
+          requestedDepartmentJobCodeId,
+          targetDepartmentId,
+          targetPicUserId,
+          currentReviewerUserId,
+        },
+        include: deviceChangeRequestInclude,
+      });
+
+      await createDeviceChangeRequestEvent(tx, request.id, {
+        actorUserId: currentUserId,
+        action: "REQUEST_CREATED",
+        note: payload.requestedNote,
+        metadataJson: {
+          requestType: payload.requestType,
+          currentStep,
+          requestedDepartmentJobCodeId,
+          targetDepartmentId,
+          targetPicUserId,
+        },
+      });
+
+      await appendLatestLeaseHistory(
+        tx,
+        deviceId,
+        `${getDeviceChangeRequestTypeLabel(payload.requestType)} diajukan oleh ${currentUserName}.`,
+      );
+
+      return request as unknown as MappedDeviceChangeRequestRow;
+    });
+
+    try {
+      if (payload.requestType === DEVICE_CHANGE_REQUEST_TYPE_CHANGE_JOB_CODE) {
+        const admins = await getAdminReviewRecipients(prisma);
+        for (const admin of admins) {
+          await sendDeviceChangeRequestReviewEmail({
+            recipientName: admin.name,
+            recipientEmail: admin.email,
+            requestTypeLabel: getDeviceChangeRequestTypeLabel(createdRequest.requestType),
+            currentStepLabel: getDeviceChangeRequestStepLabel(createdRequest.currentStep),
+            serialNo: cleanText(createdRequest.device.serialNumber),
+            category: cleanText(createdRequest.device.category?.name),
+            model: cleanText(createdRequest.device.model?.name),
+            hostName: cleanText(createdRequest.device.hostName),
+            departmentCode: cleanText(createdRequest.device.jobCode?.code),
+            jobCode: cleanText(createdRequest.device.departmentJobCode?.code),
+            requesterName: currentUserName,
+            requesterEmail: currentUserEmail,
+            requestedNote: createdRequest.requestedNote,
+          });
+        }
+      } else if (createdRequest.targetPicUser && cleanText(createdRequest.targetPicUser.email)) {
+        await sendDeviceChangeRequestReviewEmail({
+          recipientName: cleanText(createdRequest.targetPicUser.name) || "PIC",
+          recipientEmail: cleanText(createdRequest.targetPicUser.email),
+          requestTypeLabel: getDeviceChangeRequestTypeLabel(createdRequest.requestType),
+          currentStepLabel: getDeviceChangeRequestStepLabel(createdRequest.currentStep),
+          serialNo: cleanText(createdRequest.device.serialNumber),
+          category: cleanText(createdRequest.device.category?.name),
+          model: cleanText(createdRequest.device.model?.name),
+          hostName: cleanText(createdRequest.device.hostName),
+          departmentCode: cleanText(createdRequest.device.jobCode?.code),
+          jobCode: cleanText(createdRequest.device.departmentJobCode?.code),
+          requesterName: currentUserName,
+          requesterEmail: currentUserEmail,
+          requestedNote: createdRequest.requestedNote,
+        });
+      }
+    } catch (mailError) {
+      const message = mailError instanceof Error ? mailError.message : "Unknown mail error";
+      console.error(`[MAILER] Gagal kirim email request perubahan device: ${message}`);
+    }
+
+    res.status(201).json({
+      data: mapChangeRequestToFlowRecord(createdRequest),
+      message: "Request perubahan Job Code berhasil dibuat.",
+    });
+  } catch (error) {
+    if (error instanceof Error && error.message === "DATA_PERANGKAT_NOT_FOUND") {
+      return res.status(404).json({ message: "Data perangkat tidak ditemukan." });
+    }
+
+    if (error instanceof Error && error.message === "ROLE_USER_JOB_CODE_NOT_FOUND") {
+      return res.status(403).json({ message: "Department user tidak ditemukan. Hubungi admin." });
+    }
+
+    if (error instanceof Error && error.message === "ROLE_USER_SCOPE_FORBIDDEN") {
+      return res.status(403).json({ message: "Role user tidak diizinkan membuat request untuk data perangkat di Department lain." });
+    }
+
+    if (error instanceof Error && error.message === "DEVICE_CHANGE_REQUEST_ALREADY_PENDING") {
+      return res.status(409).json({ message: "Masih ada request perubahan yang pending untuk perangkat ini." });
+    }
+
+    if (error instanceof Error && error.message === "REQUESTED_JOB_CODE_INVALID") {
+      return res.status(400).json({ message: "Job Code baru tidak valid untuk Department saat ini." });
+    }
+
+    if (error instanceof Error && error.message === "REQUESTED_JOB_CODE_SAME_AS_CURRENT") {
+      return res.status(400).json({ message: "Job Code baru harus berbeda dari Job Code saat ini." });
+    }
+
+    if (error instanceof Error && error.message === "TARGET_DEPARTMENT_NOT_FOUND") {
+      return res.status(400).json({ message: "Department tujuan tidak ditemukan." });
+    }
+
+    if (error instanceof Error && error.message === "TARGET_DEPARTMENT_SAME_AS_CURRENT") {
+      return res.status(400).json({ message: "Department tujuan harus berbeda dari Department saat ini." });
+    }
+
+    if (error instanceof Error && error.message === "TARGET_PIC_NOT_FOUND") {
+      return res.status(400).json({ message: "PIC tujuan tidak ditemukan." });
+    }
+
+    if (error instanceof Error && error.message === "TARGET_PIC_NOT_IN_TARGET_DEPARTMENT") {
+      return res.status(400).json({ message: "PIC tujuan harus berasal dari Department tujuan." });
+    }
+
+    if (error instanceof Error) {
+      return res.status(400).json({ message: error.message });
+    }
+
+    next(error);
+  }
+});
+
+deviceRecordRouter.post("/device-change-requests/:id/approve", async (req, res, next) => {
+  try {
+    const requestId = cleanText(req.params.id);
+    if (!requestId) {
+      return res.status(400).json({ message: "ID request tidak valid." });
+    }
+
+    const currentUserId = cleanText(req.authUser?.id);
+    const currentUserRole = cleanText(req.authUser?.role);
+    const actorName = cleanText(req.authUser?.name) || "User";
+    const actorEmail = cleanText(req.authUser?.email);
+
+    const approvedRequest = await prisma.$transaction(async (tx) => {
+      const request = await (tx as any).deviceChangeRequest.findUnique({
+        where: { id: requestId },
+        include: deviceChangeRequestInclude,
+      });
+
+      if (!request) {
+        throw new Error("DEVICE_CHANGE_REQUEST_NOT_FOUND");
+      }
+
+      if (request.status !== DEVICE_CHANGE_REQUEST_STATUS_PENDING) {
+        throw new Error("DEVICE_CHANGE_REQUEST_NOT_PENDING");
+      }
+
+      if (!canCurrentUserReviewDeviceChangeRequest(
+        { currentStep: request.currentStep, currentReviewerUserId: request.currentReviewerUserId },
+        { id: currentUserId || null, role: currentUserRole || null },
+      )) {
+        throw new Error("DEVICE_CHANGE_REQUEST_FORBIDDEN");
+      }
+
+      if (
+        request.requestType === DEVICE_CHANGE_REQUEST_TYPE_CHANGE_JOB_CODE
+        && request.currentStep === DEVICE_CHANGE_REQUEST_STEP_ADMIN_REVIEW
+      ) {
+        if (!request.requestedDepartmentJobCodeId) {
+          throw new Error("REQUESTED_JOB_CODE_INVALID");
+        }
+
+        const approvedAt = new Date();
+        await tx.device.update({
+          where: { id: request.deviceId },
+          data: {
+            departmentJobCodeId: request.requestedDepartmentJobCodeId,
+          },
+        });
+
+        await (tx as any).deviceChangeRequest.update({
+          where: { id: requestId },
+          data: {
+            status: DEVICE_CHANGE_REQUEST_STATUS_APPROVED,
+            currentStep: DEVICE_CHANGE_REQUEST_STEP_COMPLETED,
+            currentReviewerUserId: null,
+            approvedAt,
+          },
+        });
+
+        await createDeviceChangeRequestEvent(tx, requestId, {
+          actorUserId: currentUserId,
+          action: "ADMIN_APPROVED",
+          note: `Job Code diubah menjadi ${cleanText(request.requestedDepartmentJobCode?.code)}`,
+        });
+
+        await appendLatestLeaseHistory(
+          tx,
+          request.deviceId,
+          `Request ${getDeviceChangeRequestTypeLabel(request.requestType)} disetujui oleh ${actorName}.`,
+        );
+      } else if (
+        request.requestType === DEVICE_CHANGE_REQUEST_TYPE_TRANSFER_SITE
+        && request.currentStep === DEVICE_CHANGE_REQUEST_STEP_TARGET_PIC_REVIEW
+      ) {
+        await (tx as any).deviceChangeRequest.update({
+          where: { id: requestId },
+          data: {
+            currentStep: DEVICE_CHANGE_REQUEST_STEP_TARGET_PIC_ASSIGN_JOB_CODE,
+            currentReviewerUserId: request.targetPicUserId,
+          },
+        });
+
+        await createDeviceChangeRequestEvent(tx, requestId, {
+          actorUserId: currentUserId,
+          action: "TARGET_PIC_APPROVED",
+          note: "PIC tujuan menyetujui transfer dan lanjut memilih Job Code tujuan.",
+        });
+      } else if (
+        request.requestType === DEVICE_CHANGE_REQUEST_TYPE_TRANSFER_SITE
+        && request.currentStep === DEVICE_CHANGE_REQUEST_STEP_FINAL_ADMIN_REVIEW
+      ) {
+        if (!request.targetDepartmentId || !request.targetPicUserId || !request.targetDepartmentJobCodeId) {
+          throw new Error("TRANSFER_APPROVAL_DATA_INCOMPLETE");
+        }
+
+        const targetPic = await tx.masterUser.findUnique({
+          where: { id: request.targetPicUserId },
+          select: {
+            id: true,
+            name: true,
+            email: true,
+            jobCodeId: true,
+          },
+        });
+
+        if (!targetPic || targetPic.jobCodeId !== request.targetDepartmentId) {
+          throw new Error("TARGET_PIC_NOT_IN_TARGET_DEPARTMENT");
+        }
+
+        const targetJobCode = await tx.departmentJobCode.findFirst({
+          where: {
+            id: request.targetDepartmentJobCodeId,
+            departmentId: request.targetDepartmentId,
+          },
+          select: {
+            id: true,
+            code: true,
+          },
+        });
+
+        if (!targetJobCode) {
+          throw new Error("TARGET_JOB_CODE_INVALID");
+        }
+
+        const approvedAt = new Date();
+        await tx.device.update({
+          where: { id: request.deviceId },
+          data: {
+            jobCodeId: request.targetDepartmentId,
+            departmentJobCodeId: targetJobCode.id,
+            flowAssignedPicUserId: targetPic.id,
+            picNameRaw: targetPic.name,
+          },
+        });
+
+        await (tx as any).deviceChangeRequest.update({
+          where: { id: requestId },
+          data: {
+            status: DEVICE_CHANGE_REQUEST_STATUS_APPROVED,
+            currentStep: DEVICE_CHANGE_REQUEST_STEP_COMPLETED,
+            currentReviewerUserId: null,
+            approvedAt,
+          },
+        });
+
+        await createDeviceChangeRequestEvent(tx, requestId, {
+          actorUserId: currentUserId,
+          action: "FINAL_ADMIN_APPROVED",
+          note: `Transfer selesai ke ${cleanText(request.targetDepartment?.code)} / ${cleanText(targetJobCode.code)}`,
+        });
+
+        await appendLatestLeaseHistory(
+          tx,
+          request.deviceId,
+          `Request ${getDeviceChangeRequestTypeLabel(request.requestType)} disetujui final oleh ${actorName}.`,
+        );
+      } else {
+        throw new Error("DEVICE_CHANGE_REQUEST_STEP_NOT_APPROVABLE");
+      }
+
+      const refreshed = await (tx as any).deviceChangeRequest.findUniqueOrThrow({
+        where: { id: requestId },
+        include: deviceChangeRequestInclude,
+      });
+
+      return refreshed as unknown as MappedDeviceChangeRequestRow;
+    });
+
+    try {
+      if (
+        approvedRequest.requestType === DEVICE_CHANGE_REQUEST_TYPE_TRANSFER_SITE
+        && approvedRequest.currentStep === DEVICE_CHANGE_REQUEST_STEP_FINAL_ADMIN_REVIEW
+      ) {
+        const admins = await getAdminReviewRecipients(prisma);
+        for (const admin of admins) {
+          await sendDeviceChangeRequestReviewEmail({
+            recipientName: admin.name,
+            recipientEmail: admin.email,
+            requestTypeLabel: getDeviceChangeRequestTypeLabel(approvedRequest.requestType),
+            currentStepLabel: getDeviceChangeRequestStepLabel(approvedRequest.currentStep),
+            serialNo: cleanText(approvedRequest.device.serialNumber),
+            category: cleanText(approvedRequest.device.category?.name),
+            model: cleanText(approvedRequest.device.model?.name),
+            hostName: cleanText(approvedRequest.device.hostName),
+            departmentCode: cleanText(approvedRequest.device.jobCode?.code),
+            jobCode: cleanText(approvedRequest.device.departmentJobCode?.code),
+            requesterName: cleanText(approvedRequest.requestedByUser?.name),
+            requesterEmail: cleanText(approvedRequest.requestedByUser?.email),
+            requestedNote: approvedRequest.requestedNote,
+          });
+        }
+      } else if (approvedRequest.currentStep === DEVICE_CHANGE_REQUEST_STEP_COMPLETED) {
+        if (approvedRequest.requestedByUser && cleanText(approvedRequest.requestedByUser.email)) {
+          await sendDeviceChangeRequestCompletedEmail({
+            recipientName: cleanText(approvedRequest.requestedByUser.name) || "User",
+            recipientEmail: cleanText(approvedRequest.requestedByUser.email),
+            requestTypeLabel: getDeviceChangeRequestTypeLabel(approvedRequest.requestType),
+            serialNo: cleanText(approvedRequest.device.serialNumber),
+            category: cleanText(approvedRequest.device.category?.name),
+            model: cleanText(approvedRequest.device.model?.name),
+            hostName: cleanText(approvedRequest.device.hostName),
+            departmentCode: cleanText(approvedRequest.device.jobCode?.code),
+            jobCode: cleanText(approvedRequest.device.departmentJobCode?.code),
+            targetDepartmentCode: cleanText(approvedRequest.targetDepartment?.code),
+            targetJobCode: cleanText(approvedRequest.targetDepartmentJobCode?.code),
+            approvedByName: actorName,
+            approvedByEmail: actorEmail,
+          });
+        }
+
+        if (
+          approvedRequest.requestType === DEVICE_CHANGE_REQUEST_TYPE_TRANSFER_SITE
+          && approvedRequest.targetPicUser
+          && cleanText(approvedRequest.targetPicUser.email)
+        ) {
+          await sendDeviceChangeRequestCompletedEmail({
+            recipientName: cleanText(approvedRequest.targetPicUser.name) || "PIC",
+            recipientEmail: cleanText(approvedRequest.targetPicUser.email),
+            requestTypeLabel: getDeviceChangeRequestTypeLabel(approvedRequest.requestType),
+            serialNo: cleanText(approvedRequest.device.serialNumber),
+            category: cleanText(approvedRequest.device.category?.name),
+            model: cleanText(approvedRequest.device.model?.name),
+            hostName: cleanText(approvedRequest.device.hostName),
+            departmentCode: cleanText(approvedRequest.device.jobCode?.code),
+            jobCode: cleanText(approvedRequest.device.departmentJobCode?.code),
+            targetDepartmentCode: cleanText(approvedRequest.targetDepartment?.code),
+            targetJobCode: cleanText(approvedRequest.targetDepartmentJobCode?.code),
+            approvedByName: actorName,
+            approvedByEmail: actorEmail,
+          });
+        }
+      }
+    } catch (mailError) {
+      const message = mailError instanceof Error ? mailError.message : "Unknown mail error";
+      console.error(`[MAILER] Gagal kirim email approve request perubahan device: ${message}`);
+    }
+
+    res.json({
+      data: mapChangeRequestToFlowRecord(approvedRequest),
+      message: "Request perubahan berhasil diproses.",
+    });
+  } catch (error) {
+    if (error instanceof Error && error.message === "DEVICE_CHANGE_REQUEST_NOT_FOUND") {
+      return res.status(404).json({ message: "Request perubahan tidak ditemukan." });
+    }
+
+    if (error instanceof Error && error.message === "DEVICE_CHANGE_REQUEST_NOT_PENDING") {
+      return res.status(400).json({ message: "Request perubahan ini sudah selesai diproses." });
+    }
+
+    if (error instanceof Error && error.message === "DEVICE_CHANGE_REQUEST_FORBIDDEN") {
+      return res.status(403).json({ message: "Akun ini tidak berhak melakukan approve pada step aktif." });
+    }
+
+    if (error instanceof Error && error.message === "DEVICE_CHANGE_REQUEST_STEP_NOT_APPROVABLE") {
+      return res.status(400).json({ message: "Step aktif tidak dapat di-approve dari endpoint ini." });
+    }
+
+    if (error instanceof Error && error.message === "TRANSFER_APPROVAL_DATA_INCOMPLETE") {
+      return res.status(400).json({ message: "Data transfer belum lengkap. PIC tujuan harus memilih Job Code tujuan terlebih dahulu." });
+    }
+
+    if (error instanceof Error && error.message === "TARGET_JOB_CODE_INVALID") {
+      return res.status(400).json({ message: "Job Code tujuan tidak valid untuk Department tujuan." });
+    }
+
+    if (error instanceof Error && error.message === "TARGET_PIC_NOT_IN_TARGET_DEPARTMENT") {
+      return res.status(400).json({ message: "PIC tujuan sudah tidak sesuai dengan Department tujuan." });
+    }
+
+    if (error instanceof Error && error.message === "REQUESTED_JOB_CODE_INVALID") {
+      return res.status(400).json({ message: "Job Code request tidak valid." });
+    }
+
+    if (error instanceof Error) {
+      return res.status(400).json({ message: error.message });
+    }
+
+    next(error);
+  }
+});
+
+deviceRecordRouter.post("/device-change-requests/:id/reject", async (req, res, next) => {
+  try {
+    const requestId = cleanText(req.params.id);
+    if (!requestId) {
+      return res.status(400).json({ message: "ID request tidak valid." });
+    }
+
+    const payload = parseFlowActionPayload(req.body);
+    const rejectNote = cleanText(payload.note);
+    if (!rejectNote) {
+      return res.status(400).json({ message: "Alasan reject wajib diisi." });
+    }
+
+    const currentUserId = cleanText(req.authUser?.id);
+    const currentUserRole = cleanText(req.authUser?.role);
+    const actorName = cleanText(req.authUser?.name) || "User";
+    const actorEmail = cleanText(req.authUser?.email);
+
+    const rejectedRequest = await prisma.$transaction(async (tx) => {
+      const request = await (tx as any).deviceChangeRequest.findUnique({
+        where: { id: requestId },
+        include: deviceChangeRequestInclude,
+      });
+
+      if (!request) {
+        throw new Error("DEVICE_CHANGE_REQUEST_NOT_FOUND");
+      }
+
+      if (request.status !== DEVICE_CHANGE_REQUEST_STATUS_PENDING) {
+        throw new Error("DEVICE_CHANGE_REQUEST_NOT_PENDING");
+      }
+
+      if (
+        request.currentStep !== DEVICE_CHANGE_REQUEST_STEP_ADMIN_REVIEW
+        && request.currentStep !== DEVICE_CHANGE_REQUEST_STEP_TARGET_PIC_REVIEW
+        && request.currentStep !== DEVICE_CHANGE_REQUEST_STEP_FINAL_ADMIN_REVIEW
+      ) {
+        throw new Error("DEVICE_CHANGE_REQUEST_STEP_NOT_REJECTABLE");
+      }
+
+      if (!canCurrentUserReviewDeviceChangeRequest(
+        { currentStep: request.currentStep, currentReviewerUserId: request.currentReviewerUserId },
+        { id: currentUserId || null, role: currentUserRole || null },
+      )) {
+        throw new Error("DEVICE_CHANGE_REQUEST_FORBIDDEN");
+      }
+
+      const rejectedAt = new Date();
+      await (tx as any).deviceChangeRequest.update({
+        where: { id: requestId },
+        data: {
+          status: DEVICE_CHANGE_REQUEST_STATUS_REJECTED,
+          currentStep: DEVICE_CHANGE_REQUEST_STEP_REJECTED,
+          currentReviewerUserId: null,
+          latestRejectReason: rejectNote,
+          rejectedAt,
+        },
+      });
+
+      await createDeviceChangeRequestEvent(tx, requestId, {
+        actorUserId: currentUserId,
+        action: "REQUEST_REJECTED",
+        note: rejectNote,
+      });
+
+      await appendLatestLeaseHistory(
+        tx,
+        request.deviceId,
+        `Request ${getDeviceChangeRequestTypeLabel(request.requestType)} ditolak oleh ${actorName}.`,
+      );
+
+      const refreshed = await (tx as any).deviceChangeRequest.findUniqueOrThrow({
+        where: { id: requestId },
+        include: deviceChangeRequestInclude,
+      });
+
+      return refreshed as unknown as MappedDeviceChangeRequestRow;
+    });
+
+    try {
+      if (rejectedRequest.requestedByUser && cleanText(rejectedRequest.requestedByUser.email)) {
+        await sendDeviceChangeRequestRejectedEmail({
+          recipientName: cleanText(rejectedRequest.requestedByUser.name) || "User",
+          recipientEmail: cleanText(rejectedRequest.requestedByUser.email),
+          requestTypeLabel: getDeviceChangeRequestTypeLabel(rejectedRequest.requestType),
+          serialNo: cleanText(rejectedRequest.device.serialNumber),
+          category: cleanText(rejectedRequest.device.category?.name),
+          model: cleanText(rejectedRequest.device.model?.name),
+          hostName: cleanText(rejectedRequest.device.hostName),
+          departmentCode: cleanText(rejectedRequest.device.jobCode?.code),
+          jobCode: cleanText(rejectedRequest.device.departmentJobCode?.code),
+          rejectedByName: actorName,
+          rejectedByEmail: actorEmail,
+          rejectNote,
+        });
+      }
+    } catch (mailError) {
+      const message = mailError instanceof Error ? mailError.message : "Unknown mail error";
+      console.error(`[MAILER] Gagal kirim email reject request perubahan device: ${message}`);
+    }
+
+    res.json({
+      data: mapChangeRequestToFlowRecord(rejectedRequest),
+      message: "Request perubahan berhasil ditolak.",
+    });
+  } catch (error) {
+    if (error instanceof Error && error.message === "DEVICE_CHANGE_REQUEST_NOT_FOUND") {
+      return res.status(404).json({ message: "Request perubahan tidak ditemukan." });
+    }
+
+    if (error instanceof Error && error.message === "DEVICE_CHANGE_REQUEST_NOT_PENDING") {
+      return res.status(400).json({ message: "Request perubahan ini sudah selesai diproses." });
+    }
+
+    if (error instanceof Error && error.message === "DEVICE_CHANGE_REQUEST_FORBIDDEN") {
+      return res.status(403).json({ message: "Akun ini tidak berhak melakukan reject pada step aktif." });
+    }
+
+    if (error instanceof Error && error.message === "DEVICE_CHANGE_REQUEST_STEP_NOT_REJECTABLE") {
+      return res.status(400).json({ message: "Step aktif tidak dapat direject dari endpoint ini." });
+    }
+
+    if (error instanceof Error) {
+      return res.status(400).json({ message: error.message });
+    }
+
+    next(error);
+  }
+});
+
+deviceRecordRouter.post("/device-change-requests/:id/assign-job-code", async (req, res, next) => {
+  try {
+    const requestId = cleanText(req.params.id);
+    if (!requestId) {
+      return res.status(400).json({ message: "ID request tidak valid." });
+    }
+
+    const payload = parseDeviceChangeRequestAssignPayload(req.body);
+    const currentUserId = cleanText(req.authUser?.id);
+    const currentUserRole = cleanText(req.authUser?.role);
+    const actorName = cleanText(req.authUser?.name) || "User";
+    const actorEmail = cleanText(req.authUser?.email);
+
+    const assignedRequest = await prisma.$transaction(async (tx) => {
+      const request = await (tx as any).deviceChangeRequest.findUnique({
+        where: { id: requestId },
+        include: deviceChangeRequestInclude,
+      });
+
+      if (!request) {
+        throw new Error("DEVICE_CHANGE_REQUEST_NOT_FOUND");
+      }
+
+      if (request.status !== DEVICE_CHANGE_REQUEST_STATUS_PENDING) {
+        throw new Error("DEVICE_CHANGE_REQUEST_NOT_PENDING");
+      }
+
+      if (request.currentStep !== DEVICE_CHANGE_REQUEST_STEP_TARGET_PIC_ASSIGN_JOB_CODE) {
+        throw new Error("DEVICE_CHANGE_REQUEST_STEP_NOT_ASSIGNABLE");
+      }
+
+      if (!canCurrentUserReviewDeviceChangeRequest(
+        { currentStep: request.currentStep, currentReviewerUserId: request.currentReviewerUserId },
+        { id: currentUserId || null, role: currentUserRole || null },
+      )) {
+        throw new Error("DEVICE_CHANGE_REQUEST_FORBIDDEN");
+      }
+
+      if (!request.targetDepartmentId) {
+        throw new Error("TARGET_DEPARTMENT_NOT_FOUND");
+      }
+
+      const targetDepartmentJobCode = await tx.departmentJobCode.findFirst({
+        where: {
+          id: payload.targetDepartmentJobCodeId,
+          departmentId: request.targetDepartmentId,
+        },
+        select: {
+          id: true,
+          code: true,
+        },
+      });
+
+      if (!targetDepartmentJobCode) {
+        throw new Error("TARGET_JOB_CODE_INVALID");
+      }
+
+      await (tx as any).deviceChangeRequest.update({
+        where: { id: requestId },
+        data: {
+          targetDepartmentJobCodeId: targetDepartmentJobCode.id,
+          currentStep: DEVICE_CHANGE_REQUEST_STEP_FINAL_ADMIN_REVIEW,
+          currentReviewerUserId: null,
+        },
+      });
+
+      await createDeviceChangeRequestEvent(tx, requestId, {
+        actorUserId: currentUserId,
+        action: "TARGET_PIC_ASSIGNED_JOB_CODE",
+        note: `PIC tujuan memilih Job Code ${targetDepartmentJobCode.code}.`,
+      });
+
+      const refreshed = await (tx as any).deviceChangeRequest.findUniqueOrThrow({
+        where: { id: requestId },
+        include: deviceChangeRequestInclude,
+      });
+
+      return refreshed as unknown as MappedDeviceChangeRequestRow;
+    });
+
+    try {
+      const admins = await getAdminReviewRecipients(prisma);
+      for (const admin of admins) {
+        await sendDeviceChangeRequestReviewEmail({
+          recipientName: admin.name,
+          recipientEmail: admin.email,
+          requestTypeLabel: getDeviceChangeRequestTypeLabel(assignedRequest.requestType),
+          currentStepLabel: getDeviceChangeRequestStepLabel(assignedRequest.currentStep),
+          serialNo: cleanText(assignedRequest.device.serialNumber),
+          category: cleanText(assignedRequest.device.category?.name),
+          model: cleanText(assignedRequest.device.model?.name),
+          hostName: cleanText(assignedRequest.device.hostName),
+          departmentCode: cleanText(assignedRequest.device.jobCode?.code),
+          jobCode: cleanText(assignedRequest.device.departmentJobCode?.code),
+          requesterName: cleanText(assignedRequest.requestedByUser?.name),
+          requesterEmail: cleanText(assignedRequest.requestedByUser?.email),
+          requestedNote: assignedRequest.requestedNote,
+        });
+      }
+    } catch (mailError) {
+      const message = mailError instanceof Error ? mailError.message : "Unknown mail error";
+      console.error(`[MAILER] Gagal kirim email assign Job Code request perubahan device: ${message}`);
+    }
+
+    res.json({
+      data: mapChangeRequestToFlowRecord(assignedRequest),
+      message: "Job Code tujuan berhasil dipilih dan dikirim ke Admin.",
+    });
+  } catch (error) {
+    if (error instanceof Error && error.message === "DEVICE_CHANGE_REQUEST_NOT_FOUND") {
+      return res.status(404).json({ message: "Request perubahan tidak ditemukan." });
+    }
+
+    if (error instanceof Error && error.message === "DEVICE_CHANGE_REQUEST_NOT_PENDING") {
+      return res.status(400).json({ message: "Request perubahan ini sudah selesai diproses." });
+    }
+
+    if (error instanceof Error && error.message === "DEVICE_CHANGE_REQUEST_FORBIDDEN") {
+      return res.status(403).json({ message: "Akun ini tidak berhak memilih Job Code pada step aktif." });
+    }
+
+    if (error instanceof Error && error.message === "DEVICE_CHANGE_REQUEST_STEP_NOT_ASSIGNABLE") {
+      return res.status(400).json({ message: "Step aktif belum berada pada tahap pilih Job Code tujuan." });
+    }
+
+    if (error instanceof Error && error.message === "TARGET_JOB_CODE_INVALID") {
+      return res.status(400).json({ message: "Job Code tujuan tidak valid untuk Department tujuan." });
+    }
+
+    if (error instanceof Error) {
+      return res.status(400).json({ message: error.message });
+    }
+
+    next(error);
+  }
+});
+
 deviceRecordRouter.post("/device-records", async (req, res, next) => {
   try {
     const editorRole = parseEditorRole(req);
@@ -2636,6 +4068,11 @@ deviceRecordRouter.put("/device-records/:id", async (req, res, next) => {
             label: "Department",
             before: existing.jobCodeId,
             after: payload.jobCodeId,
+          },
+          {
+            label: "Job Code",
+            before: existing.departmentJobCodeId,
+            after: payload.departmentJobCodeId,
           },
           {
             label: "PIC Name",
@@ -2851,7 +4288,7 @@ deviceRecordRouter.put("/device-records/:id", async (req, res, next) => {
     if (error instanceof Error && error.message.startsWith("ROLE_USER_FORBIDDEN_FIELDS:")) {
       const changedColumns = error.message.replace("ROLE_USER_FORBIDDEN_FIELDS:", "").trim();
       return res.status(403).json({
-        message: `Role user hanya boleh edit kolom Job Code, User Name, User Email, Location, IP List, dan Keterangan. Kolom tidak diizinkan: ${changedColumns}.`,
+        message: `Role user hanya boleh edit kolom User Name, User Email, Location, IP List, dan Keterangan. Perubahan Job Code harus melalui workflow approval. Kolom tidak diizinkan: ${changedColumns}.`,
       });
     }
 

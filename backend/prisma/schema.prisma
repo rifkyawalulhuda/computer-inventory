@@ -16,6 +16,8 @@ model Department {
   devices     Device[]
   users       MasterUser[]
   jobCodes    DepartmentJobCode[]
+  requestedDeviceChangeRequests DeviceChangeRequest[] @relation("DeviceChangeRequestRequestedDepartment")
+  targetDeviceChangeRequests    DeviceChangeRequest[] @relation("DeviceChangeRequestTargetDepartment")
 
   createdAt DateTime @default(now()) @map("created_at")
   updatedAt DateTime @updatedAt @map("updated_at")
@@ -29,6 +31,8 @@ model DepartmentJobCode {
   code         String     @unique @map("job_code") @db.VarChar(15)
   department   Department @relation(fields: [departmentId], references: [id], onDelete: Cascade)
   devices      Device[]
+  requestedDeviceChangeRequests DeviceChangeRequest[] @relation("DeviceChangeRequestRequestedJobCode")
+  targetDeviceChangeRequests    DeviceChangeRequest[] @relation("DeviceChangeRequestTargetJobCode")
 
   createdAt DateTime @default(now()) @map("created_at")
   updatedAt DateTime @updatedAt @map("updated_at")
@@ -48,6 +52,10 @@ model MasterUser {
   jobCodeId    Int     @map("site_code_id")
 
   jobCode Department @relation(fields: [jobCodeId], references: [id], onDelete: Restrict)
+  submittedDeviceChangeRequests DeviceChangeRequest[] @relation("DeviceChangeRequestRequestedByUser")
+  reviewingDeviceChangeRequests DeviceChangeRequest[] @relation("DeviceChangeRequestCurrentReviewer")
+  targetPicDeviceChangeRequests DeviceChangeRequest[] @relation("DeviceChangeRequestTargetPicUser")
+  deviceChangeRequestEvents     DeviceChangeRequestEvent[] @relation("DeviceChangeRequestEventActorUser")
 
   createdAt DateTime @default(now()) @map("created_at")
   updatedAt DateTime @updatedAt @map("updated_at")
@@ -143,6 +151,7 @@ model Device {
   assignments          DeviceAssignment[]
   leaseContracts       LeaseContract[]
   remoteAccessProfiles RemoteAccessProfile[]
+  changeRequests       DeviceChangeRequest[]
 
   createdAt DateTime @default(now()) @map("created_at")
   updatedAt DateTime @updatedAt @map("updated_at")
@@ -153,6 +162,64 @@ model Device {
   @@index([departmentJobCodeId], map: "idx_devices_department_job_code_id")
   @@index([flowStatus], map: "idx_devices_flow_status")
   @@map("devices")
+}
+
+model DeviceChangeRequest {
+  id                           String  @id @default(cuid())
+  deviceId                     String  @map("device_id")
+  requestType                  String  @map("request_type") @db.VarChar(40)
+  status                       String  @db.VarChar(20)
+  currentStep                  String  @map("current_step") @db.VarChar(40)
+  requestedByUserId            String  @map("requested_by_user_id")
+  requestedByDepartmentId      Int?    @map("requested_by_department_id")
+  requestedNote                String  @map("requested_note") @db.Text
+  requestedDepartmentJobCodeId Int?    @map("requested_department_job_code_id")
+  targetDepartmentId           Int?    @map("target_department_id")
+  targetPicUserId              String? @map("target_pic_user_id")
+  targetDepartmentJobCodeId    Int?    @map("target_department_job_code_id")
+  latestRejectReason           String? @map("latest_reject_reason") @db.Text
+  currentReviewerUserId        String? @map("current_reviewer_user_id")
+  approvedAt                   DateTime? @map("approved_at")
+  rejectedAt                   DateTime? @map("rejected_at")
+
+  device                    Device             @relation(fields: [deviceId], references: [id], onDelete: Cascade)
+  requestedByUser           MasterUser         @relation("DeviceChangeRequestRequestedByUser", fields: [requestedByUserId], references: [id], onDelete: Restrict)
+  currentReviewerUser       MasterUser?        @relation("DeviceChangeRequestCurrentReviewer", fields: [currentReviewerUserId], references: [id], onDelete: SetNull)
+  targetPicUser             MasterUser?        @relation("DeviceChangeRequestTargetPicUser", fields: [targetPicUserId], references: [id], onDelete: SetNull)
+  requestedByDepartment     Department?        @relation("DeviceChangeRequestRequestedDepartment", fields: [requestedByDepartmentId], references: [id], onDelete: SetNull)
+  targetDepartment          Department?        @relation("DeviceChangeRequestTargetDepartment", fields: [targetDepartmentId], references: [id], onDelete: SetNull)
+  requestedDepartmentJobCode DepartmentJobCode? @relation("DeviceChangeRequestRequestedJobCode", fields: [requestedDepartmentJobCodeId], references: [id], onDelete: SetNull)
+  targetDepartmentJobCode   DepartmentJobCode? @relation("DeviceChangeRequestTargetJobCode", fields: [targetDepartmentJobCodeId], references: [id], onDelete: SetNull)
+  events                    DeviceChangeRequestEvent[]
+
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  @@index([deviceId], map: "idx_device_change_requests_device_id")
+  @@index([status], map: "idx_device_change_requests_status")
+  @@index([currentStep], map: "idx_device_change_requests_current_step")
+  @@index([requestedByUserId], map: "idx_device_change_requests_requested_by_user_id")
+  @@index([currentReviewerUserId], map: "idx_device_change_requests_current_reviewer_user_id")
+  @@index([targetPicUserId], map: "idx_device_change_requests_target_pic_user_id")
+  @@map("device_change_requests")
+}
+
+model DeviceChangeRequestEvent {
+  id          String  @id @default(cuid())
+  requestId    String  @map("request_id")
+  actorUserId  String? @map("actor_user_id")
+  action       String  @db.VarChar(60)
+  note         String? @db.Text
+  metadataJson Json?   @map("metadata_json")
+
+  request   DeviceChangeRequest @relation(fields: [requestId], references: [id], onDelete: Cascade)
+  actorUser MasterUser?         @relation("DeviceChangeRequestEventActorUser", fields: [actorUserId], references: [id], onDelete: SetNull)
+
+  createdAt DateTime @default(now()) @map("created_at")
+
+  @@index([requestId], map: "idx_device_change_request_events_request_id")
+  @@index([actorUserId], map: "idx_device_change_request_events_actor_user_id")
+  @@map("device_change_request_events")
 }
 
 model DeviceIp {

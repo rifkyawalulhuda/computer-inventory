@@ -85,7 +85,7 @@ masterUserRouter.get("/master-users", async (req, res, next) => {
       ? (requestedJobCodeId as number)
       : null;
 
-    if (req.authUser?.role === "user") {
+    if (req.authUser?.role === "user" && !effectiveJobCodeId) {
       const currentUser = await prisma.masterUser.findUnique({
         where: { id: req.authUser.id },
         select: { jobCodeId: true },

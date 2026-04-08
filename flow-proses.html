@@ -102,7 +102,7 @@
             color: #1d4ed8;
         }
 
-        .flow-filter-btn[data-status="PENDING_CONFIRMATION"] .flow-filter-count {
+        .flow-filter-btn[data-status="PENDING"] .flow-filter-count {
             background: #fef3c7;
             color: #b45309;
         }
@@ -132,7 +132,7 @@
             background: #1d4ed8 !important;
         }
 
-        .flow-filter-btn.active[data-status="PENDING_CONFIRMATION"] {
+        .flow-filter-btn.active[data-status="PENDING"] {
             background: #f59e0b !important;
         }
 
@@ -400,6 +400,71 @@
             margin: 0;
         }
 
+        .confirm-modal-overlay {
+            position: fixed;
+            inset: 0;
+            background: rgba(15, 23, 42, 0.45);
+            opacity: 0;
+            visibility: hidden;
+            transition: opacity 0.2s ease;
+            z-index: 1070;
+        }
+
+        .confirm-modal-overlay.open {
+            opacity: 1;
+            visibility: visible;
+        }
+
+        .confirm-modal {
+            width: min(430px, calc(100vw - 32px));
+            margin: 48px auto;
+            background: #ffffff;
+            border-radius: 14px;
+            box-shadow: 0 20px 60px rgba(15, 23, 42, 0.3);
+            overflow: hidden;
+        }
+
+        .confirm-modal-header {
+            padding: 14px 16px;
+            border-bottom: 1px solid #e2e8f0;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 8px;
+        }
+
+        .confirm-modal-title {
+            margin: 0;
+            font-size: 1rem;
+            font-weight: 700;
+            color: #0f172a;
+        }
+
+        .confirm-modal-body {
+            padding: 14px 16px;
+            color: #475569;
+        }
+
+        .confirm-modal-footer {
+            padding: 0 16px 16px;
+            display: flex;
+            justify-content: flex-end;
+            gap: 8px;
+        }
+
+        .confirm-modal-close {
+            width: 32px;
+            height: 32px;
+            border: 1px solid #e2e8f0;
+            border-radius: 8px;
+            background: #ffffff;
+            color: #475569;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            cursor: pointer;
+        }
+
         .signature-modal-overlay,
         .note-modal-overlay {
             position: fixed;
@@ -537,7 +602,7 @@
                             <span class="flow-filter-label">Semua</span>
                             <span class="flow-filter-count" data-filter-count>0</span>
                         </button>
-                        <button type="button" class="btn btn-sm btn-light border flow-filter-btn" data-status="PENDING_CONFIRMATION">
+                        <button type="button" class="btn btn-sm btn-light border flow-filter-btn" data-status="PENDING">
                             <span class="flow-filter-label">Pending</span>
                             <span class="flow-filter-count" data-filter-count>0</span>
                         </button>
@@ -571,6 +636,8 @@
                                     <th>Category</th>
                                     <th>Model</th>
                                     <th>Host Name</th>
+                                    <th>Request Type</th>
+                                    <th>Current Step</th>
                                     <th>Flow Status</th>
                                     <th>Approved At</th>
                                     <th>Reject Note</th>
@@ -579,7 +646,7 @@
                             </thead>
                             <tbody id="tableBody">
                                 <tr>
-                                    <td colspan="11" class="text-center text-muted py-4">Loading data flow...</td>
+                                    <td colspan="13" class="text-center text-muted py-4">Loading data flow...</td>
                                 </tr>
                             </tbody>
                         </table>
@@ -676,6 +743,44 @@
         </div>
     </div>
 
+    <div class="note-modal-overlay d-none" id="assignJobCodeModalOverlay" aria-hidden="true">
+        <div class="note-modal" role="dialog" aria-modal="true" aria-labelledby="assignJobCodeModalTitle">
+            <div class="note-modal-header">
+                <h5 class="note-modal-title" id="assignJobCodeModalTitle">Pilih Job Code Tujuan</h5>
+                <button type="button" class="btn btn-light border btn-sm" id="assignJobCodeCloseButton" aria-label="Tutup">
+                    <i class="feather-x"></i>
+                </button>
+            </div>
+            <div class="note-modal-body">
+                <p class="text-muted mb-2" id="assignJobCodeDescription">Pilih Job Code sesuai Department tujuan.</p>
+                <label class="form-label fw-semibold" for="assignJobCodeSelect">Job Code Tujuan</label>
+                <select class="form-select" id="assignJobCodeSelect">
+                    <option value="">Pilih Job Code tujuan</option>
+                </select>
+            </div>
+            <div class="note-modal-footer">
+                <button type="button" class="btn btn-light border" id="assignJobCodeCancelButton">Batal</button>
+                <button type="button" class="btn btn-primary" id="assignJobCodeSaveButton">Submit</button>
+            </div>
+        </div>
+    </div>
+
+    <div class="confirm-modal-overlay" id="confirmModalOverlay" aria-hidden="true">
+        <div class="confirm-modal" role="dialog" aria-modal="true" aria-labelledby="confirmModalTitle">
+            <div class="confirm-modal-header">
+                <h5 class="confirm-modal-title" id="confirmModalTitle">Konfirmasi Approve</h5>
+                <button type="button" class="confirm-modal-close" id="confirmCloseButton" aria-label="Tutup Konfirmasi">
+                    <i class="feather-x"></i>
+                </button>
+            </div>
+            <div class="confirm-modal-body" id="confirmModalMessage">Approve data ini?</div>
+            <div class="confirm-modal-footer">
+                <button type="button" class="btn btn-light border" id="confirmCancelButton">Batal</button>
+                <button type="button" class="btn btn-success" id="confirmConfirmButton">Approve</button>
+            </div>
+        </div>
+    </div>
+
     <script>
         const API_BASE = window.AppConfig.API_BASE;
 
@@ -688,6 +793,7 @@
         }
 
         const STATUS_LABELS = {
+            PENDING: "PENDING",
             PENDING_CONFIRMATION: "PENDING",
             APPROVED: "APPROVED",
             REJECTED: "REJECTED"
@@ -733,12 +839,27 @@
         const noteCloseButton = document.getElementById("noteCloseButton");
         const noteCancelButton = document.getElementById("noteCancelButton");
         const noteSaveButton = document.getElementById("noteSaveButton");
+        const assignJobCodeModalOverlay = document.getElementById("assignJobCodeModalOverlay");
+        const assignJobCodeModalTitle = document.getElementById("assignJobCodeModalTitle");
+        const assignJobCodeDescription = document.getElementById("assignJobCodeDescription");
+        const assignJobCodeCloseButton = document.getElementById("assignJobCodeCloseButton");
+        const assignJobCodeCancelButton = document.getElementById("assignJobCodeCancelButton");
+        const assignJobCodeSaveButton = document.getElementById("assignJobCodeSaveButton");
+        const assignJobCodeSelect = document.getElementById("assignJobCodeSelect");
+
+        const confirmModalOverlay = document.getElementById("confirmModalOverlay");
+        const confirmModalTitle = document.getElementById("confirmModalTitle");
+        const confirmModalMessage = document.getElementById("confirmModalMessage");
+        const confirmCloseButton = document.getElementById("confirmCloseButton");
+        const confirmCancelButton = document.getElementById("confirmCancelButton");
+        const confirmConfirmButton = document.getElementById("confirmConfirmButton");
 
         const currentUser = window.AuthClient ? (window.AuthClient.getUser() || {}) : {};
         const currentUserRole = window.AuthClient ? (window.AuthClient.getUserRole() || "") : "";
         const currentUserId = String(currentUser?.id || "").trim();
 
         let flowRows = [];
+        let masterJobCodes = [];
         let activeStatus = "ALL";
         let activeSearchText = "";
         let currentPage = 1;
@@ -749,6 +870,8 @@
         let hasSignatureStroke = false;
         let lastPoint = null;
         let currentDrawerHistoryLog = "";
+        let pendingAssignJobCodeAction = null;
+        let confirmResolve = null;
 
         function showAlert(message, type) {
             alertBox.className = `alert alert-${type}`;
@@ -776,11 +899,11 @@
         }
 
         function getStatusBadge(status) {
-            const normalized = String(status || "").trim().toUpperCase();
+            const normalized = normalizeFlowStatus(status);
             const label = STATUS_LABELS[normalized] || toDisplayValue(normalized);
 
             let badgeClass = "bg-soft-secondary text-secondary";
-            if (normalized === "PENDING_CONFIRMATION") {
+            if (normalized === "PENDING") {
                 badgeClass = "bg-soft-warning text-warning";
             } else if (normalized === "APPROVED") {
                 badgeClass = "bg-soft-success text-success";
@@ -839,13 +962,14 @@
         }
 
         function normalizeFlowStatus(status) {
-            return String(status || "").trim().toUpperCase();
+            const normalized = String(status || "").trim().toUpperCase();
+            return normalized === "PENDING_CONFIRMATION" ? "PENDING" : normalized;
         }
 
         function getStatusCounts() {
             const counts = {
                 ALL: flowRows.length,
-                PENDING_CONFIRMATION: 0,
+                PENDING: 0,
                 APPROVED: 0,
                 REJECTED: 0
             };
@@ -890,6 +1014,11 @@
                 "Category",
                 "Model",
                 "Host Name",
+                "Request Type",
+                "Current Step",
+                "Requested By",
+                "Target Department",
+                "Target PIC Name",
                 "Flow Status",
                 "Flow Reject Note"
             ];
@@ -1015,36 +1144,137 @@
             return submittedByUserId === currentUserId;
         }
 
+        function isDeviceChangeRequestRow(row) {
+            return String(row?.flowItemType || "").trim().toUpperCase() === "DEVICE_CHANGE_REQUEST";
+        }
+
+        function isCurrentUserRequestReviewer(row) {
+            const reviewerUserId = String(row["Flow Assigned PIC User ID"] || "").trim();
+            return Boolean(reviewerUserId && currentUserId && reviewerUserId === currentUserId);
+        }
+
+        function canUseAvailableAction(row, action) {
+            if (!isDeviceChangeRequestRow(row)) {
+                const status = normalizeFlowStatus(row?.["Flow Status"]);
+                if (action === "view") {
+                    return true;
+                }
+
+                if (action === "approve" || action === "reject") {
+                    return status === "PENDING" && isCurrentUserAssignedPic(row);
+                }
+
+                if (action === "resubmit") {
+                    return status === "REJECTED" && isAdmin() && isCurrentUserFlowSubmitter(row);
+                }
+
+                if (action === "sender-sign") {
+                    return status === "APPROVED" && isAdmin();
+                }
+
+                if (action === "print-bast") {
+                    return status === "APPROVED";
+                }
+
+                return false;
+            }
+
+            const currentStep = String(row.currentStep || "").trim().toUpperCase();
+            if (action === "view") {
+                return true;
+            }
+
+            if (action === "approve" || action === "reject") {
+                if (currentStep === "ADMIN_REVIEW" || currentStep === "FINAL_ADMIN_REVIEW") {
+                    return isAdmin();
+                }
+
+                if (currentStep === "TARGET_PIC_REVIEW") {
+                    return isCurrentUserRequestReviewer(row);
+                }
+
+                return false;
+            }
+
+            if (action === "assign-job-code") {
+                return currentStep === "TARGET_PIC_ASSIGN_JOB_CODE" && isCurrentUserRequestReviewer(row);
+            }
+
+            return false;
+        }
+
+        function getActionLabel(action) {
+            if (action === "approve") {
+                return "Approve";
+            }
+
+            if (action === "reject") {
+                return "Reject";
+            }
+
+            if (action === "resubmit") {
+                return "Resubmit";
+            }
+
+            if (action === "sender-sign") {
+                return "TTD Pengirim";
+            }
+
+            if (action === "print-bast") {
+                return "Print BAST";
+            }
+
+            if (action === "assign-job-code") {
+                return "Pilih Job Code";
+            }
+
+            return "Detail";
+        }
+
+        function getActionClass(action) {
+            if (action === "approve") {
+                return "btn-success";
+            }
+
+            if (action === "reject") {
+                return "btn-danger";
+            }
+
+            if (action === "resubmit") {
+                return "btn-warning";
+            }
+
+            if (action === "sender-sign") {
+                return "btn-info";
+            }
+
+            if (action === "print-bast") {
+                return "btn-primary";
+            }
+
+            if (action === "assign-job-code") {
+                return "btn-primary";
+            }
+
+            return "btn-outline-secondary";
+        }
+
         function renderActions(row) {
             const id = String(row.id || "").trim();
             if (!id) {
                 return "<span class=\"mono-empty\">-</span>";
             }
 
-            const status = String(row["Flow Status"] || "").trim().toUpperCase();
-            const buttons = [];
-            const canConfirmAsRecipient = status === "PENDING_CONFIRMATION" && isCurrentUserAssignedPic(row);
-
-            buttons.push(`<button type="button" class="btn btn-sm btn-outline-secondary" data-action="view" data-id="${escapeHtml(id)}">Detail</button>`);
-
-            if (canConfirmAsRecipient) {
-                buttons.push(`<button type="button" class="btn btn-sm btn-success" data-action="approve" data-id="${escapeHtml(id)}">Approve</button>`);
-                buttons.push(`<button type="button" class="btn btn-sm btn-danger" data-action="reject" data-id="${escapeHtml(id)}">Reject</button>`);
-            }
-
-            if (status === "REJECTED" && isAdmin() && isCurrentUserFlowSubmitter(row)) {
-                buttons.push(`<button type="button" class="btn btn-sm btn-warning" data-action="resubmit" data-id="${escapeHtml(id)}">Resubmit</button>`);
-            }
-
-            if (status === "APPROVED" && isAdmin()) {
-                const hasSenderSignature = String(row["Flow Sender Signature"] || "").trim().length > 0;
-                const senderSignButtonClass = hasSenderSignature ? "btn-info" : "btn-warning";
-                buttons.push(`<button type="button" class="btn btn-sm ${senderSignButtonClass}" data-action="sender-sign" data-id="${escapeHtml(id)}">TTD Pengirim</button>`);
-            }
-
-            if (status === "APPROVED") {
-                buttons.push(`<button type="button" class="btn btn-sm btn-primary" data-action="print-bast" data-id="${escapeHtml(id)}">Print BAST</button>`);
-            }
+            const rawActions = Array.isArray(row.availableActions) && row.availableActions.length
+                ? row.availableActions
+                : ["view"];
+            const actions = rawActions.filter((action) => canUseAvailableAction(row, action));
+            const buttons = actions.map((action) => {
+                const buttonClass = action === "sender-sign" && String(row["Flow Sender Signature"] || "").trim()
+                    ? "btn-info"
+                    : getActionClass(action);
+                return `<button type="button" class="btn btn-sm ${buttonClass}" data-action="${escapeHtml(action)}" data-id="${escapeHtml(id)}">${escapeHtml(getActionLabel(action))}</button>`;
+            });
 
             if (!buttons.length) {
                 return "<span class=\"mono-empty\">-</span>";
@@ -1082,35 +1312,68 @@
         }
 
         function openViewDrawer(row) {
-            const historyLines = parseHistoryLogLines(row["Hystory Log"]);
+            const historyLines = parseHistoryLogLines(row["History Log"] || row["Hystory Log"]);
             currentDrawerHistoryLog = historyLines.join("\n");
             viewDrawerHistoryButton.textContent = historyLines.length
                 ? `History Log (${historyLines.length})`
                 : "History Log (0)";
 
-            const detailFields = [
-                ["Department", row["Department"]],
-                ["Job Code", row["Job Code"]],
-                ["PIC Name", row["PIC Name"]],
-                ["Serial No.", row["Serial No."]],
-                ["Category", row["Category"]],
-                ["Model", row["Model"]],
-                ["Host Name", row["Host Name"]],
-                ["User Name", row["User Name"]],
-                ["User Email", row["User Email"]],
-                ["Location", row["Location"]],
-                ["IP List", row["IP List"]],
-                ["Start Date", row["Start Date"]],
-                ["End Date", row["End Date"]],
-                ["Days Lease", row["Days Lease"]],
-                ["Lease Status", row["Lease Status"]],
-                ["Flow Status", row["Flow Status"]],
-                ["Approved By", row["Flow Approved By"]],
-                ["Approved At", row["Flow Approved At"]],
-                ["Reject Note", row["Flow Reject Note"]],
-                ["Keterangan", row["Keterangan"]],
-                ["Bitlocker Key", row["Bitlocker Key"]]
-            ];
+            const detailFields = isDeviceChangeRequestRow(row)
+                ? [
+                    ["Request Type", row["Request Type"] || row.requestTypeLabel],
+                    ["Current Step", row["Current Step"] || row.currentStepLabel],
+                    ["Flow Status", row["Flow Status"]],
+                    ["Requested By", row["Requested By"]],
+                    ["Requested Department", row["Requested Department"]],
+                    ["Requested Job Code", row["Requested Job Code"]],
+                    ["Requested Note", row["Requested Note"]],
+                    ["Target Department", row["Target Department"]],
+                    ["Target PIC Name", row["Target PIC Name"]],
+                    ["Target Job Code", row["Target Job Code"]],
+                    ["Latest Reject Reason", row["Latest Reject Reason"] || row["Flow Reject Note"]],
+                    ["Department", row["Department"]],
+                    ["Job Code", row["Job Code"]],
+                    ["PIC Name", row["PIC Name"]],
+                    ["Serial No.", row["Serial No."]],
+                    ["Category", row["Category"]],
+                    ["Model", row["Model"]],
+                    ["Host Name", row["Host Name"]],
+                    ["User Name", row["User Name"]],
+                    ["User Email", row["User Email"]],
+                    ["Location", row["Location"]],
+                    ["IP List", row["IP List"]],
+                    ["Start Date", row["Start Date"]],
+                    ["End Date", row["End Date"]],
+                    ["Days Lease", row["Days Lease"]],
+                    ["Lease Status", row["Lease Status"]],
+                    ["Keterangan", row["Keterangan"]],
+                    ["Bitlocker Key", row["Bitlocker Key"]]
+                ]
+                : [
+                    ["Request Type", row["Request Type"] || row.requestTypeLabel],
+                    ["Current Step", row["Current Step"] || row.currentStepLabel],
+                    ["Department", row["Department"]],
+                    ["Job Code", row["Job Code"]],
+                    ["PIC Name", row["PIC Name"]],
+                    ["Serial No.", row["Serial No."]],
+                    ["Category", row["Category"]],
+                    ["Model", row["Model"]],
+                    ["Host Name", row["Host Name"]],
+                    ["User Name", row["User Name"]],
+                    ["User Email", row["User Email"]],
+                    ["Location", row["Location"]],
+                    ["IP List", row["IP List"]],
+                    ["Start Date", row["Start Date"]],
+                    ["End Date", row["End Date"]],
+                    ["Days Lease", row["Days Lease"]],
+                    ["Lease Status", row["Lease Status"]],
+                    ["Flow Status", row["Flow Status"]],
+                    ["Approved By", row["Flow Approved By"]],
+                    ["Approved At", row["Flow Approved At"]],
+                    ["Reject Note", row["Flow Reject Note"]],
+                    ["Keterangan", row["Keterangan"]],
+                    ["Bitlocker Key", row["Bitlocker Key"]]
+                ];
 
             viewDrawerBody.innerHTML = detailFields.map(([label, value]) => {
                 const isLeaseStatusField = label === "Lease Status";
@@ -1148,7 +1411,7 @@
             if (!rows.length) {
                 tableBody.innerHTML = `
                     <tr>
-                        <td colspan="11" class="text-center text-muted py-4">Tidak ada data flow.</td>
+                        <td colspan="13" class="text-center text-muted py-4">Tidak ada data flow.</td>
                     </tr>
                 `;
                 renderFlowTablePagination(0);
@@ -1170,6 +1433,8 @@
                     <td>${escapeHtml(toDisplayValue(row["Category"]))}</td>
                     <td>${escapeHtml(toDisplayValue(row["Model"]))}</td>
                     <td>${escapeHtml(toDisplayValue(row["Host Name"]))}</td>
+                    <td>${escapeHtml(toDisplayValue(row["Request Type"] || row.requestTypeLabel))}</td>
+                    <td>${escapeHtml(toDisplayValue(row["Current Step"] || row.currentStepLabel))}</td>
                     <td>${getStatusBadge(row["Flow Status"])}</td>
                     <td>${escapeHtml(formatFlowDate(row["Flow Approved At"]))}</td>
                     <td class="flow-note-cell">${escapeHtml(toDisplayValue(row["Flow Reject Note"]))}</td>
@@ -1184,7 +1449,7 @@
             hideAlert();
             tableBody.innerHTML = `
                 <tr>
-                    <td colspan="11" class="text-center text-muted py-4">Loading data flow...</td>
+                    <td colspan="13" class="text-center text-muted py-4">Loading data flow...</td>
                 </tr>
             `;
             if (flowPaginationInfo) {
@@ -1349,6 +1614,45 @@
             noteTextarea.value = "";
         }
 
+        function openConfirmModal(options) {
+            const settings = typeof options === "string"
+                ? { message: options }
+                : (options || {});
+
+            confirmModalTitle.textContent = settings.title || "Konfirmasi Approve";
+            confirmModalMessage.textContent = settings.message || "Apakah Anda yakin?";
+
+            const confirmText = settings.confirmText || "Approve";
+            confirmConfirmButton.className = `btn ${settings.confirmClass || "btn-success"}`;
+            confirmConfirmButton.textContent = confirmText;
+            confirmCancelButton.textContent = settings.cancelText || "Batal";
+
+            confirmModalOverlay.classList.add("open");
+            confirmModalOverlay.setAttribute("aria-hidden", "false");
+            document.body.style.overflow = "hidden";
+
+            return new Promise((resolve) => {
+                confirmResolve = resolve;
+            });
+        }
+
+        function closeConfirmModal(confirmed = false) {
+            confirmModalOverlay.classList.remove("open");
+            confirmModalOverlay.setAttribute("aria-hidden", "true");
+            if (confirmResolve) {
+                confirmResolve(confirmed);
+                confirmResolve = null;
+            }
+
+            const shouldLockScroll =
+                viewDrawerOverlay.classList.contains("open")
+                || historyLogOverlay.classList.contains("open")
+                || !signatureModalOverlay.classList.contains("d-none")
+                || !noteModalOverlay.classList.contains("d-none")
+                || !assignJobCodeModalOverlay.classList.contains("d-none");
+            document.body.style.overflow = shouldLockScroll ? "hidden" : "";
+        }
+
         function openNoteModal(config) {
             pendingNoteAction = config;
             noteModalTitle.textContent = config.title;
@@ -1397,6 +1701,79 @@
             } finally {
                 noteSaveButton.disabled = false;
                 noteSaveButton.textContent = defaultText;
+            }
+        }
+
+        async function loadMasterDepartments() {
+            const response = await apiFetch(`${API_BASE}/departments`);
+            const result = await response.json().catch(() => ({}));
+            if (!response.ok) {
+                throw new Error(result?.message || "Gagal memuat Department.");
+            }
+
+            masterJobCodes = Array.isArray(result?.data) ? result.data : [];
+        }
+
+        function closeAssignJobCodeModal() {
+            assignJobCodeModalOverlay.classList.add("d-none");
+            pendingAssignJobCodeAction = null;
+            assignJobCodeSelect.innerHTML = '<option value="">Pilih Job Code tujuan</option>';
+        }
+
+        function openAssignJobCodeModal(row) {
+            const targetDepartmentCode = String(row["Target Department"] || "").trim().toUpperCase();
+            const targetDepartment = masterJobCodes.find((item) => String(item?.code || "").trim().toUpperCase() === targetDepartmentCode);
+            const targetJobCodes = Array.isArray(targetDepartment?.jobCodes) ? targetDepartment.jobCodes : [];
+
+            assignJobCodeModalTitle.textContent = "Pilih Job Code Tujuan";
+            assignJobCodeDescription.textContent = `Department tujuan: ${toDisplayValue(row["Target Department"])} - pilih Job Code yang akan diassign.`;
+            assignJobCodeSelect.innerHTML = [
+                '<option value="">Pilih Job Code tujuan</option>',
+                ...targetJobCodes.map((jobCode) => `<option value="${escapeHtml(jobCode.id)}">${escapeHtml(jobCode.code)}</option>`)
+            ].join("");
+            pendingAssignJobCodeAction = row;
+            assignJobCodeModalOverlay.classList.remove("d-none");
+        }
+
+        async function submitAssignJobCodeAction() {
+            if (!pendingAssignJobCodeAction) {
+                return;
+            }
+
+            const targetDepartmentJobCodeId = String(assignJobCodeSelect.value || "").trim();
+            if (!targetDepartmentJobCodeId) {
+                showAlert("Job Code tujuan wajib dipilih.", "warning");
+                return;
+            }
+
+            assignJobCodeSaveButton.disabled = true;
+            const defaultText = assignJobCodeSaveButton.textContent;
+            assignJobCodeSaveButton.textContent = "Menyimpan...";
+
+            try {
+                const response = await apiFetch(`${API_BASE}/device-change-requests/${pendingAssignJobCodeAction.id}/assign-job-code`, {
+                    method: "POST",
+                    headers: {
+                        "Content-Type": "application/json"
+                    },
+                    body: JSON.stringify({
+                        targetDepartmentJobCodeId: Number(targetDepartmentJobCodeId)
+                    })
+                });
+
+                const result = await response.json().catch(() => ({}));
+                if (!response.ok) {
+                    throw new Error(result?.message || "Gagal menyimpan Job Code tujuan.");
+                }
+
+                closeAssignJobCodeModal();
+                showAlert(result?.message || "Job Code tujuan berhasil dipilih.", "success");
+                await loadRows();
+            } catch (error) {
+                showAlert(error instanceof Error ? error.message : "Gagal menyimpan Job Code tujuan.", "danger");
+            } finally {
+                assignJobCodeSaveButton.disabled = false;
+                assignJobCodeSaveButton.textContent = defaultText;
             }
         }
 
@@ -1591,6 +1968,34 @@
             }
 
             if (action === "approve") {
+                if (isDeviceChangeRequestRow(row)) {
+                    const yes = await openConfirmModal({
+                        title: "Konfirmasi Approve",
+                        message: `Approve ${toDisplayValue(row["Request Type"] || row.requestTypeLabel)} ini?`,
+                        confirmText: "Approve",
+                        confirmClass: "btn-success"
+                    });
+                    if (!yes) {
+                        return;
+                    }
+
+                    const response = await apiFetch(`${API_BASE}/device-change-requests/${row.id}/approve`, {
+                        method: "POST",
+                        headers: {
+                            "Content-Type": "application/json"
+                        }
+                    });
+
+                    const result = await response.json().catch(() => ({}));
+                    if (!response.ok) {
+                        throw new Error(result?.message || "Gagal approve request perubahan.");
+                    }
+
+                    showAlert(result?.message || "Request perubahan berhasil di-approve.", "success");
+                    await loadRows();
+                    return;
+                }
+
                 openSignatureModal({
                     title: "Approve Perangkat",
                     description: "Tanda tangan digital user/PIC diperlukan untuk approve perangkat.",
@@ -1602,6 +2007,18 @@
             }
 
             if (action === "reject") {
+                if (isDeviceChangeRequestRow(row)) {
+                    openNoteModal({
+                        title: "Reject Request Perubahan",
+                        label: "Alasan Reject",
+                        placeholder: "Tulis alasan reject request perubahan...",
+                        submitLabel: "Reject",
+                        endpoint: `${API_BASE}/device-change-requests/${row.id}/reject`,
+                        required: true
+                    });
+                    return;
+                }
+
                 openNoteModal({
                     title: "Reject Perangkat",
                     label: "Alasan Penolakan",
@@ -1632,6 +2049,11 @@
 
             if (action === "print-bast") {
                 printBast(row);
+                return;
+            }
+
+            if (action === "assign-job-code") {
+                openAssignJobCodeModal(row);
             }
         }
 
@@ -1732,6 +2154,28 @@
             await submitNoteAction();
         });
 
+        [assignJobCodeCloseButton, assignJobCodeCancelButton].forEach((element) => {
+            element.addEventListener("click", closeAssignJobCodeModal);
+        });
+
+        assignJobCodeSaveButton.addEventListener("click", async () => {
+            await submitAssignJobCodeAction();
+        });
+        assignJobCodeModalOverlay.addEventListener("click", (event) => {
+            if (event.target === assignJobCodeModalOverlay) {
+                closeAssignJobCodeModal();
+            }
+        });
+
+        confirmCloseButton.addEventListener("click", () => closeConfirmModal(false));
+        confirmCancelButton.addEventListener("click", () => closeConfirmModal(false));
+        confirmConfirmButton.addEventListener("click", () => closeConfirmModal(true));
+        confirmModalOverlay.addEventListener("click", (event) => {
+            if (event.target === confirmModalOverlay) {
+                closeConfirmModal(false);
+            }
+        });
+
         viewDrawerHistoryButton.addEventListener("click", openHistoryLogOverlay);
         viewDrawerCloseButton.addEventListener("click", closeViewDrawer);
         viewDrawerOverlay.addEventListener("click", (event) => {
@@ -1756,6 +2200,16 @@
                 return;
             }
 
+            if (confirmModalOverlay.classList.contains("open")) {
+                closeConfirmModal(false);
+                return;
+            }
+
+            if (!assignJobCodeModalOverlay.classList.contains("d-none")) {
+                closeAssignJobCodeModal();
+                return;
+            }
+
             if (!signatureModalOverlay.classList.contains("d-none")) {
                 closeSignatureModal();
                 return;
@@ -1777,7 +2231,15 @@
             }
         });
 
-        loadRows();
+        (async () => {
+            try {
+                await loadMasterDepartments();
+            } catch (error) {
+                showAlert(error instanceof Error ? error.message : "Gagal memuat master Department.", "danger");
+            }
+
+            await loadRows();
+        })();
     </script>
 </body>
 
