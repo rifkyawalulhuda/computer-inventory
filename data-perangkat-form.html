@@ -453,19 +453,25 @@
                                 <div class="device-form-section">
                                     <h6 class="device-form-section-title">Informasi Perangkat</h6>
                                     <div class="row g-3">
-                                        <div class="col-xl-4 col-lg-6 col-md-6">
+                                        <div class="col-xl-3 col-lg-6 col-md-6">
+                                            <label for="pomsSiteCodeSystem" class="form-label">Site Code Sistem POMS</label>
+                                            <select class="form-select" id="pomsSiteCodeSystem">
+                                                <option value="">Loading...</option>
+                                            </select>
+                                        </div>
+                                        <div class="col-xl-3 col-lg-6 col-md-6">
                                             <label for="jobCodeId" class="form-label">Department</label>
                                             <select class="form-select" id="jobCodeId" required>
                                                 <option value="">Loading...</option>
                                             </select>
                                         </div>
-                                        <div class="col-xl-4 col-lg-6 col-md-6">
+                                        <div class="col-xl-3 col-lg-6 col-md-6">
                                             <label for="picUserId" class="form-label">PIC Name</label>
                                             <select class="form-select" id="picUserId" required>
                                                 <option value="">Loading...</option>
                                             </select>
                                         </div>
-                                        <div class="col-xl-4 col-lg-6 col-md-6">
+                                        <div class="col-xl-3 col-lg-6 col-md-6">
                                             <label for="serialNo" class="form-label">Serial No.</label>
                                             <input type="text" class="form-control" id="serialNo" maxlength="100" placeholder="Serial Number" required>
                                         </div>
@@ -684,6 +690,7 @@
         const submitButton = document.getElementById("submitButton");
         const deviceFormCard = document.getElementById("deviceFormCard");
         const tableBody = document.getElementById("tableBody");
+        const pomsSiteCodeSystemInput = document.getElementById("pomsSiteCodeSystem");
         const jobCodeIdInput = document.getElementById("jobCodeId");
         const picUserIdInput = document.getElementById("picUserId");
         const serialNoInput = document.getElementById("serialNo");
@@ -729,6 +736,7 @@
         let currentDrawerHistoryLog = "";
         let isLoadingPicOptions = false;
         const editableInputs = [
+            pomsSiteCodeSystemInput,
             jobCodeIdInput,
             picUserIdInput,
             serialNoInput,
@@ -748,7 +756,7 @@
             bitlockerKeyInput
         ];
         const userAllowedEditInputIds = new Set(["departmentJobCodeId", "userName", "userEmail", "location", "ipList", "keterangan"]);
-        const searchableSelectInputs = [jobCodeIdInput, picUserIdInput, departmentJobCodeIdInput, categoryInput, leaseStatusInput].filter(Boolean);
+        const searchableSelectInputs = [pomsSiteCodeSystemInput, jobCodeIdInput, picUserIdInput, departmentJobCodeIdInput, categoryInput, leaseStatusInput].filter(Boolean);
 
         function canUseSelect2() {
             return Boolean(window.jQuery && window.jQuery.fn && typeof window.jQuery.fn.select2 === "function");
@@ -1169,6 +1177,29 @@
             refreshLeaseStatusByEndDate();
         }
 
+        function populatePomsSiteCodeSystemOptions() {
+            const previousValue = String(pomsSiteCodeSystemInput.value ?? "").trim().toUpperCase();
+
+            pomsSiteCodeSystemInput.innerHTML = [
+                '<option value="">Pilih Site Code Sistem POMS</option>',
+                ...masterJobCodes
+                    .map((row) => {
+                        const code = String(row?.code ?? "").trim().toUpperCase();
+                        if (!code) {
+                            return "";
+                        }
+
+                        return `<option value="${escapeHtml(code)}">${escapeHtml(code)} - ${escapeHtml(row?.siteName ?? "")}</option>`;
+                    })
+                    .filter(Boolean)
+            ].join("");
+
+            const hasMatchedOption = Array.from(pomsSiteCodeSystemInput.options).some(
+                (option) => String(option.value ?? "").trim().toUpperCase() === previousValue
+            );
+            pomsSiteCodeSystemInput.value = hasMatchedOption ? previousValue : "";
+        }
+
         function setFormVisibility(visible, shouldScroll = false) {
             deviceFormCard.classList.toggle("d-none", !visible);
             if (visible && shouldScroll) {
@@ -1183,6 +1214,7 @@
             submitButton.textContent = "Simpan Data";
             userNameInput.value = "";
             userEmailInput.value = "";
+            pomsSiteCodeSystemInput.value = "";
             jobCodeIdInput.value = "";
             picUserIdInput.value = "";
             departmentJobCodeIdInput.value = "";
@@ -1197,9 +1229,11 @@
 
         function getPayload() {
             refreshDaysLease();
+            const rawPomsSiteCodeSystem = String(pomsSiteCodeSystemInput.value ?? "").trim().toUpperCase();
             const rawDepartmentJobCodeId = String(departmentJobCodeIdInput.value ?? "").trim();
 
             const payload = {
+                pomsSiteCodeSystem: rawPomsSiteCodeSystem || null,
                 jobCodeId: Number(jobCodeIdInput.value),
                 departmentJobCodeId: rawDepartmentJobCodeId ? Number(rawDepartmentJobCodeId) : null,
                 picUserId: picUserIdInput.value,
@@ -1219,6 +1253,15 @@
                 keterangan: keteranganInput.value.trim(),
                 bitlockerKey: bitlockerKeyInput.value.trim()
             };
+
+            if (payload.pomsSiteCodeSystem) {
+                const hasMatchedPomsSiteCode = masterJobCodes.some(
+                    (row) => String(row?.code ?? "").trim().toUpperCase() === payload.pomsSiteCodeSystem
+                );
+                if (!hasMatchedPomsSiteCode) {
+                    throw new Error("Site Code Sistem POMS tidak valid.");
+                }
+            }
 
             if (!Number.isInteger(payload.jobCodeId) || payload.jobCodeId < 1) {
                 throw new Error("Department wajib dipilih.");
@@ -1401,6 +1444,7 @@
             masterJobCodes = Array.isArray(jobCodeJson.data) ? jobCodeJson.data : [];
             masterUsers = Array.isArray(masterUserJson.data) ? masterUserJson.data : [];
 
+            populatePomsSiteCodeSystemOptions();
             jobCodeIdInput.innerHTML = [
                 '<option value="">Pilih Department</option>',
                 ...masterJobCodes.map((row) => `<option value="${row.id}">${escapeHtml(row.code)} - ${escapeHtml(row.siteName)}</option>`)
@@ -1409,6 +1453,7 @@
             populatePicOptionsByJobCode();
             populateDepartmentJobCodeOptionsByJobCode();
             refreshDaysLease();
+            syncSearchableSelect(pomsSiteCodeSystemInput, true);
             syncSearchableSelect(jobCodeIdInput, true);
             syncSearchableSelect(departmentJobCodeIdInput, true);
             syncSearchableSelect(categoryInput);
@@ -1624,6 +1669,7 @@
             closeHistoryLogOverlay();
 
             const detailFields = [
+                ["Site Code Sistem POMS", row["Site Code Sistem POMS"]],
                 ["Department", row["Department"]],
                 ["Job Code", row["Job Code"]],
                 ["PIC Name", row["PIC Name"]],
@@ -1675,6 +1721,7 @@
                 return;
             }
 
+            pomsSiteCodeSystemInput.value = row["Site Code Sistem POMS"] || "";
             const resolvedJobCodeId = findJobCodeIdByCode(row["Department"]);
             jobCodeIdInput.value = resolvedJobCodeId;
             populatePicOptionsByJobCode();
@@ -1702,6 +1749,7 @@
             bitlockerKeyInput.value = row["Bitlocker Key"] || "";
 
             refreshDaysLease();
+            syncSearchableSelect(pomsSiteCodeSystemInput, true);
             syncSearchableSelect(jobCodeIdInput, true);
             syncSearchableSelect(picUserIdInput, true);
             syncSearchableSelect(departmentJobCodeIdInput, true);

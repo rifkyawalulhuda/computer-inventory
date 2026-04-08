@@ -79,31 +79,6 @@ Data Perangkat:
 - `GET /api/device-records`
 - `POST /api/device-records`
 
-## Deploy ke Railway (Ringkas)
-
-Jika deploy dari root repo, set `Root Directory` service ke `backend`.
-
-Build command:
-
-```bash
-npm ci && npm run prisma:generate && npm run build
-```
-
-Start command:
-
-```bash
-npm run prisma:migrate:deploy && npm run start
-```
-
-Environment minimal:
-
-```env
-DATABASE_URL=postgresql://...
-NODE_ENV=production
-HOST=0.0.0.0
-APP_WEB_BASE_URL=https://your-frontend-domain/index.html
-```
-
 ## Tabel awal dari Excel
 
 Skema awal diturunkan dari file `PC CLC Data List.xlsx` (sheet `PC Lease Data` dan `Daikin Installed`) dengan tabel:

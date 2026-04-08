@@ -104,6 +104,7 @@ model Employee {
 model Device {
   id            String  @id @default(cuid())
   legacyNo      Int?    @map("legacy_no")
+  pomsSiteCodeSystem String? @map("poms_site_code_system") @db.VarChar(5)
   serialNumber  String? @unique @map("serial_number")
   hostName      String? @map("host_name")
   userNameRaw   String? @map("user_name_raw")

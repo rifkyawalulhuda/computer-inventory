@@ -17,6 +17,7 @@ export const deviceRecordRouter = Router();
 
 type DeviceRecordPayload = {
   no: number | null;
+  pomsSiteCodeSystem: string | null;
   jobCodeId: number;
   departmentJobCodeId: number | null;
   picUserId: string;
@@ -53,6 +54,7 @@ type DeviceFlowActionPayload = {
 
 type DeviceImportFileRow = {
   rowNumber: number;
+  pomsSiteCodeSystem: string;
   jobCode: string;
   departmentJobCode: string;
   picName: string;
@@ -94,6 +96,7 @@ const DEVICE_FLOW_STATUSES = new Set<DeviceFlowStatus>([
 ]);
 
 const DEVICE_IMPORT_TEMPLATE_HEADERS = [
+  "Site Code Sistem POMS",
   "Department",
   "Job Code",
   "PIC Name",
@@ -142,6 +145,19 @@ function cleanText(value: unknown): string {
 function toNullableText(value: unknown): string | null {
   const text = cleanText(value);
   return text ? text : null;
+}
+
+function normalizeSiteCode(value: unknown, label: string): string | null {
+  const text = cleanText(value).toUpperCase();
+  if (!text) {
+    return null;
+  }
+
+  if (!/^[A-Z]{1,5}$/.test(text)) {
+    throw new Error(`${label} tidak valid.`);
+  }
+
+  return text;
 }
 
 function normalizeIpList(value: unknown): string | null {
@@ -349,6 +365,7 @@ function parsePayload(payload: unknown): DeviceRecordPayload {
   const body = payload as Record<string, unknown>;
 
   const no = null;
+  const pomsSiteCodeSystem = normalizeSiteCode(body.pomsSiteCodeSystem, "Site Code Sistem POMS");
   const jobCodeId = Number(body.jobCodeId);
   const parsedDepartmentJobCodeId = parseInteger(body.departmentJobCodeId, "Job Code", { min: 1 });
   const picUserId = cleanText(body.picUserId);
@@ -422,6 +439,7 @@ function parsePayload(payload: unknown): DeviceRecordPayload {
 
   return {
     no,
+    pomsSiteCodeSystem,
     jobCodeId,
     departmentJobCodeId,
     picUserId,
@@ -615,6 +633,7 @@ const deviceRecordInclude = {
 type MappedDeviceRow = {
   id: string;
   legacyNo: number | null;
+  pomsSiteCodeSystem: string | null;
   flowStatus: string;
   flowAssignedPicUserId: string | null;
   flowSubmittedByUserId: string | null;
@@ -666,6 +685,7 @@ function mapDeviceToExcelRecord(row: MappedDeviceRow, fallbackNo?: number) {
   return {
     id: row.id,
     NO: row.legacyNo ?? fallbackNo ?? "",
+    "Site Code Sistem POMS": row.pomsSiteCodeSystem ?? "",
     "Department": row.jobCode?.code ?? "",
     "Job Code": row.departmentJobCode?.code ?? "",
     "PIC Name": row.picNameRaw ?? "",
@@ -1013,22 +1033,23 @@ function parseDeviceImportRows(sheet: XLSX.WorkSheet): DeviceImportFileRow[] {
 
     parsedRows.push({
       rowNumber,
-      jobCode: cleanText(values[0]).toUpperCase(),
-      departmentJobCode: cleanText(values[1]).toUpperCase(),
-      picName: cleanText(values[2]),
-      serialNo: cleanText(values[3]),
-      category: cleanText(values[4]),
-      model: cleanText(values[5]),
-      hostName: cleanText(values[6]),
-      userName: cleanText(values[7]),
-      userEmail: cleanText(values[8]),
-      location: cleanText(values[9]),
-      ipList: cleanText(values[10]),
-      startDate: normalizeImportDateValue(values[11]),
-      endDate: normalizeImportDateValue(values[12]),
-      leaseStatus: cleanText(values[13]),
-      keterangan: cleanText(values[14]),
-      bitlockerKey: cleanText(values[15]),
+      pomsSiteCodeSystem: cleanText(values[0]).toUpperCase(),
+      jobCode: cleanText(values[1]).toUpperCase(),
+      departmentJobCode: cleanText(values[2]).toUpperCase(),
+      picName: cleanText(values[3]),
+      serialNo: cleanText(values[4]),
+      category: cleanText(values[5]),
+      model: cleanText(values[6]),
+      hostName: cleanText(values[7]),
+      userName: cleanText(values[8]),
+      userEmail: cleanText(values[9]),
+      location: cleanText(values[10]),
+      ipList: cleanText(values[11]),
+      startDate: normalizeImportDateValue(values[12]),
+      endDate: normalizeImportDateValue(values[13]),
+      leaseStatus: cleanText(values[14]),
+      keterangan: cleanText(values[15]),
+      bitlockerKey: cleanText(values[16]),
     });
   });
 
@@ -1070,6 +1091,7 @@ async function createDeviceImportTemplateWorkbookBuffer(): Promise<Buffer> {
   templateSheet.addRow([...DEVICE_IMPORT_TEMPLATE_HEADERS]);
   templateSheet.addRow([
     departments[0]?.code ?? "",
+    departments[0]?.code ?? "",
     departments[0]?.jobCodes?.[0]?.code ?? "",
     picUsers[0] ? `${picUsers[0].name} (${picUsers[0].email})` : "",
     "SN-001",
@@ -1088,6 +1110,7 @@ async function createDeviceImportTemplateWorkbookBuffer(): Promise<Buffer> {
   ]);
 
   templateSheet.columns = [
+    { width: 18 },
     { width: 12 },
     { width: 16 },
     { width: 30 },
@@ -1112,17 +1135,20 @@ async function createDeviceImportTemplateWorkbookBuffer(): Promise<Buffer> {
 
   referenceSheet.columns = [
     { width: 28 },
+    { width: 28 },
     { width: 24 },
     { width: 42 },
     { width: 16 },
     { width: 16 },
+    { width: 16 },
   ];
 
-  referenceSheet.getCell("A1").value = "Department";
-  referenceSheet.getCell("B1").value = "Job Code";
-  referenceSheet.getCell("C1").value = "PIC Name";
-  referenceSheet.getCell("D1").value = "Category";
-  referenceSheet.getCell("E1").value = "Lease Status";
+  referenceSheet.getCell("A1").value = "Site Code Sistem POMS";
+  referenceSheet.getCell("B1").value = "Department";
+  referenceSheet.getCell("C1").value = "Job Code";
+  referenceSheet.getCell("D1").value = "PIC Name";
+  referenceSheet.getCell("E1").value = "Category";
+  referenceSheet.getCell("F1").value = "Lease Status";
 
   const categoryOptions = ["Laptop", "Desktop"];
   const leaseStatusOptions = ["ACTIVE", "EXPIRED", "Back To KDDI"];
@@ -1135,17 +1161,18 @@ async function createDeviceImportTemplateWorkbookBuffer(): Promise<Buffer> {
     ? picUsers.map((user) => `${user.name} (${user.email})`)
     : [""];
 
-  const fillColumn = (column: "A" | "B" | "C" | "D" | "E", values: string[]) => {
+  const fillColumn = (column: "A" | "B" | "C" | "D" | "E" | "F", values: string[]) => {
     values.forEach((value, index) => {
       referenceSheet.getCell(`${column}${index + 2}`).value = value;
     });
   };
 
   fillColumn("A", jobCodeValues);
-  fillColumn("B", departmentJobCodeValues);
-  fillColumn("C", picValues);
-  fillColumn("D", categoryOptions);
-  fillColumn("E", leaseStatusOptions);
+  fillColumn("B", jobCodeValues);
+  fillColumn("C", departmentJobCodeValues);
+  fillColumn("D", picValues);
+  fillColumn("E", categoryOptions);
+  fillColumn("F", leaseStatusOptions);
 
   const addListValidation = (
     column: number,
@@ -1170,14 +1197,15 @@ async function createDeviceImportTemplateWorkbookBuffer(): Promise<Buffer> {
   const departmentJobCodeLastRow = Math.max(2, departmentJobCodeValues.length + 1);
   const picLastRow = Math.max(2, picValues.length + 1);
 
-  addListValidation(1, `=Referensi!$A$2:$A$${jobCodeLastRow}`, false, "Department wajib dipilih dari dropdown.");
-  addListValidation(2, `=Referensi!$B$2:$B$${departmentJobCodeLastRow}`, true, "Jika diisi, Job Code harus dipilih dari dropdown.");
-  addListValidation(3, `=Referensi!$C$2:$C$${picLastRow}`, false, "PIC Name wajib dipilih dari dropdown.");
-  addListValidation(5, "=Referensi!$D$2:$D$3");
-  addListValidation(14, "=Referensi!$E$2:$E$4");
+  addListValidation(1, `=Referensi!$A$2:$A$${jobCodeLastRow}`, true, "Jika diisi, Site Code Sistem POMS harus dipilih dari dropdown.");
+  addListValidation(2, `=Referensi!$B$2:$B$${jobCodeLastRow}`, false, "Department wajib dipilih dari dropdown.");
+  addListValidation(3, `=Referensi!$C$2:$C$${departmentJobCodeLastRow}`, true, "Jika diisi, Job Code harus dipilih dari dropdown.");
+  addListValidation(4, `=Referensi!$D$2:$D$${picLastRow}`, false, "PIC Name wajib dipilih dari dropdown.");
+  addListValidation(6, "=Referensi!$E$2:$E$3");
+  addListValidation(15, "=Referensi!$F$2:$F$4");
 
   for (let row = 2; row <= DEVICE_IMPORT_DROPDOWN_MAX_ROWS; row += 1) {
-    templateSheet.getCell(row, 12).dataValidation = {
+    templateSheet.getCell(row, 13).dataValidation = {
       type: "date",
       operator: "greaterThanOrEqual",
       allowBlank: true,
@@ -1188,7 +1216,7 @@ async function createDeviceImportTemplateWorkbookBuffer(): Promise<Buffer> {
       error: "Gunakan format tanggal yang valid (YYYY-MM-DD).",
     };
 
-    templateSheet.getCell(row, 13).dataValidation = {
+    templateSheet.getCell(row, 14).dataValidation = {
       type: "date",
       operator: "greaterThanOrEqual",
       allowBlank: true,
@@ -1204,14 +1232,15 @@ async function createDeviceImportTemplateWorkbookBuffer(): Promise<Buffer> {
     ["Panduan Import Data Perangkat"],
     ["1. Isi data mulai baris ke-2 di sheet Template."],
     ["2. Kolom NO tidak perlu diisi karena otomatis generate oleh sistem."],
-    ["3. Kolom dropdown: Department, Job Code, PIC Name, Category, Lease Status."],
+    ["3. Kolom dropdown: Site Code Sistem POMS, Department, Job Code, PIC Name, Category, Lease Status."],
     ["4. Department dan PIC Name wajib diisi serta harus terdaftar di master."],
-    ["5. Job Code opsional. Jika diisi, Job Code harus sesuai dengan Department pada baris yang sama."],
-    ["6. PIC Name harus user yang terdaftar di Master User."],
-    ["7. Format tanggal yang disarankan: YYYY-MM-DD (contoh 2026-02-28)."],
-    ["8. Lease Status: ACTIVE, EXPIRED, atau Back To KDDI."],
-    ["9. Kolom opsional: Job Code, User Name, User Email, Location, IP List, Keterangan."],
-    ["10. Jika Serial No sudah ada, data akan diupdate. Jika belum ada, data baru dibuat."],
+    ["5. Site Code Sistem POMS opsional dan diambil dari master Site Code, tetapi tidak terikat ke Department pada baris yang sama."],
+    ["6. Job Code opsional. Jika diisi, Job Code harus sesuai dengan Department pada baris yang sama."],
+    ["7. PIC Name harus user yang terdaftar di Master User."],
+    ["8. Format tanggal yang disarankan: YYYY-MM-DD (contoh 2026-02-28)."],
+    ["9. Lease Status: ACTIVE, EXPIRED, atau Back To KDDI."],
+    ["10. Kolom opsional: Site Code Sistem POMS, Job Code, User Name, User Email, Location, IP List, Keterangan."],
+    ["11. Jika Serial No sudah ada, data akan diupdate. Jika belum ada, data baru dibuat."],
   ]);
   instructionSheet.getColumn(1).width = 120;
   instructionSheet.getRow(1).font = { bold: true };
@@ -1279,12 +1308,14 @@ function resolvePicUserFromImport(
 }
 
 async function prepareDeviceImportRows(rows: DeviceImportFileRow[]): Promise<PreparedImportRow[]> {
-  const uniqueDepartments = [...new Set(rows.map((row) => cleanText(row.jobCode).toUpperCase()).filter(Boolean))];
+  const uniqueDepartmentCodes = [...new Set(
+    rows.flatMap((row) => [row.pomsSiteCodeSystem, row.jobCode].map((value) => cleanText(value).toUpperCase()).filter(Boolean))
+  )];
 
   const departments = await prisma.department.findMany({
     where: {
       code: {
-        in: uniqueDepartments,
+        in: uniqueDepartmentCodes,
       },
     },
     select: {
@@ -1328,6 +1359,11 @@ async function prepareDeviceImportRows(rows: DeviceImportFileRow[]): Promise<Pre
 
   rows.forEach((row) => {
     try {
+      const pomsSiteCodeSystem = cleanText(row.pomsSiteCodeSystem).toUpperCase();
+      if (pomsSiteCodeSystem && !departmentByCode.get(pomsSiteCodeSystem)) {
+        throw new Error(`Site Code Sistem POMS "${pomsSiteCodeSystem}" tidak ditemukan di master.`);
+      }
+
       const jobCodeText = cleanText(row.jobCode).toUpperCase();
       if (!jobCodeText) {
         throw new Error("Department wajib diisi.");
@@ -1362,6 +1398,7 @@ async function prepareDeviceImportRows(rows: DeviceImportFileRow[]): Promise<Pre
       const picUser = resolvePicUserFromImport(jobCodeUsers, row.picName);
 
       const payload = parsePayload({
+        pomsSiteCodeSystem,
         jobCodeId: department.id,
         departmentJobCodeId: selectedDepartmentJobCode?.id ?? null,
         picUserId: picUser.id,
@@ -1453,6 +1490,26 @@ async function validateJobAndPic(
     departmentJobCodeId: departmentJobCode?.id ?? null,
     departmentJobCodeCode: departmentJobCode?.code ?? null,
   };
+}
+
+async function resolvePomsSiteCodeSystem(
+  tx: Prisma.TransactionClient,
+  siteCode: string | null,
+): Promise<string | null> {
+  if (!siteCode) {
+    return null;
+  }
+
+  const department = await tx.department.findUnique({
+    where: { code: siteCode },
+    select: { code: true },
+  });
+
+  if (!department) {
+    throw new Error("Site Code Sistem POMS tidak ditemukan.");
+  }
+
+  return department.code;
 }
 
 async function resolveLookupIds(tx: Prisma.TransactionClient, payload: DeviceRecordPayload) {
@@ -2000,6 +2057,7 @@ deviceRecordRouter.post("/device-records/import", requireRole("admin"), async (r
       for (const row of preparedRows) {
         const payload = row.payload;
         const picUser = await validateJobAndPic(tx, payload);
+        const pomsSiteCodeSystem = await resolvePomsSiteCodeSystem(tx, payload.pomsSiteCodeSystem);
         const { categoryId, modelId, locationId } = await resolveLookupIds(tx, payload);
 
         const existing = payload.serialNo
@@ -2017,6 +2075,7 @@ deviceRecordRouter.post("/device-records/import", requireRole("admin"), async (r
               picNameRaw: true,
               notes: true,
               bitlockerKey: true,
+              pomsSiteCodeSystem: true,
               departmentJobCode: {
                 select: { code: true },
               },
@@ -2062,6 +2121,7 @@ deviceRecordRouter.post("/device-records/import", requireRole("admin"), async (r
               picNameRaw: picUser.name,
               notes: payload.keterangan,
               bitlockerKey: payload.bitlockerKey,
+              pomsSiteCodeSystem,
               jobCodeId: payload.jobCodeId,
               departmentJobCodeId: payload.departmentJobCodeId,
               categoryId,
@@ -2091,6 +2151,11 @@ deviceRecordRouter.post("/device-records/import", requireRole("admin"), async (r
         const latestLease = existing.leaseContracts[0] ?? null;
 
         const changedFieldMessages = getChangedFieldMessages([
+          {
+            label: "Site Code Sistem POMS",
+            before: existing.pomsSiteCodeSystem,
+            after: pomsSiteCodeSystem,
+          },
           {
             label: "Department",
             before: existing.jobCode?.code ?? null,
@@ -2188,6 +2253,7 @@ deviceRecordRouter.post("/device-records/import", requireRole("admin"), async (r
             picNameRaw: picUser.name,
             notes: payload.keterangan,
             bitlockerKey: payload.bitlockerKey,
+            pomsSiteCodeSystem,
             jobCodeId: payload.jobCodeId,
             departmentJobCodeId: payload.departmentJobCodeId,
             flowAssignedPicUserId: payload.picUserId,
@@ -2390,6 +2456,7 @@ deviceRecordRouter.post("/device-records", async (req, res, next) => {
 
     const createdResult = await prisma.$transaction(async (tx) => {
       const picUser = await validateJobAndPic(tx, payload);
+      const pomsSiteCodeSystem = await resolvePomsSiteCodeSystem(tx, payload.pomsSiteCodeSystem);
       const { categoryId, modelId, locationId } = await resolveLookupIds(tx, payload);
       await lockLegacyNoSequence(tx);
       const nextLegacyNo = await getNextLegacyNo(tx);
@@ -2409,6 +2476,7 @@ deviceRecordRouter.post("/device-records", async (req, res, next) => {
           picNameRaw: picUser.name,
           notes: payload.keterangan,
           bitlockerKey: payload.bitlockerKey,
+          pomsSiteCodeSystem,
           jobCodeId: payload.jobCodeId,
           departmentJobCodeId: payload.departmentJobCodeId,
           categoryId,
@@ -2490,6 +2558,7 @@ deviceRecordRouter.put("/device-records/:id", async (req, res, next) => {
         select: {
           id: true,
           legacyNo: true,
+          pomsSiteCodeSystem: true,
           jobCodeId: true,
           departmentJobCodeId: true,
           serialNumber: true,
@@ -2537,6 +2606,7 @@ deviceRecordRouter.put("/device-records/:id", async (req, res, next) => {
       }
 
       const picUser = await validateJobAndPic(tx, payload);
+      const pomsSiteCodeSystem = await resolvePomsSiteCodeSystem(tx, payload.pomsSiteCodeSystem);
       const { categoryId, modelId, locationId } = await resolveLookupIds(tx, payload);
       const latestLease = existing.leaseContracts[0] ?? null;
 
@@ -2552,6 +2622,11 @@ deviceRecordRouter.put("/device-records/:id", async (req, res, next) => {
 
       if (editorRole === "user") {
         const restrictedChangedLabels = getChangedFieldLabels([
+          {
+            label: "Site Code Sistem POMS",
+            before: existing.pomsSiteCodeSystem,
+            after: pomsSiteCodeSystem,
+          },
           {
             label: "NO",
             before: existing.legacyNo,
@@ -2615,6 +2690,11 @@ deviceRecordRouter.put("/device-records/:id", async (req, res, next) => {
       }
 
       const changedFieldMessages = getChangedFieldMessages([
+        {
+          label: "Site Code Sistem POMS",
+          before: existing.pomsSiteCodeSystem,
+          after: pomsSiteCodeSystem,
+        },
         {
           label: "NO",
           before: existing.legacyNo,
@@ -2723,6 +2803,7 @@ deviceRecordRouter.put("/device-records/:id", async (req, res, next) => {
           picNameRaw: picUser.name,
           notes: payload.keterangan,
           bitlockerKey: payload.bitlockerKey,
+          pomsSiteCodeSystem,
           jobCodeId: payload.jobCodeId,
           departmentJobCodeId: payload.departmentJobCodeId,
           categoryId,

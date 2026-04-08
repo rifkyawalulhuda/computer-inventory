@@ -23,15 +23,9 @@ Default behavior:
 - Lokal (`localhost`/`127.0.0.1`) -> `http://<host>:3001/api`
 - Domain public -> `/api` (same-origin)
 
-Jika backend dipisah domain (mis. Railway), ubah `assets/js/runtime-config.js`:
+Jika backend dipisah domain, ubah `assets/js/runtime-config.js`:
 
 ```js
 window.APP_CONFIG = window.APP_CONFIG || {};
-window.APP_CONFIG.API_BASE = "https://your-backend.up.railway.app/api";
+window.APP_CONFIG.API_BASE = "https://api.example.com/api";
 ```
-
-## Deploy Backend ke Railway
-
-Lihat panduan lengkap di:
-
-- `docs/deploy-railway.md`
