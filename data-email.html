@@ -1,0 +1,451 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="utf-8">
+    <meta http-equiv="x-ua-compatible" content="IE=edge">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Data Email</title>
+    <link rel="shortcut icon" type="image/x-icon" href="assets/images/favicon.ico">
+    <link rel="stylesheet" type="text/css" href="assets/css/bootstrap.min.css">
+    <link rel="stylesheet" type="text/css" href="assets/vendors/css/vendors.min.css">
+    <link rel="stylesheet" type="text/css" href="assets/css/theme.min.css">
+    <link rel="stylesheet" type="text/css" href="assets/css/theme-mode.css">
+    <script src="assets/js/auth-client.js"></script>
+    <script src="assets/js/runtime-config.js"></script>
+    <script src="assets/js/app-config.js"></script>
+    <script src="assets/js/theme-mode.js"></script>
+    <script>
+        if (window.AuthClient) {
+            window.AuthClient.requireAuth();
+            window.AuthClient.validateSession(window.AppConfig.API_BASE);
+        }
+    </script>
+    <style>
+        .page-shell { min-height: 100vh; background: linear-gradient(160deg, #f8fafc 0%, #eef4ff 45%, #edf9f4 100%); padding: 32px 0; }
+        .page-title { font-size: 1.5rem; font-weight: 700; color: #0f172a; margin-bottom: 4px; }
+        .page-subtitle { color: #475569; margin-bottom: 0; }
+        .card-shadow { border: 0; box-shadow: 0 10px 30px rgba(15, 23, 42, 0.08); }
+        .data-table { min-width: 1100px; }
+        .data-table th, .data-table td { white-space: nowrap; vertical-align: middle; }
+        .data-table th { font-size: 0.72rem; letter-spacing: 0.02em; text-transform: uppercase; color: #334155; }
+        .table-action-group .btn { display: inline-flex; align-items: center; justify-content: center; width: 34px; height: 30px; padding: 0; }
+        .view-drawer-overlay { position: fixed; inset: 0; background: rgba(15, 23, 42, 0.35); opacity: 0; visibility: hidden; transition: opacity 0.2s ease; z-index: 1050; }
+        .view-drawer-overlay.open { opacity: 1; visibility: visible; }
+        .view-drawer { position: absolute; top: 0; right: 0; width: min(460px, 100vw); height: 100%; background: #fff; box-shadow: -18px 0 40px rgba(15, 23, 42, 0.18); transform: translateX(100%); transition: transform 0.25s ease; display: flex; flex-direction: column; }
+        .view-drawer-overlay.open .view-drawer { transform: translateX(0); }
+        .view-drawer-header { display: flex; justify-content: space-between; align-items: center; padding: 16px 18px; border-bottom: 1px solid #e2e8f0; }
+        .view-drawer-title { margin: 0; font-size: 1.05rem; font-weight: 700; color: #0f172a; }
+        .view-drawer-close { width: 34px; height: 34px; border-radius: 8px; border: 1px solid #dbe4ee; background: #fff; color: #0f172a; display: inline-flex; align-items: center; justify-content: center; }
+        .view-drawer-body { padding: 16px 18px 24px; overflow-y: auto; }
+        .view-drawer-item { padding: 10px 0; border-bottom: 1px dashed #e2e8f0; }
+        .view-drawer-label { font-size: 0.72rem; font-weight: 700; letter-spacing: 0.03em; text-transform: uppercase; color: #64748b; margin-bottom: 4px; }
+        .view-drawer-value { color: #0f172a; word-break: break-word; }
+        .pagination-shell { display: flex; justify-content: space-between; align-items: center; gap: 12px; flex-wrap: wrap; }
+        .pagination-info { color: #64748b; font-size: 0.82rem; }
+        .pagination-controls { display: inline-flex; gap: 6px; align-items: center; }
+        .pagination-controls .btn.is-active { background: #1d4ed8; border-color: #1d4ed8; color: #fff; }
+    </style>
+</head>
+
+<body>
+    <main class="page-shell">
+        <div class="container-fluid px-4">
+            <div class="mb-4">
+                <h1 class="page-title">Data Email</h1>
+                <p class="page-subtitle">Monitoring akun email inventory per department dan relasi perangkat.</p>
+            </div>
+
+            <div id="alertBox" class="alert d-none" role="alert"></div>
+
+            <div class="card card-shadow mb-4">
+                <div class="card-body">
+                    <div class="d-flex flex-wrap justify-content-between align-items-center gap-3 mb-3">
+                        <div>
+                            <h5 class="card-title mb-1">Daftar Data Email</h5>
+                            <p class="text-muted mb-0">Admin melihat semua data. PIC hanya melihat data department miliknya.</p>
+                        </div>
+                        <div class="d-flex gap-2 flex-wrap">
+                            <button type="button" class="btn btn-outline-secondary" id="downloadTemplateButton"><i class="feather-file-text me-1"></i>Template Excel</button>
+                            <button type="button" class="btn btn-success" id="importExcelButton"><i class="feather-upload me-1"></i>Import Excel</button>
+                            <button type="button" class="btn btn-outline-success" id="exportExcelButton"><i class="feather-download me-1"></i>Export Excel</button>
+                            <button type="button" class="btn btn-primary" id="addDataButton"><i class="feather-plus me-1"></i>Tambah Data</button>
+                            <button type="button" class="btn btn-light border" id="refreshButton"><i class="feather-rotate-cw me-1"></i>Refresh</button>
+                        </div>
+                    </div>
+
+                    <div class="row g-3 align-items-end mb-3">
+                        <div class="col-lg-4 col-md-6">
+                            <label class="form-label fw-semibold">Cari Data</label>
+                            <input type="search" class="form-control" id="searchInput" placeholder="Cari nama, email, department, job code, atau perangkat">
+                        </div>
+                        <div class="col-lg-3 col-md-6">
+                            <label class="form-label fw-semibold">Filter Department</label>
+                            <select class="form-select" id="departmentFilter">
+                                <option value="">Semua Department</option>
+                            </select>
+                        </div>
+                        <div class="col-lg-2 col-md-4">
+                            <label class="form-label fw-semibold">Baris per halaman</label>
+                            <select class="form-select" id="pageSizeInput">
+                                <option value="10">10</option>
+                                <option value="15" selected>15</option>
+                                <option value="25">25</option>
+                                <option value="50">50</option>
+                            </select>
+                        </div>
+                    </div>
+
+                    <input type="file" id="importExcelInput" class="d-none" accept=".xlsx,.xls">
+
+                    <div class="table-responsive">
+                        <table class="table align-middle data-table mb-0">
+                            <thead>
+                                <tr>
+                                    <th>No</th>
+                                    <th>Nama User</th>
+                                    <th>Email</th>
+                                    <th>Department</th>
+                                    <th>Job Code</th>
+                                    <th>Location</th>
+                                    <th>Perangkat</th>
+                                    <th class="text-center">Action</th>
+                                </tr>
+                            </thead>
+                            <tbody id="tableBody">
+                                <tr><td colspan="8" class="text-center text-muted py-4">Loading data...</td></tr>
+                            </tbody>
+                        </table>
+                    </div>
+
+                    <div class="mt-3 pagination-shell">
+                        <div class="pagination-info" id="paginationInfo">Menampilkan 0 data</div>
+                        <div class="pagination-controls" id="paginationControls"></div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </main>
+
+    <div class="view-drawer-overlay" id="viewDrawerOverlay" aria-hidden="true">
+        <aside class="view-drawer" role="dialog" aria-modal="true" aria-labelledby="viewDrawerTitle">
+            <div class="view-drawer-header">
+                <h5 class="view-drawer-title" id="viewDrawerTitle">Detail Data Email</h5>
+                <button type="button" class="view-drawer-close" id="viewDrawerCloseButton" aria-label="Tutup">
+                    <i class="feather-x"></i>
+                </button>
+            </div>
+            <div class="view-drawer-body" id="viewDrawerBody"></div>
+        </aside>
+    </div>
+
+    <script src="assets/vendors/js/vendors.min.js"></script>
+    <script src="assets/js/common-init.min.js"></script>
+    <script>
+        const API_BASE = window.AppConfig.API_BASE;
+        const tableBody = document.getElementById("tableBody");
+        const searchInput = document.getElementById("searchInput");
+        const departmentFilter = document.getElementById("departmentFilter");
+        const pageSizeInput = document.getElementById("pageSizeInput");
+        const paginationInfo = document.getElementById("paginationInfo");
+        const paginationControls = document.getElementById("paginationControls");
+        const addDataButton = document.getElementById("addDataButton");
+        const refreshButton = document.getElementById("refreshButton");
+        const downloadTemplateButton = document.getElementById("downloadTemplateButton");
+        const importExcelButton = document.getElementById("importExcelButton");
+        const exportExcelButton = document.getElementById("exportExcelButton");
+        const importExcelInput = document.getElementById("importExcelInput");
+        const alertBox = document.getElementById("alertBox");
+        const viewDrawerOverlay = document.getElementById("viewDrawerOverlay");
+        const viewDrawerBody = document.getElementById("viewDrawerBody");
+        const viewDrawerCloseButton = document.getElementById("viewDrawerCloseButton");
+
+        const currentUserRole = window.AuthClient?.getUserRole?.() || "admin";
+        let emailRows = [];
+        let filteredRows = [];
+        let currentPage = 1;
+
+        function apiFetch(url, options = {}) {
+            if (window.AuthClient) {
+                return window.AuthClient.fetchWithAuth(url, options);
+            }
+            return fetch(url, options);
+        }
+
+        function escapeHtml(value) {
+            return String(value ?? "").replace(/[&<>"']/g, (char) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[char]));
+        }
+
+        function showAlert(message, type = "success") {
+            alertBox.className = `alert alert-${type}`;
+            alertBox.textContent = message;
+            alertBox.classList.remove("d-none");
+        }
+
+        function hideAlert() {
+            alertBox.className = "alert d-none";
+            alertBox.textContent = "";
+        }
+
+        function populateDepartmentFilter() {
+            const departments = [...new Set(emailRows.map((row) => String(row["Department"] || "").trim()).filter(Boolean))];
+            departmentFilter.innerHTML = ['<option value="">Semua Department</option>', ...departments.map((department) => `<option value="${escapeHtml(department)}">${escapeHtml(department)}</option>`)].join("");
+        }
+
+        function applyFilters() {
+            const keyword = String(searchInput.value || "").trim().toLowerCase();
+            const department = String(departmentFilter.value || "").trim().toLowerCase();
+            filteredRows = emailRows.filter((row) => {
+                const matchesKeyword = !keyword || [
+                    row["Nama User"],
+                    row["Email"],
+                    row["Department"],
+                    row["Job Code"],
+                    row["Location"],
+                    row["Perangkat"],
+                ].join(" ").toLowerCase().includes(keyword);
+                const matchesDepartment = !department || String(row["Department"] || "").trim().toLowerCase() === department;
+                return matchesKeyword && matchesDepartment;
+            });
+            currentPage = 1;
+            renderTable();
+        }
+
+        function renderPagination(totalRows, pageSize) {
+            const totalPages = Math.max(1, Math.ceil(totalRows / pageSize));
+            paginationControls.innerHTML = "";
+            const prevButton = document.createElement("button");
+            prevButton.className = "btn btn-light border";
+            prevButton.textContent = "Sebelumnya";
+            prevButton.disabled = currentPage <= 1;
+            prevButton.addEventListener("click", () => {
+                currentPage -= 1;
+                renderTable();
+            });
+            paginationControls.appendChild(prevButton);
+
+            for (let page = 1; page <= totalPages; page += 1) {
+                const pageButton = document.createElement("button");
+                pageButton.className = `btn btn-light border${page === currentPage ? " is-active" : ""}`;
+                pageButton.textContent = page;
+                pageButton.addEventListener("click", () => {
+                    currentPage = page;
+                    renderTable();
+                });
+                paginationControls.appendChild(pageButton);
+            }
+
+            const nextButton = document.createElement("button");
+            nextButton.className = "btn btn-light border";
+            nextButton.textContent = "Berikutnya";
+            nextButton.disabled = currentPage >= totalPages;
+            nextButton.addEventListener("click", () => {
+                currentPage += 1;
+                renderTable();
+            });
+            paginationControls.appendChild(nextButton);
+        }
+
+        function renderTable() {
+            const pageSize = Number(pageSizeInput.value || 15);
+            const totalRows = filteredRows.length;
+            const start = (currentPage - 1) * pageSize;
+            const pageRows = filteredRows.slice(start, start + pageSize);
+
+            if (!pageRows.length) {
+                tableBody.innerHTML = '<tr><td colspan="8" class="text-center text-muted py-4">Belum ada data email.</td></tr>';
+                paginationInfo.textContent = "Menampilkan 0 data";
+                renderPagination(0, pageSize);
+                return;
+            }
+
+            tableBody.innerHTML = pageRows.map((row) => `
+                <tr>
+                    <td>${escapeHtml(row["No"])}</td>
+                    <td>${escapeHtml(row["Nama User"])}</td>
+                    <td>${escapeHtml(row["Email"])}</td>
+                    <td>${escapeHtml(row["Department"])}</td>
+                    <td>${escapeHtml(row["Job Code"])}</td>
+                    <td>${escapeHtml(row["Location"])}</td>
+                    <td>${escapeHtml(row["Perangkat"])}</td>
+                    <td class="text-center">
+                        <div class="btn-group btn-group-sm table-action-group" role="group">
+                            <button type="button" class="btn btn-light border text-info" data-action="view" data-id="${escapeHtml(row.id)}" title="Lihat"><i class="feather-eye"></i></button>
+                            <button type="button" class="btn btn-light border text-primary" data-action="edit" data-id="${escapeHtml(row.id)}" title="Edit"><i class="feather-edit-2"></i></button>
+                        </div>
+                    </td>
+                </tr>
+            `).join("");
+
+            paginationInfo.textContent = `Menampilkan ${start + 1}-${start + pageRows.length} dari ${totalRows} data`;
+            renderPagination(totalRows, pageSize);
+        }
+
+        function openViewDrawer(row) {
+            const fields = [
+                ["No", row["No"]],
+                ["Department", row["Department"]],
+                ["Job Code", row["Job Code"]],
+                ["Nama User", row["Nama User"]],
+                ["Email", row["Email"]],
+                ["Location", row["Location"]],
+                ["Jenis License", row["Jenis License"]],
+                ["Password", row["Password"]],
+                ["Keterangan", row["Keterangan"]],
+                ["Perangkat", row["Perangkat"]],
+            ];
+
+            viewDrawerBody.innerHTML = fields.map(([label, value]) => `
+                <div class="view-drawer-item">
+                    <div class="view-drawer-label">${escapeHtml(label)}</div>
+                    <div class="view-drawer-value">${escapeHtml(value || "-")}</div>
+                </div>
+            `).join("");
+            viewDrawerOverlay.classList.add("open");
+            viewDrawerOverlay.setAttribute("aria-hidden", "false");
+            document.body.style.overflow = "hidden";
+        }
+
+        function closeViewDrawer() {
+            viewDrawerOverlay.classList.remove("open");
+            viewDrawerOverlay.setAttribute("aria-hidden", "true");
+            document.body.style.overflow = "";
+        }
+
+        async function loadRows() {
+            tableBody.innerHTML = '<tr><td colspan="8" class="text-center text-muted py-4">Loading data...</td></tr>';
+            hideAlert();
+            const response = await apiFetch(`${API_BASE}/email-records`);
+            const result = await response.json().catch(() => ({}));
+            if (!response.ok) {
+                throw new Error(result.message || "Gagal memuat data email.");
+            }
+
+            emailRows = Array.isArray(result.data) ? result.data : [];
+            populateDepartmentFilter();
+            applyFilters();
+        }
+
+        async function downloadImportTemplate() {
+            const response = await apiFetch(`${API_BASE}/email-records/import-template`);
+            if (!response.ok) {
+                const result = await response.json().catch(() => ({}));
+                throw new Error(result.message || "Gagal mengunduh template import.");
+            }
+
+            const blob = await response.blob();
+            const url = URL.createObjectURL(blob);
+            const anchor = document.createElement("a");
+            anchor.href = url;
+            anchor.download = "template-data-email.xlsx";
+            anchor.click();
+            URL.revokeObjectURL(url);
+        }
+
+        async function importFromExcel(event) {
+            const file = event.target.files?.[0];
+            if (!file) {
+                return;
+            }
+
+            const formData = new FormData();
+            formData.append("file", file);
+            const response = await apiFetch(`${API_BASE}/email-records/import`, {
+                method: "POST",
+                body: formData,
+            });
+            const result = await response.json().catch(() => ({}));
+            if (!response.ok) {
+                throw new Error(result.message || "Gagal import data email.");
+            }
+
+            const stats = result.stats || {};
+            showAlert(`Import selesai. Total ${stats.total || 0} baris, ${stats.created || 0} ditambahkan, ${stats.updated || 0} diperbarui.`, "success");
+            await loadRows();
+            importExcelInput.value = "";
+        }
+
+        async function exportCurrentRows() {
+            const response = await apiFetch(`${API_BASE}/email-records/export`, {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ ids: filteredRows.map((row) => row.id) }),
+            });
+            if (!response.ok) {
+                const result = await response.json().catch(() => ({}));
+                throw new Error(result.message || "Gagal export data email.");
+            }
+
+            const blob = await response.blob();
+            const url = URL.createObjectURL(blob);
+            const anchor = document.createElement("a");
+            anchor.href = url;
+            anchor.download = "data-email.xlsx";
+            anchor.click();
+            URL.revokeObjectURL(url);
+        }
+
+        tableBody.addEventListener("click", (event) => {
+            const target = event.target instanceof Element ? event.target.closest("[data-action]") : null;
+            if (!target) {
+                return;
+            }
+
+            const action = target.getAttribute("data-action");
+            const id = target.getAttribute("data-id");
+            const row = emailRows.find((item) => item.id === id);
+            if (!row) {
+                return;
+            }
+
+            if (action === "view") {
+                openViewDrawer(row);
+                return;
+            }
+
+            if (action === "edit") {
+                window.location.href = `data-email-form.html?id=${encodeURIComponent(id)}`;
+            }
+        });
+
+        searchInput.addEventListener("input", applyFilters);
+        departmentFilter.addEventListener("change", applyFilters);
+        pageSizeInput.addEventListener("change", () => {
+            currentPage = 1;
+            renderTable();
+        });
+        addDataButton.addEventListener("click", () => {
+            if (currentUserRole === "user") {
+                showAlert("Role user tidak diizinkan menambah Data Email.", "danger");
+                return;
+            }
+            window.location.href = "data-email-form.html";
+        });
+        refreshButton.addEventListener("click", () => loadRows().catch((error) => showAlert(error.message, "danger")));
+        downloadTemplateButton.addEventListener("click", () => downloadImportTemplate().catch((error) => showAlert(error.message, "danger")));
+        importExcelButton.addEventListener("click", () => importExcelInput.click());
+        importExcelInput.addEventListener("change", (event) => importFromExcel(event).catch((error) => showAlert(error.message, "danger")));
+        exportExcelButton.addEventListener("click", () => exportCurrentRows().catch((error) => showAlert(error.message, "danger")));
+        viewDrawerCloseButton.addEventListener("click", closeViewDrawer);
+        viewDrawerOverlay.addEventListener("click", (event) => {
+            if (event.target === viewDrawerOverlay) {
+                closeViewDrawer();
+            }
+        });
+        document.addEventListener("keydown", (event) => {
+            if (event.key === "Escape" && viewDrawerOverlay.classList.contains("open")) {
+                closeViewDrawer();
+            }
+        });
+
+        if (currentUserRole === "user") {
+            addDataButton.classList.add("d-none");
+            downloadTemplateButton.classList.add("d-none");
+            importExcelButton.classList.add("d-none");
+        }
+
+        loadRows().catch((error) => showAlert(error.message || "Gagal memuat data email.", "danger"));
+    </script>
+</body>
+
+</html>

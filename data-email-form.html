@@ -1,0 +1,331 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="utf-8">
+    <meta http-equiv="x-ua-compatible" content="IE=edge">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Form Data Email</title>
+    <link rel="shortcut icon" type="image/x-icon" href="assets/images/favicon.ico">
+    <link rel="stylesheet" type="text/css" href="assets/css/bootstrap.min.css">
+    <link rel="stylesheet" type="text/css" href="assets/vendors/css/vendors.min.css">
+    <link rel="stylesheet" type="text/css" href="assets/css/theme.min.css">
+    <link rel="stylesheet" type="text/css" href="assets/css/theme-mode.css">
+    <script src="assets/js/auth-client.js"></script>
+    <script src="assets/js/runtime-config.js"></script>
+    <script src="assets/js/app-config.js"></script>
+    <script src="assets/js/theme-mode.js"></script>
+    <script>
+        if (window.AuthClient) {
+            window.AuthClient.requireAuth();
+            window.AuthClient.validateSession(window.AppConfig.API_BASE);
+        }
+    </script>
+    <style>
+        .page-shell { min-height: 100vh; background: linear-gradient(160deg, #f8fafc 0%, #eef4ff 45%, #edf9f4 100%); padding: 32px 0; }
+        .page-title { font-size: 1.5rem; font-weight: 700; color: #0f172a; margin-bottom: 4px; }
+        .page-subtitle { color: #475569; margin-bottom: 0; }
+        .card-shadow { border: 0; box-shadow: 0 10px 30px rgba(15, 23, 42, 0.08); }
+        .form-section { border: 1px solid #e2e8f0; border-radius: 12px; background: #fff; padding: 16px; }
+        .form-section-title { margin: 0 0 12px; font-size: 0.95rem; font-weight: 700; color: #0f172a; }
+        textarea.form-control { min-height: 96px; resize: vertical; }
+    </style>
+</head>
+
+<body>
+    <main class="page-shell">
+        <div class="container-fluid px-4">
+            <div class="d-flex justify-content-between align-items-start flex-wrap gap-3 mb-4">
+                <div>
+                    <h1 class="page-title" id="pageTitle">Form Data Email</h1>
+                    <p class="page-subtitle">Kelola data akun email inventory dengan pola akses yang sama seperti data perangkat.</p>
+                    <p class="text-warning mb-0 mt-1 d-none" id="roleEditHint">Role user hanya bisa mengubah Password dan Keterangan.</p>
+                </div>
+                <button type="button" class="btn btn-light border" id="backButton">Kembali ke Data Email</button>
+            </div>
+
+            <div id="alertBox" class="alert d-none" role="alert"></div>
+
+            <form class="card card-shadow" id="emailForm">
+                <div class="card-body">
+                    <div class="form-section mb-4">
+                        <h5 class="form-section-title">Informasi Email</h5>
+                        <div class="row g-3">
+                            <div class="col-lg-2 col-md-4">
+                                <label class="form-label fw-semibold" for="legacyNo">No</label>
+                                <input type="number" class="form-control" id="legacyNo" placeholder="Otomatis jika kosong">
+                            </div>
+                            <div class="col-lg-5 col-md-8">
+                                <label class="form-label fw-semibold" for="departmentId">Department</label>
+                                <select class="form-select" id="departmentId" required>
+                                    <option value="">Pilih Department</option>
+                                </select>
+                            </div>
+                            <div class="col-lg-5 col-md-6">
+                                <label class="form-label fw-semibold" for="departmentJobCodeId">Job Code</label>
+                                <select class="form-select" id="departmentJobCodeId" required>
+                                    <option value="">Pilih Department dulu</option>
+                                </select>
+                            </div>
+                            <div class="col-lg-4 col-md-6">
+                                <label class="form-label fw-semibold" for="userName">Nama User</label>
+                                <input type="text" class="form-control" id="userName" required>
+                            </div>
+                            <div class="col-lg-4 col-md-6">
+                                <label class="form-label fw-semibold" for="email">Email</label>
+                                <input type="email" class="form-control" id="email" required>
+                            </div>
+                            <div class="col-lg-4 col-md-6">
+                                <label class="form-label fw-semibold" for="location">Location</label>
+                                <input type="text" class="form-control" id="location">
+                            </div>
+                            <div class="col-lg-4 col-md-6">
+                                <label class="form-label fw-semibold" for="licenseType">Jenis License</label>
+                                <select class="form-select" id="licenseType" required>
+                                    <option value="">Pilih Jenis License</option>
+                                    <option value="Miccrosoft 365 Business Basic">Miccrosoft 365 Business Basic</option>
+                                    <option value="Miccrosoft 365 Business Standard">Miccrosoft 365 Business Standard</option>
+                                    <option value="Miccrosoft 365 E1">Miccrosoft 365 E1</option>
+                                </select>
+                            </div>
+                            <div class="col-lg-4 col-md-6">
+                                <label class="form-label fw-semibold" for="password">Password</label>
+                                <input type="text" class="form-control" id="password">
+                            </div>
+                            <div class="col-lg-4 col-md-6">
+                                <label class="form-label fw-semibold" for="assignedDevice">Perangkat</label>
+                                <input type="text" class="form-control" id="assignedDevice" readonly>
+                            </div>
+                            <div class="col-12">
+                                <label class="form-label fw-semibold" for="keterangan">Keterangan</label>
+                                <textarea class="form-control" id="keterangan"></textarea>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="d-flex gap-2 justify-content-end">
+                        <button type="button" class="btn btn-light border" id="cancelButton">Batal</button>
+                        <button type="submit" class="btn btn-primary" id="submitButton">Simpan Data</button>
+                    </div>
+                </div>
+            </form>
+        </div>
+    </main>
+
+    <script src="assets/vendors/js/vendors.min.js"></script>
+    <script src="assets/js/common-init.min.js"></script>
+    <script>
+        const API_BASE = window.AppConfig.API_BASE;
+        const currentUserRole = window.AuthClient?.getUserRole?.() || "admin";
+        const params = new URLSearchParams(window.location.search);
+        const editingId = String(params.get("id") || "").trim();
+
+        const form = document.getElementById("emailForm");
+        const pageTitle = document.getElementById("pageTitle");
+        const roleEditHint = document.getElementById("roleEditHint");
+        const alertBox = document.getElementById("alertBox");
+        const backButton = document.getElementById("backButton");
+        const cancelButton = document.getElementById("cancelButton");
+        const submitButton = document.getElementById("submitButton");
+        const legacyNoInput = document.getElementById("legacyNo");
+        const departmentIdInput = document.getElementById("departmentId");
+        const departmentJobCodeIdInput = document.getElementById("departmentJobCodeId");
+        const userNameInput = document.getElementById("userName");
+        const emailInput = document.getElementById("email");
+        const locationInput = document.getElementById("location");
+        const licenseTypeInput = document.getElementById("licenseType");
+        const passwordInput = document.getElementById("password");
+        const assignedDeviceInput = document.getElementById("assignedDevice");
+        const keteranganInput = document.getElementById("keterangan");
+
+        let departments = [];
+        let currentRow = null;
+
+        function apiFetch(url, options = {}) {
+            if (window.AuthClient) {
+                return window.AuthClient.fetchWithAuth(url, options);
+            }
+            return fetch(url, options);
+        }
+
+        function showAlert(message, type = "success") {
+            alertBox.className = `alert alert-${type}`;
+            alertBox.textContent = message;
+            alertBox.classList.remove("d-none");
+        }
+
+        function hideAlert() {
+            alertBox.className = "alert d-none";
+            alertBox.textContent = "";
+        }
+
+        function goBack() {
+            window.location.href = "data-email.html";
+        }
+
+        function getDepartmentById(id) {
+            return departments.find((row) => Number(row.id) === Number(id)) || null;
+        }
+
+        function populateDepartmentOptions() {
+            departmentIdInput.innerHTML = [
+                '<option value="">Pilih Department</option>',
+                ...departments.map((department) => `<option value="${department.id}">${department.code} - ${department.siteName}</option>`)
+            ].join("");
+        }
+
+        function populateJobCodeOptions(selectedDepartmentId, selectedJobCodeId = "") {
+            const department = getDepartmentById(selectedDepartmentId);
+            const jobCodes = Array.isArray(department?.jobCodes) ? department.jobCodes : [];
+            departmentJobCodeIdInput.innerHTML = [
+                `<option value="">${jobCodes.length ? "Pilih Job Code" : "Tidak ada Job Code"}</option>`,
+                ...jobCodes.map((jobCode) => `<option value="${jobCode.id}">${jobCode.code}</option>`)
+            ].join("");
+            if (selectedJobCodeId) {
+                departmentJobCodeIdInput.value = String(selectedJobCodeId);
+            }
+        }
+
+        function applyRolePermissions() {
+            const isUserRestrictedEdit = currentUserRole === "user" && Boolean(editingId);
+            roleEditHint.classList.toggle("d-none", !isUserRestrictedEdit);
+
+            [
+                legacyNoInput,
+                departmentIdInput,
+                departmentJobCodeIdInput,
+                userNameInput,
+                emailInput,
+                locationInput,
+                licenseTypeInput,
+            ].forEach((input) => {
+                input.disabled = isUserRestrictedEdit;
+                if ("readOnly" in input) {
+                    input.readOnly = isUserRestrictedEdit;
+                }
+            });
+
+            passwordInput.disabled = false;
+            keteranganInput.disabled = false;
+
+            if (currentUserRole === "user" && !editingId) {
+                showAlert("Role user tidak diizinkan menambah Data Email.", "danger");
+                submitButton.disabled = true;
+            }
+        }
+
+        async function loadDepartments() {
+            const response = await apiFetch(`${API_BASE}/departments`);
+            const result = await response.json().catch(() => ({}));
+            if (!response.ok) {
+                throw new Error(result.message || "Gagal memuat department.");
+            }
+
+            departments = Array.isArray(result.data) ? result.data : [];
+            populateDepartmentOptions();
+        }
+
+        async function loadExistingRow() {
+            if (!editingId) {
+                return;
+            }
+
+            const response = await apiFetch(`${API_BASE}/email-records/${encodeURIComponent(editingId)}`);
+            const result = await response.json().catch(() => ({}));
+            if (!response.ok) {
+                throw new Error(result.message || "Gagal memuat Data Email.");
+            }
+
+            currentRow = result.data || null;
+            if (!currentRow) {
+                throw new Error("Data Email tidak ditemukan.");
+            }
+
+            pageTitle.textContent = "Edit Data Email";
+            submitButton.textContent = "Update Data";
+            legacyNoInput.value = currentRow["No"] || "";
+            userNameInput.value = currentRow["Nama User"] || "";
+            emailInput.value = currentRow["Email"] || "";
+            locationInput.value = currentRow["Location"] || "";
+            licenseTypeInput.value = currentRow["Jenis License"] || "";
+            passwordInput.value = currentRow["Password"] || "";
+            keteranganInput.value = currentRow["Keterangan"] || "";
+            assignedDeviceInput.value = currentRow["Perangkat"] || "";
+
+            const department = departments.find((row) => String(row.code || "").trim() === String(currentRow["Department"] || "").trim());
+            if (department) {
+                departmentIdInput.value = String(department.id);
+                populateJobCodeOptions(department.id);
+                const jobCode = (department.jobCodes || []).find((row) => String(row.code || "").trim() === String(currentRow["Job Code"] || "").trim());
+                if (jobCode) {
+                    departmentJobCodeIdInput.value = String(jobCode.id);
+                }
+            }
+        }
+
+        function getPayload() {
+            return {
+                no: legacyNoInput.value ? Number(legacyNoInput.value) : null,
+                departmentId: Number(departmentIdInput.value),
+                departmentJobCodeId: Number(departmentJobCodeIdInput.value),
+                userName: userNameInput.value,
+                email: emailInput.value,
+                location: locationInput.value,
+                licenseType: licenseTypeInput.value,
+                password: passwordInput.value,
+                keterangan: keteranganInput.value,
+                editorRole: currentUserRole,
+            };
+        }
+
+        async function submitForm(event) {
+            event.preventDefault();
+            hideAlert();
+            submitButton.disabled = true;
+            const defaultText = submitButton.textContent;
+            submitButton.textContent = editingId ? "Updating..." : "Saving...";
+
+            try {
+                const response = await apiFetch(
+                    editingId ? `${API_BASE}/email-records/${encodeURIComponent(editingId)}` : `${API_BASE}/email-records`,
+                    {
+                        method: editingId ? "PUT" : "POST",
+                        headers: {
+                            "Content-Type": "application/json",
+                            "x-user-role": currentUserRole,
+                        },
+                        body: JSON.stringify(getPayload()),
+                    },
+                );
+
+                const result = await response.json().catch(() => ({}));
+                if (!response.ok) {
+                    throw new Error(result.message || "Gagal menyimpan Data Email.");
+                }
+
+                showAlert(editingId ? "Data Email berhasil diupdate." : "Data Email berhasil disimpan.", "success");
+                setTimeout(goBack, 700);
+            } catch (error) {
+                showAlert(error.message || "Gagal menyimpan Data Email.", "danger");
+            } finally {
+                submitButton.disabled = false;
+                submitButton.textContent = defaultText;
+            }
+        }
+
+        departmentIdInput.addEventListener("change", () => {
+            populateJobCodeOptions(departmentIdInput.value);
+        });
+        backButton.addEventListener("click", goBack);
+        cancelButton.addEventListener("click", goBack);
+        form.addEventListener("submit", submitForm);
+
+        Promise.resolve()
+            .then(loadDepartments)
+            .then(loadExistingRow)
+            .then(applyRolePermissions)
+            .catch((error) => showAlert(error.message || "Gagal menyiapkan form Data Email.", "danger"));
+    </script>
+</body>
+
+</html>

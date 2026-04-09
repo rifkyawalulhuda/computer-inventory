@@ -48,6 +48,8 @@ File halaman utama:
 - `master-user.html`: master user
 - `data-perangkat.html`: daftar data perangkat
 - `data-perangkat-form.html`: form tambah/edit perangkat
+- `data-email.html`: daftar data email
+- `data-email-form.html`: form tambah/edit data email
 - `flow-proses.html`: halaman flow approval perangkat dan request perubahan Job Code / transfer site
 - `profile-details.html`: profil user
 
@@ -90,6 +92,8 @@ Halaman operasional utama:
 
 - `data-perangkat.html`: list perangkat, filter, import/export, aksi data, dan drawer detail perangkat
 - `data-perangkat-form.html`: form create/update perangkat
+- `data-email.html`: list akun email, filter, import/export, aksi data, dan drawer detail email
+- `data-email-form.html`: form create/update akun email
 - `flow-proses.html`: monitoring approval perangkat, request perubahan Job Code / transfer site, reject note, tanda tangan digital, cetak BAST
 - `department.html`: CRUD department dan import Excel
 - `master-user.html`: CRUD user admin/user
@@ -117,6 +121,13 @@ Perubahan UI terbaru yang penting:
 - dropdown notifikasi di `index.html` dipisah menjadi section `Workflow` dan `Lease`
 - urutan notifikasi sekarang mengutamakan item terbaru di paling atas; item lama terdorong ke bawah saat ada notifikasi baru
 - reject untuk flow `Ganti Job Code` dan `Transfer Site` tidak lagi menjadi prioritas utama di notifikasi workflow dan tidak menambah badge reject pada navbar/sidebar flow
+- tombol `All Notifications` di dropdown bell sekarang membuka modal notifikasi penuh dengan daftar history yang lebih lengkap, bukan langsung pindah halaman
+- modal `All Notifications` memakai sumber data yang sama dengan dropdown bell, tetapi tanpa limit 5 item per section dan dengan pesan notifikasi yang tidak dipotong
+- dashboard `index.html` sekarang punya menu `Data Email` di bawah `Data Perangkat`
+- fitur `Data Email` mengikuti pola `Data Perangkat` untuk list, form, drawer detail, import template, import Excel, dan export
+- role admin bisa create/edit/import/export semua Data Email
+- role user hanya bisa melihat Data Email milik department sendiri dan hanya boleh mengubah `Password` serta `Keterangan`
+- kolom `Perangkat` pada `Data Email` mengambil hostname perangkat yang terhubung lewat relasi langsung atau fallback kecocokan email lama
 
 ## Backend
 
@@ -131,6 +142,7 @@ Route yang terpasang:
 - `authRouter`: login, profile, session
 - `deviceRouter`: list device sederhana
 - `deviceRecordRouter`: fitur utama data perangkat dan flow proses
+- `emailRecordRouter`: fitur utama data email
 - `departmentRouter`: CRUD department + import/export template
 - `masterUserRouter`: CRUD user
 
@@ -163,6 +175,14 @@ Endpoint penting yang terlihat dari source dan README backend:
 - `POST /api/master-users`
 - `PUT /api/master-users/:id`
 - `DELETE /api/master-users/:id`
+- `GET /api/email-records`
+- `GET /api/email-records/:id`
+- `POST /api/email-records`
+- `PUT /api/email-records/:id`
+- `DELETE /api/email-records/:id`
+- `GET /api/email-records/import-template`
+- `POST /api/email-records/import`
+- `POST /api/email-records/export`
 - `GET /api/device-records`
 - `POST /api/device-records`
 - `POST /api/device-records/:id/change-requests`
@@ -187,7 +207,13 @@ Area `device-records` juga menangani:
 - request perubahan (`DeviceChangeRequest`) tetap terlihat oleh requester, reviewer aktif, dan `targetPicUserId`
 - flow approval perangkat lama (`Device.flowStatus`) tidak ikut pindah ke PIC penerima baru; user hanya melihat flow lama yang memang pernah dia submit/proses atau yang sedang pending ke dirinya
 - mapping hasil `GET /api/device-records/flows` untuk kolom `Department` dan `PIC Name` diprioritaskan dari requester/submitted-by agar histori tetap stabil setelah perpindahan site/job code
+- `GET /api/device-records/:id` untuk halaman edit perangkat harus tetap mengembalikan `Department` dan `PIC Name` dari current device state, bukan dari mapping histori flow
+- edit langsung perangkat oleh admin yang mengubah `Site Code Sistem POMS`, `Department`, `Job Code`, atau `PIC` sekarang juga menyinkronkan `flowAssignedPicUserId` ke PIC terbaru
+- edit langsung perangkat oleh admin yang memindahkan kepemilikan/penempatan device menulis marker notifikasi ke histori agar user terkait menerima notifikasi `UPDATED`
+- notifikasi edit langsung admin harus bisa diterima oleh PIC lama, PIC baru, atau admin target jika device dipindahkan ke department/job code/PIC milik admin
+- `GET /api/device-records/dashboard-summary` sekarang juga mengembalikan `adminEditNotifications` selain ringkasan lease/dashboard biasa
 - payload flow gabungan membawa field seperti `flowItemType`, `requestTypeLabel`, `currentStepLabel`, `availableActions`, `Target PIC Name`, dan histori request
+- area `email-records` menerapkan scope department untuk role user, validasi readonly di backend, import template Excel, import file Excel, dan export file Excel
 
 ## Data Model
 
@@ -209,15 +235,19 @@ Model domain yang penting:
 - `RemoteAccessProfile`
 - `DeviceChangeRequest`
 - `DeviceChangeRequestEvent`
+- `EmailAccount`
 
 Relasi bisnis utama:
 
 - `Department` punya banyak `Device` dan `MasterUser`
+- `Department` juga punya banyak `EmailAccount`
 - `Device` terhubung ke category, model, location, assignment, IP, dan lease contract
+- `EmailAccount` terhubung ke `Department`, `DepartmentJobCode`, optional `Location`, dan optional satu `Device`
 - `LeaseContract` menyimpan start/end date, days lease, lease status, history log
 - `Device` menyimpan metadata flow approval seperti `flowStatus`, approver, reject note, signatures
 - `DeviceChangeRequest` menyimpan workflow perubahan `Job Code` dan transfer site/device di luar `Device.flowStatus`
 - `DeviceChangeRequestEvent` menyimpan audit trail setiap aksi request seperti create, approve, reject, dan assign job code
+- untuk kompatibilitas data lama, tampilan perangkat di `Data Email` boleh fallback ke kecocokan `Device.userEmailRaw == EmailAccount.email` jika relasi langsung belum terset
 
 Field perangkat yang perlu diperhatikan:
 
@@ -296,10 +326,12 @@ Jika mau melanjutkan pengembangan, area yang paling sentral biasanya:
 - `data-perangkat-form.html`
 - `index.html`
 - `backend/src/routes/device-records.ts`
+- `backend/src/routes/email-records.ts`
 - `backend/src/lib/mailer.ts`
 - `backend/prisma/schema.prisma`
 - `backend/prisma/migrations/20260408193000_add_device_poms_site_code_system/migration.sql`
 - `backend/prisma/migrations/20260408214500_add_device_change_request_workflow/migration.sql`
+- `backend/prisma/migrations/20260409120000_add_email_accounts/migration.sql`
 - `assets/js/app-config.js`
 - `assets/js/auth-client.js`
 

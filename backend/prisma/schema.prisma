@@ -16,6 +16,7 @@ model Department {
   devices     Device[]
   users       MasterUser[]
   jobCodes    DepartmentJobCode[]
+  emailAccounts EmailAccount[]
   requestedDeviceChangeRequests DeviceChangeRequest[] @relation("DeviceChangeRequestRequestedDepartment")
   targetDeviceChangeRequests    DeviceChangeRequest[] @relation("DeviceChangeRequestTargetDepartment")
 
@@ -31,6 +32,7 @@ model DepartmentJobCode {
   code         String     @unique @map("job_code") @db.VarChar(15)
   department   Department @relation(fields: [departmentId], references: [id], onDelete: Cascade)
   devices      Device[]
+  emailAccounts EmailAccount[]
   requestedDeviceChangeRequests DeviceChangeRequest[] @relation("DeviceChangeRequestRequestedJobCode")
   targetDeviceChangeRequests    DeviceChangeRequest[] @relation("DeviceChangeRequestTargetJobCode")
 
@@ -68,6 +70,7 @@ model Location {
   id      Int      @id @default(autoincrement())
   name    String   @unique
   devices Device[]
+  emailAccounts EmailAccount[]
 
   createdAt DateTime @default(now()) @map("created_at")
   updatedAt DateTime @updatedAt @map("updated_at")
@@ -140,12 +143,14 @@ model Device {
   categoryId           Int? @map("category_id")
   modelId              Int? @map("model_id")
   locationId           Int? @map("location_id")
+  emailAccountId       String? @unique @map("email_account_id")
 
   jobCode            Department?        @relation(fields: [jobCodeId], references: [id], onDelete: SetNull)
   departmentJobCode  DepartmentJobCode? @relation(fields: [departmentJobCodeId], references: [id], onDelete: SetNull)
   category           DeviceCategory?    @relation(fields: [categoryId], references: [id], onDelete: SetNull)
   model              DeviceModel?       @relation(fields: [modelId], references: [id], onDelete: SetNull)
   location           Location?          @relation(fields: [locationId], references: [id], onDelete: SetNull)
+  emailAccount       EmailAccount?      @relation(fields: [emailAccountId], references: [id], onDelete: SetNull)
 
   ipAddresses          DeviceIp[]
   assignments          DeviceAssignment[]
@@ -161,7 +166,35 @@ model Device {
   @@index([categoryId], map: "idx_devices_category_id")
   @@index([departmentJobCodeId], map: "idx_devices_department_job_code_id")
   @@index([flowStatus], map: "idx_devices_flow_status")
+  @@index([emailAccountId], map: "idx_devices_email_account_id")
   @@map("devices")
+}
+
+model EmailAccount {
+  id                  String             @id @default(cuid())
+  legacyNo            Int?               @map("legacy_no")
+  departmentId        Int                @map("department_id")
+  departmentJobCodeId Int?               @map("department_job_code_id")
+  userName            String             @map("user_name") @db.VarChar(191)
+  email               String             @unique @db.VarChar(191)
+  locationRaw         String?            @map("location_raw") @db.VarChar(191)
+  locationId          Int?               @map("location_id")
+  licenseType         String             @map("license_type") @db.VarChar(100)
+  password            String?            @db.Text
+  notes               String?            @db.Text
+
+  department          Department         @relation(fields: [departmentId], references: [id], onDelete: Restrict)
+  departmentJobCode   DepartmentJobCode? @relation(fields: [departmentJobCodeId], references: [id], onDelete: SetNull)
+  location            Location?          @relation(fields: [locationId], references: [id], onDelete: SetNull)
+  assignedDevice      Device?
+
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  @@index([departmentId], map: "idx_email_accounts_department_id")
+  @@index([departmentJobCodeId], map: "idx_email_accounts_department_job_code_id")
+  @@index([locationId], map: "idx_email_accounts_location_id")
+  @@map("email_accounts")
 }
 
 model DeviceChangeRequest {

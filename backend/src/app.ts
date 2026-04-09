@@ -4,6 +4,7 @@ import express, { type NextFunction, type Request, type Response } from "express
 import path from "path";
 import { requireAuth } from "./middleware/auth";
 import { authRouter } from "./routes/auth";
+import { emailRecordRouter } from "./routes/email-records";
 import { deviceRecordRouter } from "./routes/device-records";
 import { deviceRouter } from "./routes/devices";
 import { healthRouter } from "./routes/health";
@@ -22,6 +23,7 @@ app.use("/api", healthRouter);
 app.use("/api", authRouter);
 app.use("/api", requireAuth, deviceRouter);
 app.use("/api", requireAuth, deviceRecordRouter);
+app.use("/api", requireAuth, emailRecordRouter);
 app.use("/api", requireAuth, departmentRouter);
 app.use("/api", requireAuth, masterUserRouter);
 
