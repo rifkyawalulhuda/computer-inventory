@@ -309,6 +309,50 @@ html.app-skin-dark .all-notifications-modal .notifications-mark-read.disabled {
   color: #5e7698 !important;
 }
 
+html.app-skin-dark .all-notifications-feedback.is-success {
+  background: rgba(34, 197, 94, 0.14) !important;
+  border-color: rgba(34, 197, 94, 0.22) !important;
+  color: #86efac !important;
+}
+
+html.app-skin-dark .all-notifications-feedback.is-error {
+  background: rgba(239, 68, 68, 0.14) !important;
+  border-color: rgba(239, 68, 68, 0.22) !important;
+  color: #fca5a5 !important;
+}
+
+html.app-skin-dark .all-notifications-toolbar {
+  background: linear-gradient(180deg, #141f36 0%, #101a2f 100%) !important;
+  border-bottom-color: #2a3a58 !important;
+}
+
+html.app-skin-dark .all-notifications-selection {
+  color: #d8e5fa !important;
+}
+
+html.app-skin-dark .all-notifications-action-btn {
+  background: #15243d !important;
+  border-color: #2a3a58 !important;
+  color: #d8e5fa !important;
+}
+
+html.app-skin-dark .all-notifications-action-btn:hover {
+  background: #1a2b47 !important;
+  border-color: #3a5176 !important;
+  color: #eef4ff !important;
+}
+
+html.app-skin-dark .all-notifications-action-btn:disabled,
+html.app-skin-dark .all-notifications-action-btn.disabled {
+  color: #6f86a7 !important;
+}
+
+html.app-skin-dark .all-notifications-action-btn.is-danger {
+  background: rgba(127, 29, 29, 0.35) !important;
+  border-color: rgba(248, 113, 113, 0.22) !important;
+  color: #fecaca !important;
+}
+
 html.app-skin-dark .all-notifications-list {
   background: linear-gradient(180deg, #0f172a 0%, #111b30 100%) !important;
 }
@@ -336,8 +380,17 @@ html.app-skin-dark .all-notifications-list .notifications-item.is-read {
   background: #132137 !important;
 }
 
+html.app-skin-dark .all-notifications-list .notifications-item.is-selected {
+  border-color: #60a5fa !important;
+  box-shadow: 0 0 0 3px rgba(96, 165, 250, 0.14) !important;
+}
+
 html.app-skin-dark .all-notifications-list .notification-open-btn {
   color: #e4ecf7 !important;
+}
+
+html.app-skin-dark .all-notifications-list .notification-select-input {
+  filter: brightness(1.1);
 }
 
 html.app-skin-dark .all-notifications-list .notification-icon {

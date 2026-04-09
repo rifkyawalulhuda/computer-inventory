@@ -1,4 +1,5 @@
 import { Prisma } from "@prisma/client";
+import { randomUUID } from "crypto";
 import multer from "multer";
 import { type Request, type Response, Router } from "express";
 import XLSX from "xlsx";
@@ -84,6 +85,10 @@ type DeviceChangeRequestAssignPayload = {
   targetDepartmentJobCodeId: number;
 };
 
+type NotificationHidePayload = {
+  keys?: unknown;
+};
+
 type DeviceImportFileRow = {
   rowNumber: number;
   pomsSiteCodeSystem: string;
@@ -162,6 +167,7 @@ const MAX_DEVICE_IMPORT_FILE_SIZE = 5 * 1024 * 1024;
 const DEVICE_IMPORT_DROPDOWN_MAX_ROWS = 1000;
 const LEGACY_NO_LOCK_KEY = 8042026;
 const DASHBOARD_EXPIRING_SOON_DAYS = 28;
+const MAX_NOTIFICATION_HIDE_KEYS = 500;
 
 const deviceImportUpload = multer({
   storage: multer.memoryStorage(),
@@ -934,6 +940,73 @@ async function resolveDataScope(req: Request): Promise<{ editorRole: EditorRole;
   }
 
   return { editorRole, userJobCodeId, userId };
+}
+
+function requireAuthenticatedUserId(req: Request): string {
+  const userId = cleanText(req.authUser?.id);
+  if (!userId) {
+    throw new Error("AUTH_USER_NOT_FOUND");
+  }
+
+  return userId;
+}
+
+function normalizeNotificationKeys(value: unknown): string[] {
+  if (!Array.isArray(value)) {
+    return [];
+  }
+
+  const normalizedKeys: string[] = [];
+  const seenKeys = new Set<string>();
+
+  value.forEach((entry) => {
+    const key = cleanText(entry);
+    if (!key || key.length > 255 || seenKeys.has(key)) {
+      return;
+    }
+
+    seenKeys.add(key);
+    normalizedKeys.push(key);
+  });
+
+  return normalizedKeys.slice(0, MAX_NOTIFICATION_HIDE_KEYS);
+}
+
+async function getHiddenNotificationKeys(userId: string): Promise<string[]> {
+  const normalizedUserId = cleanText(userId);
+  if (!normalizedUserId) {
+    return [];
+  }
+
+  const rows = await prisma.$queryRaw<Array<{ notification_key: string | null }>>(Prisma.sql`
+    SELECT "notification_key"
+    FROM "user_hidden_notifications"
+    WHERE "user_id" = ${normalizedUserId}
+  `);
+
+  return rows
+    .map((row) => cleanText(row.notification_key))
+    .filter(Boolean);
+}
+
+async function hideNotificationsForUser(userId: string, keys: string[]): Promise<string[]> {
+  const normalizedUserId = cleanText(userId);
+  const normalizedKeys = normalizeNotificationKeys(keys);
+  if (!normalizedUserId || normalizedKeys.length === 0) {
+    return [];
+  }
+
+  const valueTuples = Prisma.join(
+    normalizedKeys.map((notificationKey) => Prisma.sql`(${randomUUID()}, ${normalizedUserId}, ${notificationKey}, NOW())`)
+  );
+
+  await prisma.$executeRaw(Prisma.sql`
+    INSERT INTO "user_hidden_notifications" ("id", "user_id", "notification_key", "created_at")
+    VALUES ${valueTuples}
+    ON CONFLICT ("user_id", "notification_key") DO NOTHING
+  `);
+
+  return normalizedKeys;
 }
 
 function splitIpList(ipList: string | null): string[] {
@@ -2423,6 +2496,54 @@ deviceRecordRouter.get("/device-records", async (req, res, next) => {
   }
 });
 
+deviceRecordRouter.post("/device-records/notifications/hide", async (req, res, next) => {
+  try {
+    const userId = requireAuthenticatedUserId(req);
+    const payload = (req.body ?? {}) as NotificationHidePayload;
+    const hiddenKeys = await hideNotificationsForUser(userId, normalizeNotificationKeys(payload.keys));
+
+    res.json({
+      data: {
+        hiddenCount: hiddenKeys.length,
+        hiddenKeys,
+      },
+      message: hiddenKeys.length > 0
+        ? "Notifikasi terpilih berhasil disembunyikan."
+        : "Tidak ada notifikasi yang dipilih.",
+    });
+  } catch (error) {
+    if (error instanceof Error && error.message === "AUTH_USER_NOT_FOUND") {
+      return res.status(401).json({ message: "Session login tidak ditemukan." });
+    }
+
+    next(error);
+  }
+});
+
+deviceRecordRouter.post("/device-records/notifications/hide-all", async (req, res, next) => {
+  try {
+    const userId = requireAuthenticatedUserId(req);
+    const payload = (req.body ?? {}) as NotificationHidePayload;
+    const hiddenKeys = await hideNotificationsForUser(userId, normalizeNotificationKeys(payload.keys));
+
+    res.json({
+      data: {
+        hiddenCount: hiddenKeys.length,
+        hiddenKeys,
+      },
+      message: hiddenKeys.length > 0
+        ? "Semua notifikasi pada daftar berhasil disembunyikan."
+        : "Tidak ada notifikasi untuk disembunyikan.",
+    });
+  } catch (error) {
+    if (error instanceof Error && error.message === "AUTH_USER_NOT_FOUND") {
+      return res.status(401).json({ message: "Session login tidak ditemukan." });
+    }
+
+    next(error);
+  }
+});
+
 deviceRecordRouter.get("/device-records/dashboard-summary", async (req, res, next) => {
   try {
     const scope = await resolveDataScope(req);
@@ -2762,6 +2883,10 @@ deviceRecordRouter.get("/device-records/dashboard-summary", async (req, res, nex
       });
     }
 
+    const hiddenNotificationKeys = scope.userId
+      ? await getHiddenNotificationKeys(scope.userId)
+      : [];
+
     res.json({
       data: {
         generatedAt: new Date().toISOString(),
@@ -2771,9 +2896,14 @@ deviceRecordRouter.get("/device-records/dashboard-summary", async (req, res, nex
         devices,
         adminEditNotifications,
         emailCreateNotifications,
+        hiddenNotificationKeys,
       },
     });
   } catch (error) {
+    if (error instanceof Error && error.message === "AUTH_USER_NOT_FOUND") {
+      return res.status(401).json({ message: "Session login tidak ditemukan." });
+    }
+
     if (error instanceof Error && error.message === "ROLE_USER_JOB_CODE_NOT_FOUND") {
       return res.status(403).json({ message: "Department user tidak ditemukan. Hubungi admin." });
     }

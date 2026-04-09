@@ -632,6 +632,89 @@
             pointer-events: none;
         }
 
+        .all-notifications-feedback {
+            margin: 14px 14px 0;
+            border-radius: 12px;
+            padding: 12px 14px;
+            font-size: 0.82rem;
+            line-height: 1.45;
+            border: 1px solid transparent;
+        }
+
+        .all-notifications-feedback.is-success {
+            background: rgba(22, 163, 74, 0.1);
+            border-color: rgba(22, 163, 74, 0.18);
+            color: #166534;
+        }
+
+        .all-notifications-feedback.is-error {
+            background: rgba(239, 68, 68, 0.1);
+            border-color: rgba(239, 68, 68, 0.18);
+            color: #b91c1c;
+        }
+
+        .all-notifications-toolbar {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 12px;
+            padding: 14px;
+            border-bottom: 1px solid #e5edf7;
+            background: linear-gradient(180deg, #ffffff 0%, #f8fbff 100%);
+        }
+
+        .all-notifications-selection {
+            font-size: 0.8rem;
+            font-weight: 700;
+            color: #475569;
+        }
+
+        .all-notifications-actions {
+            display: flex;
+            align-items: center;
+            justify-content: flex-end;
+            gap: 10px;
+            flex-wrap: wrap;
+        }
+
+        .all-notifications-action-btn {
+            border: 1px solid #d7e3f1;
+            border-radius: 999px;
+            background: #ffffff;
+            color: #334155;
+            padding: 8px 14px;
+            font-size: 0.74rem;
+            font-weight: 700;
+            letter-spacing: 0.02em;
+            text-transform: uppercase;
+            transition: background-color 0.2s ease, border-color 0.2s ease, color 0.2s ease, opacity 0.2s ease;
+        }
+
+        .all-notifications-action-btn:hover {
+            background: #f8fafc;
+            border-color: #c7d8ef;
+            color: #0f172a;
+        }
+
+        .all-notifications-action-btn:disabled,
+        .all-notifications-action-btn.disabled {
+            opacity: 0.45;
+            cursor: not-allowed;
+            pointer-events: none;
+        }
+
+        .all-notifications-action-btn.is-danger {
+            color: #b91c1c;
+            border-color: rgba(239, 68, 68, 0.22);
+            background: rgba(254, 242, 242, 0.9);
+        }
+
+        .all-notifications-action-btn.is-danger:hover {
+            color: #991b1b;
+            border-color: rgba(239, 68, 68, 0.32);
+            background: rgba(254, 226, 226, 0.95);
+        }
+
         .all-notifications-list {
             max-height: min(70vh, 720px);
             overflow-y: auto;
@@ -654,9 +737,35 @@
         }
 
         .all-notifications-list .notifications-item {
+            display: flex;
+            align-items: flex-start;
+            gap: 12px;
             padding: 14px;
             margin-bottom: 10px;
             border-radius: 14px;
+        }
+
+        .all-notifications-list .notifications-item.is-selected {
+            border-color: #60a5fa;
+            box-shadow: 0 0 0 3px rgba(96, 165, 250, 0.12);
+        }
+
+        .notification-select-control {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            width: 22px;
+            min-width: 22px;
+            height: 22px;
+            margin-top: 4px;
+            cursor: pointer;
+        }
+
+        .notification-select-input {
+            width: 18px;
+            height: 18px;
+            accent-color: #2563eb;
+            cursor: pointer;
         }
 
         .all-notifications-list .notification-message {
@@ -684,6 +793,71 @@
             text-align: center;
             color: #64748b;
             font-size: 0.84rem;
+        }
+
+        .confirm-modal-overlay {
+            position: fixed;
+            inset: 0;
+            background: rgba(15, 23, 42, 0.45);
+            opacity: 0;
+            visibility: hidden;
+            transition: opacity 0.2s ease;
+            z-index: 1070;
+        }
+
+        .confirm-modal-overlay.open {
+            opacity: 1;
+            visibility: visible;
+        }
+
+        .confirm-modal {
+            width: min(430px, calc(100vw - 32px));
+            margin: 48px auto;
+            background: #ffffff;
+            border-radius: 14px;
+            box-shadow: 0 20px 60px rgba(15, 23, 42, 0.3);
+            overflow: hidden;
+        }
+
+        .confirm-modal-header {
+            padding: 14px 16px;
+            border-bottom: 1px solid #e2e8f0;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 8px;
+        }
+
+        .confirm-modal-title {
+            margin: 0;
+            font-size: 1rem;
+            font-weight: 700;
+            color: #0f172a;
+        }
+
+        .confirm-modal-body {
+            padding: 14px 16px;
+            color: #475569;
+        }
+
+        .confirm-modal-footer {
+            padding: 0 16px 16px;
+            display: flex;
+            justify-content: flex-end;
+            gap: 8px;
+        }
+
+        .confirm-modal-close {
+            width: 32px;
+            height: 32px;
+            border: 1px solid #e2e8f0;
+            border-radius: 8px;
+            background: #ffffff;
+            color: #475569;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            padding: 0;
         }
 
         .profile-detail-modal .modal-dialog {
@@ -3914,9 +4088,32 @@
                     </div>
                 </div>
                 <div class="modal-body p-0">
+                    <div class="all-notifications-feedback d-none" id="allNotificationsFeedback" role="status" aria-live="polite"></div>
+                    <div class="all-notifications-toolbar">
+                        <div class="all-notifications-selection" id="allNotificationsSelectionSummary">0 notifikasi dipilih</div>
+                        <div class="all-notifications-actions">
+                            <button type="button" class="all-notifications-action-btn is-danger" id="allNotificationsDeleteSelected" disabled>Hapus yang dipilih</button>
+                            <button type="button" class="all-notifications-action-btn is-danger" id="allNotificationsDeleteAll" disabled>Hapus semua</button>
+                        </div>
+                    </div>
                     <div class="all-notifications-empty d-none" id="allNotificationsEmptyState">Belum ada notifikasi.</div>
                     <div class="all-notifications-list" id="allNotificationsList"></div>
                 </div>
+            </div>
+        </div>
+    </div>
+    <div class="confirm-modal-overlay" id="confirmModalOverlay" aria-hidden="true">
+        <div class="confirm-modal" role="dialog" aria-modal="true" aria-labelledby="confirmModalTitle">
+            <div class="confirm-modal-header">
+                <h5 class="confirm-modal-title" id="confirmModalTitle">Konfirmasi</h5>
+                <button type="button" class="confirm-modal-close" id="confirmCloseButton" aria-label="Tutup Konfirmasi">
+                    <i class="feather-x"></i>
+                </button>
+            </div>
+            <div class="confirm-modal-body" id="confirmModalMessage">Apakah Anda yakin?</div>
+            <div class="confirm-modal-footer">
+                <button type="button" class="btn btn-light border" id="confirmCancelButton">Batal</button>
+                <button type="button" class="btn btn-danger" id="confirmConfirmButton">Hapus</button>
             </div>
         </div>
     </div>
@@ -3979,6 +4176,16 @@
             const allNotificationsEmptyState = document.getElementById("allNotificationsEmptyState");
             const allNotificationsSummary = document.getElementById("allNotificationsSummary");
             const allNotificationsMarkRead = document.getElementById("allNotificationsMarkRead");
+            const allNotificationsFeedback = document.getElementById("allNotificationsFeedback");
+            const allNotificationsSelectionSummary = document.getElementById("allNotificationsSelectionSummary");
+            const allNotificationsDeleteSelected = document.getElementById("allNotificationsDeleteSelected");
+            const allNotificationsDeleteAll = document.getElementById("allNotificationsDeleteAll");
+            const confirmModalOverlay = document.getElementById("confirmModalOverlay");
+            const confirmModalTitle = document.getElementById("confirmModalTitle");
+            const confirmModalMessage = document.getElementById("confirmModalMessage");
+            const confirmCloseButton = document.getElementById("confirmCloseButton");
+            const confirmCancelButton = document.getElementById("confirmCancelButton");
+            const confirmConfirmButton = document.getElementById("confirmConfirmButton");
             const currentUserRole = window.AuthClient ? window.AuthClient.getUserRole() : "";
             const adminOnlyElements = document.querySelectorAll('[data-admin-only="true"]');
             const masterDataMenuItem = document.getElementById("masterDataMenuItem");
@@ -4038,7 +4245,9 @@
             let headerNotificationsRenderedItems = [];
             let headerNotificationsAllItems = [];
             let headerNotificationReadKeys = new Set();
-            let headerNotificationDismissedKeys = new Set();
+            let headerNotificationHiddenKeys = new Set();
+            let allNotificationsSelectedKeys = new Set();
+            let confirmResolve = null;
 
             if (!inlineContainer || !inlineFrame || !mainContent || !pageTitle || breadcrumbItems.length < 2) {
                 return;
@@ -4663,13 +4872,13 @@
             function loadHeaderNotificationState() {
                 const prefix = getHeaderNotificationStoragePrefix();
                 headerNotificationReadKeys = readHeaderNotificationSet(`${prefix}:read`);
-                headerNotificationDismissedKeys = readHeaderNotificationSet(`${prefix}:dismissed`);
+                headerNotificationHiddenKeys = readHeaderNotificationSet(`${prefix}:dismissed`);
             }
 
             function persistHeaderNotificationState() {
                 const prefix = getHeaderNotificationStoragePrefix();
                 writeHeaderNotificationSet(`${prefix}:read`, headerNotificationReadKeys);
-                writeHeaderNotificationSet(`${prefix}:dismissed`, headerNotificationDismissedKeys);
+                writeHeaderNotificationSet(`${prefix}:dismissed`, headerNotificationHiddenKeys);
             }
 
             function closeHeaderNotificationDropdown() {
@@ -4696,6 +4905,150 @@
                 }
 
                 allNotificationsModalInstance.hide();
+            }
+
+            function syncHiddenNotificationKeysFromSummary(keys) {
+                const nextKeys = Array.isArray(keys)
+                    ? keys.map((value) => String(value || "").trim()).filter(Boolean)
+                    : [];
+                headerNotificationHiddenKeys = new Set([
+                    ...Array.from(headerNotificationHiddenKeys).filter(Boolean),
+                    ...nextKeys,
+                ]);
+                persistHeaderNotificationState();
+            }
+
+            function showAllNotificationsFeedback(message, type = "success") {
+                if (!allNotificationsFeedback) {
+                    return;
+                }
+
+                const text = String(message || "").trim();
+                if (!text) {
+                    allNotificationsFeedback.textContent = "";
+                    allNotificationsFeedback.classList.add("d-none");
+                    allNotificationsFeedback.classList.remove("is-success", "is-error");
+                    return;
+                }
+
+                allNotificationsFeedback.textContent = text;
+                allNotificationsFeedback.classList.remove("d-none", "is-success", "is-error");
+                allNotificationsFeedback.classList.add(type === "error" ? "is-error" : "is-success");
+            }
+
+            function syncAllNotificationsSelection() {
+                const activeKeys = new Set(headerNotificationsAllItems.map((item) => item.key));
+                allNotificationsSelectedKeys = new Set(
+                    Array.from(allNotificationsSelectedKeys).filter((key) => activeKeys.has(key))
+                );
+
+                const selectedCount = allNotificationsSelectedKeys.size;
+                if (allNotificationsSelectionSummary) {
+                    allNotificationsSelectionSummary.textContent = selectedCount === 1
+                        ? "1 notifikasi dipilih"
+                        : `${selectedCount} notifikasi dipilih`;
+                }
+
+                if (allNotificationsDeleteSelected) {
+                    allNotificationsDeleteSelected.disabled = selectedCount === 0;
+                }
+
+                if (allNotificationsDeleteAll) {
+                    allNotificationsDeleteAll.disabled = headerNotificationsAllItems.length === 0;
+                }
+            }
+
+            function toggleAllNotificationSelection(key, shouldSelect) {
+                const normalizedKey = String(key || "").trim();
+                if (!normalizedKey) {
+                    return;
+                }
+
+                if (shouldSelect) {
+                    allNotificationsSelectedKeys.add(normalizedKey);
+                } else {
+                    allNotificationsSelectedKeys.delete(normalizedKey);
+                }
+
+                syncAllNotificationsSelection();
+                renderAllNotificationsModal(headerNotificationRowsCache);
+            }
+
+            function openConfirmModal(options) {
+                if (!confirmModalOverlay || !confirmModalTitle || !confirmModalMessage || !confirmConfirmButton || !confirmCancelButton) {
+                    return Promise.resolve(false);
+                }
+
+                const settings = typeof options === "string"
+                    ? { message: options }
+                    : (options || {});
+
+                confirmModalTitle.textContent = settings.title || "Konfirmasi";
+                confirmModalMessage.textContent = settings.message || "Apakah Anda yakin?";
+                confirmCancelButton.textContent = settings.cancelText || "Batal";
+
+                const confirmText = settings.confirmText || "Ya";
+                confirmConfirmButton.className = `btn ${settings.confirmClass || "btn-danger"}`;
+                confirmConfirmButton.innerHTML = settings.confirmIcon
+                    ? `<i class="${escapeHtml(settings.confirmIcon)} me-1"></i>${escapeHtml(confirmText)}`
+                    : escapeHtml(confirmText);
+
+                confirmModalOverlay.classList.add("open");
+                confirmModalOverlay.setAttribute("aria-hidden", "false");
+
+                return new Promise((resolve) => {
+                    confirmResolve = resolve;
+                });
+            }
+
+            function closeConfirmModal(confirmed = false) {
+                if (!confirmModalOverlay) {
+                    return;
+                }
+
+                confirmModalOverlay.classList.remove("open");
+                confirmModalOverlay.setAttribute("aria-hidden", "true");
+                if (typeof confirmResolve === "function") {
+                    confirmResolve(confirmed);
+                    confirmResolve = null;
+                }
+            }
+
+            async function hideNotificationsByKeys(keys, mode = "selected") {
+                const normalizedKeys = Array.isArray(keys)
+                    ? keys.map((value) => String(value || "").trim()).filter(Boolean)
+                    : [];
+                if (normalizedKeys.length === 0) {
+                    syncAllNotificationsSelection();
+                    return;
+                }
+
+                const endpoint = mode === "all"
+                    ? `${API_BASE}/device-records/notifications/hide-all`
+                    : `${API_BASE}/device-records/notifications/hide`;
+                const response = await window.AuthClient.fetchWithAuth(endpoint, {
+                    method: "POST",
+                    headers: { "Content-Type": "application/json" },
+                    body: JSON.stringify({ keys: normalizedKeys }),
+                });
+                const result = await response.json().catch(() => ({}));
+                if (!response.ok) {
+                    throw new Error(result?.message || "Gagal menghapus notifikasi.");
+                }
+
+                normalizedKeys.forEach((key) => {
+                    headerNotificationHiddenKeys.add(key);
+                    allNotificationsSelectedKeys.delete(key);
+                });
+                persistHeaderNotificationState();
+                syncAllNotificationsSelection();
+                renderHeaderNotifications(headerNotificationRowsCache);
+                showAllNotificationsFeedback(
+                    result?.message || (mode === "all"
+                        ? "Semua notifikasi berhasil dihapus dari daftar."
+                        : "Notifikasi yang dipilih berhasil dihapus."),
+                    "success"
+                );
             }
 
             function normalizeFlowStatus(value) {
@@ -5252,11 +5605,23 @@
                 closeHeaderNotificationDropdown();
             }
 
-            function renderNotificationItem(item) {
+            function renderNotificationItem(item, options = {}) {
                 const isRead = headerNotificationReadKeys.has(item.key);
+                const selectable = Boolean(options?.selectable);
+                const isSelected = selectable && allNotificationsSelectedKeys.has(item.key);
                 const timeText = formatRelativeDateTime(item.eventTimeRaw);
                 return `
-                    <div class="notifications-item ${isRead ? "is-read" : ""}" data-header-notification-key="${escapeHtml(item.key)}">
+                    <div class="notifications-item ${isRead ? "is-read" : ""} ${isSelected ? "is-selected" : ""}" data-header-notification-key="${escapeHtml(item.key)}">
+                        ${selectable ? `
+                            <label class="notification-select-control" aria-label="Pilih notifikasi">
+                                <input
+                                    type="checkbox"
+                                    class="notification-select-input"
+                                    data-header-notification-select="${escapeHtml(item.key)}"
+                                    ${isSelected ? "checked" : ""}
+                                />
+                            </label>
+                        ` : ""}
                         <button type="button" class="notification-open-btn" data-header-notification-open="${escapeHtml(item.key)}" data-header-notification-target-page="${escapeHtml(item.targetPage || "flow-proses.html")}" data-header-notification-target-title="${escapeHtml(item.targetTitle || "Flow Proses")}">
                             <span class="notification-icon ${item.meta.badgeClass}">
                                 <i class="${item.meta.iconClass}"></i>
@@ -5297,8 +5662,8 @@
                     .filter((item) => String(item?.meta?.badgeLabel || "").trim().toUpperCase() !== "EXPIRED")
                     .sort(sortFlowNotifications);
                 const leaseSortedItems = leaseItems.sort(sortFlowNotifications);
-                const activeWorkflowItems = workflowItems.filter((item) => !headerNotificationDismissedKeys.has(item.key));
-                const activeLeaseItems = leaseSortedItems.filter((item) => !headerNotificationDismissedKeys.has(item.key));
+                const activeWorkflowItems = workflowItems.filter((item) => !headerNotificationHiddenKeys.has(item.key));
+                const activeLeaseItems = leaseSortedItems.filter((item) => !headerNotificationHiddenKeys.has(item.key));
 
                 return {
                     workflowItems,
@@ -5312,12 +5677,15 @@
             function renderNotificationSections(workflowItems, leaseItems, sectionPrefix = "header") {
                 const workflowTitleId = `${sectionPrefix}WorkflowNotificationsTitle`;
                 const leaseTitleId = `${sectionPrefix}LeaseNotificationsTitle`;
+                const itemOptions = {
+                    selectable: sectionPrefix === "all",
+                };
                 const sections = [];
                 if (workflowItems.length > 0) {
                     sections.push(`
                         <section class="notifications-section" aria-labelledby="${workflowTitleId}">
                             <h6 class="notifications-section-title" id="${workflowTitleId}">Workflow</h6>
-                            ${workflowItems.map((item) => renderNotificationItem(item)).join("")}
+                            ${workflowItems.map((item) => renderNotificationItem(item, itemOptions)).join("")}
                         </section>
                     `);
                 }
@@ -5330,7 +5698,7 @@
                     sections.push(`
                         <section class="notifications-section" aria-labelledby="${leaseTitleId}">
                             <h6 class="notifications-section-title" id="${leaseTitleId}">Lease</h6>
-                            ${leaseItems.map((item) => renderNotificationItem(item)).join("")}
+                            ${leaseItems.map((item) => renderNotificationItem(item, itemOptions)).join("")}
                         </section>
                     `);
                 }
@@ -5357,6 +5725,7 @@
                 const collections = buildHeaderNotificationCollections(notificationCache);
                 const allActiveItems = collections.allActiveItems;
                 const unreadCount = allActiveItems.filter((item) => !headerNotificationReadKeys.has(item.key)).length;
+                syncAllNotificationsSelection();
 
                 if (allNotificationsSummary) {
                     const totalText = allActiveItems.length === 1
@@ -5373,6 +5742,7 @@
                 if (allActiveItems.length === 0) {
                     allNotificationsList.innerHTML = "";
                     allNotificationsEmptyState.classList.remove("d-none");
+                    syncAllNotificationsSelection();
                     return;
                 }
 
@@ -5397,7 +5767,7 @@
                 if (notificationItems.length > 0) {
                     const activeKeys = new Set(notificationItems.map((item) => item.key));
                     headerNotificationReadKeys = new Set(Array.from(headerNotificationReadKeys).filter((key) => activeKeys.has(key)));
-                    headerNotificationDismissedKeys = new Set(Array.from(headerNotificationDismissedKeys).filter((key) => activeKeys.has(key)));
+                    headerNotificationHiddenKeys = new Set(Array.from(headerNotificationHiddenKeys).filter((key) => activeKeys.has(key)));
                     persistHeaderNotificationState();
                 }
 
@@ -5408,6 +5778,7 @@
                 headerNotificationsAllItems = collections.allActiveItems;
                 headerNotificationsRenderedItems = visibleItems;
                 const unreadCount = headerNotificationsAllItems.filter((item) => !headerNotificationReadKeys.has(item.key)).length;
+                syncAllNotificationsSelection();
                 setHeaderNotificationBadgeCount(unreadCount);
                 updateHeaderNotificationMarkReadButtonState(unreadCount);
                 updateAllNotificationsMarkReadButtonState(unreadCount);
@@ -5451,15 +5822,18 @@
                 renderHeaderNotifications(headerNotificationRowsCache);
             }
 
-            function dismissHeaderNotification(key) {
+            async function dismissHeaderNotification(key) {
                 const normalizedKey = String(key || "").trim();
                 if (!normalizedKey) {
                     return;
                 }
 
-                headerNotificationDismissedKeys.add(normalizedKey);
-                persistHeaderNotificationState();
-                renderHeaderNotifications(headerNotificationRowsCache);
+                try {
+                    await hideNotificationsByKeys([normalizedKey], "selected");
+                } catch (error) {
+                    const message = error instanceof Error ? error.message : "Gagal menghapus notifikasi.";
+                    showAllNotificationsFeedback(message, "error");
+                }
             }
 
             function initializeHeaderNotifications() {
@@ -5478,6 +5852,8 @@
                 if (allNotificationsList) {
                     allNotificationsList.innerHTML = "";
                 }
+                showAllNotificationsFeedback("");
+                syncAllNotificationsSelection();
                 setHeaderNotificationBadgeCount(0);
                 updateHeaderNotificationMarkReadButtonState(0);
                 updateAllNotificationsMarkReadButtonState(0);
@@ -5491,7 +5867,7 @@
                     const dismissButton = target.closest("[data-header-notification-dismiss]");
                     if (dismissButton instanceof HTMLElement) {
                         const dismissKey = String(dismissButton.getAttribute("data-header-notification-dismiss") || "").trim();
-                        dismissHeaderNotification(dismissKey);
+                        void dismissHeaderNotification(dismissKey);
                         event.preventDefault();
                         return;
                     }
@@ -5516,10 +5892,20 @@
                             return;
                         }
 
+                        const selectionInput = target.closest("[data-header-notification-select]");
+                        if (selectionInput instanceof HTMLInputElement) {
+                            toggleAllNotificationSelection(
+                                selectionInput.getAttribute("data-header-notification-select"),
+                                selectionInput.checked
+                            );
+                            event.stopPropagation();
+                            return;
+                        }
+
                         const dismissButton = target.closest("[data-header-notification-dismiss]");
                         if (dismissButton instanceof HTMLElement) {
                             const dismissKey = String(dismissButton.getAttribute("data-header-notification-dismiss") || "").trim();
-                            dismissHeaderNotification(dismissKey);
+                            void dismissHeaderNotification(dismissKey);
                             event.preventDefault();
                             return;
                         }
@@ -5535,6 +5921,60 @@
                         markHeaderNotificationAsRead(openKey);
                         navigateToPageFromNotification(targetPage, targetTitle);
                         event.preventDefault();
+                    });
+                }
+
+                if (allNotificationsDeleteSelected) {
+                    allNotificationsDeleteSelected.addEventListener("click", async () => {
+                        const selectedKeys = Array.from(allNotificationsSelectedKeys);
+                        if (selectedKeys.length === 0) {
+                            syncAllNotificationsSelection();
+                            return;
+                        }
+
+                        const confirmed = await openConfirmModal({
+                            title: "Konfirmasi Hapus Notifikasi",
+                            message: "Apakah Anda yakin ingin menghapus notifikasi yang dipilih?",
+                            confirmText: "Hapus yang Dipilih",
+                            confirmClass: "btn btn-danger",
+                        });
+                        if (!confirmed) {
+                            return;
+                        }
+
+                        try {
+                            await hideNotificationsByKeys(selectedKeys, "selected");
+                        } catch (error) {
+                            const message = error instanceof Error ? error.message : "Gagal menghapus notifikasi yang dipilih.";
+                            showAllNotificationsFeedback(message, "error");
+                        }
+                    });
+                }
+
+                if (allNotificationsDeleteAll) {
+                    allNotificationsDeleteAll.addEventListener("click", async () => {
+                        const allKeys = headerNotificationsAllItems.map((item) => item.key).filter(Boolean);
+                        if (allKeys.length === 0) {
+                            syncAllNotificationsSelection();
+                            return;
+                        }
+
+                        const confirmed = await openConfirmModal({
+                            title: "Konfirmasi Hapus Semua",
+                            message: "Apakah Anda yakin ingin menghapus semua notifikasi?",
+                            confirmText: "Hapus Semua",
+                            confirmClass: "btn btn-danger",
+                        });
+                        if (!confirmed) {
+                            return;
+                        }
+
+                        try {
+                            await hideNotificationsByKeys(allKeys, "all");
+                        } catch (error) {
+                            const message = error instanceof Error ? error.message : "Gagal menghapus semua notifikasi.";
+                            showAllNotificationsFeedback(message, "error");
+                        }
                     });
                 }
 
@@ -5582,6 +6022,26 @@
                     });
                 }
 
+                if (confirmCloseButton) {
+                    confirmCloseButton.addEventListener("click", () => closeConfirmModal(false));
+                }
+
+                if (confirmCancelButton) {
+                    confirmCancelButton.addEventListener("click", () => closeConfirmModal(false));
+                }
+
+                if (confirmConfirmButton) {
+                    confirmConfirmButton.addEventListener("click", () => closeConfirmModal(true));
+                }
+
+                if (confirmModalOverlay) {
+                    confirmModalOverlay.addEventListener("click", (event) => {
+                        if (event.target === confirmModalOverlay) {
+                            closeConfirmModal(false);
+                        }
+                    });
+                }
+
                 if (headerNotificationToggle && headerNotificationContainer) {
                     headerNotificationToggle.addEventListener("click", (event) => {
                         const dropdownMenu = headerNotificationContainer.querySelector(".dropdown-menu");
@@ -5610,6 +6070,10 @@
 
                     document.addEventListener("keydown", (event) => {
                         if (event.key === "Escape" || event.key === "Esc") {
+                            if (confirmModalOverlay?.classList.contains("open")) {
+                                closeConfirmModal(false);
+                                return;
+                            }
                             closeHeaderNotificationDropdown();
                         }
                     });
@@ -6472,6 +6936,7 @@
                     leaseRows: Array.isArray(summaryData?.devices) ? summaryData.devices : [],
                     adminRows: Array.isArray(summaryData?.adminEditNotifications) ? summaryData.adminEditNotifications : [],
                     emailRows: Array.isArray(summaryData?.emailCreateNotifications) ? summaryData.emailCreateNotifications : [],
+                    hiddenNotificationKeys: Array.isArray(summaryData?.hiddenNotificationKeys) ? summaryData.hiddenNotificationKeys : [],
                 };
             }
 
@@ -6497,6 +6962,11 @@
                 const emailRows = leaseResult.status === "fulfilled" && Array.isArray(leaseResult.value?.emailRows)
                     ? leaseResult.value.emailRows
                     : [];
+                const hiddenNotificationKeys = leaseResult.status === "fulfilled" && Array.isArray(leaseResult.value?.hiddenNotificationKeys)
+                    ? leaseResult.value.hiddenNotificationKeys
+                    : [];
+
+                syncHiddenNotificationKeysFromSummary(hiddenNotificationKeys);
 
                 const pendingCount = flowRows.filter((row) => {
                     const normalizedStatus = normalizeFlowStatus(row?.["Flow Status"]);

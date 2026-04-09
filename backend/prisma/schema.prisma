@@ -58,6 +58,7 @@ model MasterUser {
   reviewingDeviceChangeRequests DeviceChangeRequest[] @relation("DeviceChangeRequestCurrentReviewer")
   targetPicDeviceChangeRequests DeviceChangeRequest[] @relation("DeviceChangeRequestTargetPicUser")
   deviceChangeRequestEvents     DeviceChangeRequestEvent[] @relation("DeviceChangeRequestEventActorUser")
+  hiddenNotifications           UserHiddenNotification[]
 
   createdAt DateTime @default(now()) @map("created_at")
   updatedAt DateTime @updatedAt @map("updated_at")
@@ -216,6 +217,20 @@ model EmailAccountNotificationLog {
   @@index([notificationType], map: "idx_email_account_notification_logs_notification_type")
   @@index([createdAt], map: "idx_email_account_notification_logs_created_at")
   @@map("email_account_notification_logs")
+}
+
+model UserHiddenNotification {
+  id              String     @id @default(cuid())
+  userId          String     @map("user_id")
+  notificationKey String     @map("notification_key") @db.VarChar(255)
+  user            MasterUser @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  createdAt DateTime @default(now()) @map("created_at")
+
+  @@unique([userId, notificationKey], map: "uq_user_hidden_notifications_user_key")
+  @@index([userId], map: "idx_user_hidden_notifications_user_id")
+  @@index([createdAt], map: "idx_user_hidden_notifications_created_at")
+  @@map("user_hidden_notifications")
 }
 
 model DeviceChangeRequest {
