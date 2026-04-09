@@ -666,6 +666,112 @@ function buildHistoryEntry(message: string): string {
   return `[${formatHistoryTimestamp()}] ${message}`;
 }
 
+const ADMIN_DIRECT_DEVICE_EDIT_NOTIFICATION_PREFIX = "ADMIN_DIRECT_DEVICE_EDIT_NOTIFY";
+
+type AdminDirectDeviceEditRecipientRole = "SOURCE" | "TARGET" | "SOURCE_AND_TARGET";
+
+type AdminDirectDeviceEditNotificationEntry = {
+  eventAt: string;
+  recipientUserId: string;
+  recipientRole: AdminDirectDeviceEditRecipientRole;
+  actorName: string;
+  serialNo: string;
+  hostName: string;
+  category: string;
+  model: string;
+  fromDepartment: string;
+  fromJobCode: string;
+  fromPicName: string;
+  fromPomsSiteCodeSystem: string;
+  toDepartment: string;
+  toJobCode: string;
+  toPicName: string;
+  toPomsSiteCodeSystem: string;
+};
+
+function buildAdminDirectDeviceEditNotificationMarker(entry: Omit<AdminDirectDeviceEditNotificationEntry, "eventAt">): string {
+  const parts: Array<[string, string]> = [
+    ["recipientUserId", entry.recipientUserId],
+    ["recipientRole", entry.recipientRole],
+    ["actorName", entry.actorName],
+    ["serialNo", entry.serialNo],
+    ["hostName", entry.hostName],
+    ["category", entry.category],
+    ["model", entry.model],
+    ["fromDepartment", entry.fromDepartment],
+    ["fromJobCode", entry.fromJobCode],
+    ["fromPicName", entry.fromPicName],
+    ["fromPomsSiteCodeSystem", entry.fromPomsSiteCodeSystem],
+    ["toDepartment", entry.toDepartment],
+    ["toJobCode", entry.toJobCode],
+    ["toPicName", entry.toPicName],
+    ["toPomsSiteCodeSystem", entry.toPomsSiteCodeSystem],
+  ];
+
+  return `${ADMIN_DIRECT_DEVICE_EDIT_NOTIFICATION_PREFIX}|${parts
+    .map(([key, value]) => `${key}=${encodeURIComponent(cleanText(value))}`)
+    .join("|")}`;
+}
+
+function parseAdminDirectDeviceEditNotifications(
+  historyLog: string | null | undefined,
+  recipientUserId: string,
+): AdminDirectDeviceEditNotificationEntry[] {
+  const normalizedRecipientUserId = cleanText(recipientUserId);
+  if (!normalizedRecipientUserId) {
+    return [];
+  }
+
+  return String(historyLog || "")
+    .split(/\r?\n/)
+    .map((line) => cleanText(line))
+    .filter(Boolean)
+    .map((line) => {
+      const match = line.match(/^\[(.+?)\]\s+ADMIN_DIRECT_DEVICE_EDIT_NOTIFY\|(.*)$/);
+      if (!match) {
+        return null;
+      }
+
+      const eventAt = cleanText(match[1]);
+      const rawPayload = cleanText(match[2]);
+      const data = rawPayload.split("|").reduce<Record<string, string>>((accumulator, segment) => {
+        const separatorIndex = segment.indexOf("=");
+        if (separatorIndex < 1) {
+          return accumulator;
+        }
+
+        const key = cleanText(segment.slice(0, separatorIndex));
+        const rawValue = segment.slice(separatorIndex + 1);
+        accumulator[key] = decodeURIComponent(rawValue);
+        return accumulator;
+      }, {});
+
+      if (cleanText(data.recipientUserId) !== normalizedRecipientUserId) {
+        return null;
+      }
+
+      return {
+        eventAt,
+        recipientUserId: normalizedRecipientUserId,
+        recipientRole: (cleanText(data.recipientRole) as AdminDirectDeviceEditRecipientRole) || "TARGET",
+        actorName: cleanText(data.actorName),
+        serialNo: cleanText(data.serialNo),
+        hostName: cleanText(data.hostName),
+        category: cleanText(data.category),
+        model: cleanText(data.model),
+        fromDepartment: cleanText(data.fromDepartment),
+        fromJobCode: cleanText(data.fromJobCode),
+        fromPicName: cleanText(data.fromPicName),
+        fromPomsSiteCodeSystem: cleanText(data.fromPomsSiteCodeSystem),
+        toDepartment: cleanText(data.toDepartment),
+        toJobCode: cleanText(data.toJobCode),
+        toPicName: cleanText(data.toPicName),
+        toPomsSiteCodeSystem: cleanText(data.toPomsSiteCodeSystem),
+      } satisfies AdminDirectDeviceEditNotificationEntry;
+    })
+    .filter((entry): entry is AdminDirectDeviceEditNotificationEntry => Boolean(entry));
+}
+
 function appendHistoryEntries(
   existingHistory: string | null | undefined,
   entries: string[],
@@ -1932,6 +2038,7 @@ async function validateJobAndPic(
   tx: Prisma.TransactionClient,
   payload: DeviceRecordPayload,
 ): Promise<{
+  userId: string;
   name: string;
   email: string;
   jobCodeId: number;
@@ -1973,6 +2080,7 @@ async function validateJobAndPic(
   }
 
   return {
+    userId: picUser.id,
     name: picUser.name,
     email: picUser.email,
     jobCodeId: picUser.jobCodeId,
@@ -2262,15 +2370,16 @@ deviceRecordRouter.get("/device-records/dashboard-summary", async (req, res, nex
     const rows = await prisma.device.findMany({
       where,
       orderBy: { createdAt: "desc" },
-      select: {
-        id: true,
-        serialNumber: true,
-        hostName: true,
-        picNameRaw: true,
-        jobCode: {
-          select: {
-            code: true,
-          },
+        select: {
+          id: true,
+          serialNumber: true,
+          hostName: true,
+          picNameRaw: true,
+          pomsSiteCodeSystem: true,
+          jobCode: {
+            select: {
+              code: true,
+            },
         },
         category: {
           select: {
@@ -2282,18 +2391,19 @@ deviceRecordRouter.get("/device-records/dashboard-summary", async (req, res, nex
             name: true,
           },
         },
-        leaseContracts: {
-          orderBy: { createdAt: "desc" },
-          take: 1,
-          select: {
-            startDate: true,
-            endDate: true,
-            daysLease: true,
-            leaseStatus: true,
+          leaseContracts: {
+            orderBy: { createdAt: "desc" },
+            take: 1,
+            select: {
+              startDate: true,
+              endDate: true,
+              daysLease: true,
+              leaseStatus: true,
+              historyLog: true,
+            },
           },
         },
-      },
-    });
+      });
 
     const totals = {
       all: 0,
@@ -2347,7 +2457,6 @@ deviceRecordRouter.get("/device-records/dashboard-summary", async (req, res, nex
       daysLease: number | null;
       endDate: string;
     }> = [];
-
     rows.forEach((row) => {
       totals.all += 1;
 
@@ -2485,6 +2594,45 @@ deviceRecordRouter.get("/device-records/dashboard-summary", async (req, res, nex
       return a.serialNo.localeCompare(b.serialNo);
     });
 
+    const adminEditNotifications: Array<AdminDirectDeviceEditNotificationEntry & { deviceId: string }> = [];
+    if (scope.userId) {
+      const notificationToken = `${ADMIN_DIRECT_DEVICE_EDIT_NOTIFICATION_PREFIX}|recipientUserId=${encodeURIComponent(scope.userId)}`;
+      const notificationRows = await prisma.device.findMany({
+        where: {
+          flowStatus: DEVICE_FLOW_STATUS_APPROVED,
+          leaseContracts: {
+            some: {
+              historyLog: {
+                contains: notificationToken,
+              },
+            },
+          },
+        },
+        orderBy: { updatedAt: "desc" },
+        select: {
+          id: true,
+          leaseContracts: {
+            orderBy: { createdAt: "desc" },
+            take: 1,
+            select: {
+              historyLog: true,
+            },
+          },
+        },
+      });
+
+      notificationRows.forEach((row) => {
+        const latestHistoryLog = row.leaseContracts[0]?.historyLog ?? null;
+        const matchedNotifications = parseAdminDirectDeviceEditNotifications(latestHistoryLog, scope.userId as string);
+        matchedNotifications.forEach((entry) => {
+          adminEditNotifications.push({
+            ...entry,
+            deviceId: row.id,
+          });
+        });
+      });
+    }
+
     res.json({
       data: {
         generatedAt: new Date().toISOString(),
@@ -2492,6 +2640,7 @@ deviceRecordRouter.get("/device-records/dashboard-summary", async (req, res, nex
         bySite,
         expiringSoonDevices,
         devices,
+        adminEditNotifications,
       },
     });
   } catch (error) {
@@ -3064,7 +3213,14 @@ deviceRecordRouter.get("/device-records/:id", async (req, res, next) => {
     ]));
 
     const mappedRow = mapDeviceToFlowRecord(row as unknown as MappedDeviceRow, undefined, userMetaById);
-    return res.json({ data: mappedRow });
+    const currentRow = mapDeviceToExcelRecord(row as unknown as MappedDeviceRow);
+    return res.json({
+      data: {
+        ...mappedRow,
+        "Department": currentRow["Department"],
+        "PIC Name": currentRow["PIC Name"],
+      },
+    });
   } catch (error) {
     if (error instanceof Error && error.message === "ROLE_USER_JOB_CODE_NOT_FOUND") {
       return res.status(403).json({ message: "Department user tidak ditemukan. Hubungi admin." });
@@ -3993,6 +4149,7 @@ deviceRecordRouter.put("/device-records/:id", async (req, res, next) => {
           pomsSiteCodeSystem: true,
           jobCodeId: true,
           departmentJobCodeId: true,
+          flowAssignedPicUserId: true,
           serialNumber: true,
           hostName: true,
           userNameRaw: true,
@@ -4225,6 +4382,56 @@ deviceRecordRouter.put("/device-records/:id", async (req, res, next) => {
           ),
         ]
         : [];
+
+      const adminDirectEditNotificationCandidates = new Map<string, AdminDirectDeviceEditRecipientRole>();
+      const adminDirectAssignmentChanged = editorRole === "admin" && (
+        cleanText(existing.flowAssignedPicUserId) !== cleanText(picUser.userId)
+        || existing.jobCodeId !== payload.jobCodeId
+        || existing.departmentJobCodeId !== payload.departmentJobCodeId
+        || cleanText(existing.pomsSiteCodeSystem) !== cleanText(pomsSiteCodeSystem)
+      );
+
+      if (adminDirectAssignmentChanged) {
+        const previousPicUserId = cleanText(existing.flowAssignedPicUserId);
+        const nextPicUserId = cleanText(picUser.userId);
+
+        if (previousPicUserId) {
+          adminDirectEditNotificationCandidates.set(previousPicUserId, "SOURCE");
+        }
+
+        if (nextPicUserId) {
+          const previousRole = adminDirectEditNotificationCandidates.get(nextPicUserId);
+          adminDirectEditNotificationCandidates.set(
+            nextPicUserId,
+            previousRole === "SOURCE" ? "SOURCE_AND_TARGET" : "TARGET",
+          );
+        }
+
+        adminDirectEditNotificationCandidates.forEach((recipientRole, recipientUserId) => {
+          historyEntries.push(
+            buildHistoryEntry(
+              buildAdminDirectDeviceEditNotificationMarker({
+                recipientUserId,
+                recipientRole,
+                actorName,
+                serialNo: cleanText(payload.serialNo),
+                hostName: cleanText(payload.hostName),
+                category: cleanText(payload.category),
+                model: cleanText(payload.model),
+                fromDepartment: cleanText(existing.jobCode?.code),
+                fromJobCode: cleanText(existing.departmentJobCode?.code),
+                fromPicName: cleanText(existing.picNameRaw),
+                fromPomsSiteCodeSystem: cleanText(existing.pomsSiteCodeSystem),
+                toDepartment: cleanText(picUser.jobCodeCode),
+                toJobCode: cleanText(picUser.departmentJobCodeCode),
+                toPicName: cleanText(picUser.name),
+                toPomsSiteCodeSystem: cleanText(pomsSiteCodeSystem),
+              }),
+            ),
+          );
+        });
+      }
+
       const updatedHistoryLog = appendHistoryEntries(latestLease?.historyLog, historyEntries);
 
       await tx.device.update({
@@ -4237,6 +4444,7 @@ deviceRecordRouter.put("/device-records/:id", async (req, res, next) => {
           userEmailRaw: payload.userEmail,
           locationRaw: payload.location,
           ipListRaw: payload.ipList,
+          flowAssignedPicUserId: picUser.userId,
           picNameRaw: picUser.name,
           notes: payload.keterangan,
           bitlockerKey: payload.bitlockerKey,

@@ -4803,6 +4803,75 @@
                 };
             }
 
+            function buildAdminDeviceEditNotificationMessage(row) {
+                const serialNo = toDisplayText(row?.serialNo);
+                const actorName = toDisplayText(row?.actorName);
+                const fromDepartment = toDisplayText(row?.fromDepartment);
+                const fromJobCode = toDisplayText(row?.fromJobCode);
+                const fromPicName = toDisplayText(row?.fromPicName);
+                const fromPomsSiteCodeSystem = toDisplayText(row?.fromPomsSiteCodeSystem);
+                const toDepartment = toDisplayText(row?.toDepartment);
+                const toJobCode = toDisplayText(row?.toJobCode);
+                const toPicName = toDisplayText(row?.toPicName);
+                const toPomsSiteCodeSystem = toDisplayText(row?.toPomsSiteCodeSystem);
+                const recipientRole = String(row?.recipientRole || "").trim().toUpperCase();
+                const fromSummary = [fromDepartment, fromJobCode, fromPomsSiteCodeSystem !== "-" ? `Site ${fromPomsSiteCodeSystem}` : ""]
+                    .filter((value) => value && value !== "-")
+                    .join(" / ");
+                const toSummary = [toDepartment, toJobCode, toPomsSiteCodeSystem !== "-" ? `Site ${toPomsSiteCodeSystem}` : ""]
+                    .filter((value) => value && value !== "-")
+                    .join(" / ");
+
+                if (recipientRole === "SOURCE") {
+                    return `Admin ${actorName} memindahkan perangkat serial ${serialNo} dari PIC ${fromPicName} ke ${toPicName}. Tujuan baru: ${toSummary || "-"}.`;
+                }
+
+                if (recipientRole === "TARGET") {
+                    return `Admin ${actorName} memindahkan perangkat serial ${serialNo} ke Anda dari ${fromSummary || "-"}. PIC sebelumnya: ${fromPicName}.`;
+                }
+
+                return `Admin ${actorName} memperbarui penempatan perangkat serial ${serialNo} dari ${fromSummary || "-"} menjadi ${toSummary || "-"}. PIC terkait: ${fromPicName} -> ${toPicName}.`;
+            }
+
+            function buildAdminDeviceEditNotificationItem(row) {
+                const deviceId = String(row?.deviceId || row?.id || "").trim();
+                const eventTimeRaw = String(row?.eventAt || "").trim();
+                if (!deviceId || !eventTimeRaw) {
+                    return null;
+                }
+
+                const parsedEventDate = parseDateTimeSafe(eventTimeRaw);
+                const serialNo = toDisplayText(row?.serialNo);
+                const department = toDisplayText(row?.toDepartment || row?.fromDepartment);
+                const recipientRole = String(row?.recipientRole || "").trim().toUpperCase() || "TARGET";
+                const key = [
+                    "ADMIN_DIRECT_DEVICE_EDIT",
+                    deviceId,
+                    recipientRole,
+                    eventTimeRaw,
+                    serialNo,
+                ].join("|");
+
+                return {
+                    key,
+                    status: "UPDATED",
+                    message: buildAdminDeviceEditNotificationMessage(row),
+                    meta: {
+                        badgeClass: "bg-soft-info text-info",
+                        badgeLabel: "UPDATED",
+                        iconClass: "feather-repeat",
+                    },
+                    department,
+                    serialNo,
+                    eventTimeRaw,
+                    targetPage: "data-perangkat.html",
+                    targetTitle: "Data Perangkat",
+                    priority: 2,
+                    sortTime: parsedEventDate ? parsedEventDate.getTime() : Number.NEGATIVE_INFINITY,
+                    fallbackSortValue: 0,
+                };
+            }
+
             function normalizeLeaseStatusText(value) {
                 return String(value || "")
                     .trim()
@@ -4922,12 +4991,14 @@
                     const cache = input;
                     const flowRows = Array.isArray(cache.flowRows) ? cache.flowRows : [];
                     const leaseRows = Array.isArray(cache.leaseRows) ? cache.leaseRows : [];
-                    return { flowRows, leaseRows };
+                    const adminRows = Array.isArray(cache.adminRows) ? cache.adminRows : [];
+                    return { flowRows, leaseRows, adminRows };
                 }
 
                 return {
                     flowRows: Array.isArray(input) ? input : [],
                     leaseRows: [],
+                    adminRows: [],
                 };
             }
 
@@ -4988,10 +5059,13 @@
                 const flowItems = notificationCache.flowRows
                     .map((row) => buildFlowNotificationItem(row))
                     .filter((entry) => entry !== null);
+                const adminItems = notificationCache.adminRows
+                    .map((row) => buildAdminDeviceEditNotificationItem(row))
+                    .filter((entry) => entry !== null);
                 const leaseItems = notificationCache.leaseRows
                     .map((row) => buildLeaseNotificationItem(row))
                     .filter((entry) => entry !== null);
-                const workflowItems = flowItems
+                const workflowItems = [...flowItems, ...adminItems]
                     .filter((item) => String(item?.meta?.badgeLabel || "").trim().toUpperCase() !== "EXPIRED")
                     .sort(sortFlowNotifications);
                 const leaseSortedItems = leaseItems.sort(sortFlowNotifications);
@@ -6066,7 +6140,10 @@
                 }
 
                 const summaryData = result?.data || {};
-                return Array.isArray(summaryData?.devices) ? summaryData.devices : [];
+                return {
+                    leaseRows: Array.isArray(summaryData?.devices) ? summaryData.devices : [],
+                    adminRows: Array.isArray(summaryData?.adminEditNotifications) ? summaryData.adminEditNotifications : [],
+                };
             }
 
             async function refreshFlowStatusBadges() {
@@ -6082,7 +6159,12 @@
                 ]);
 
                 const flowRows = flowResult.status === "fulfilled" ? flowResult.value : [];
-                const leaseRows = leaseResult.status === "fulfilled" ? leaseResult.value : [];
+                const leaseRows = leaseResult.status === "fulfilled" && Array.isArray(leaseResult.value?.leaseRows)
+                    ? leaseResult.value.leaseRows
+                    : [];
+                const adminRows = leaseResult.status === "fulfilled" && Array.isArray(leaseResult.value?.adminRows)
+                    ? leaseResult.value.adminRows
+                    : [];
 
                 const pendingCount = flowRows.filter((row) => {
                     const normalizedStatus = normalizeFlowStatus(row?.["Flow Status"]);
@@ -6103,6 +6185,7 @@
                     renderHeaderNotifications({
                         flowRows,
                         leaseRows,
+                        adminRows,
                     });
                 }
             }
