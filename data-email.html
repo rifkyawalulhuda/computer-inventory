@@ -155,6 +155,47 @@
             justify-content: flex-end;
         }
         .table-pagination-controls .btn.is-active { background: #1d4ed8; border-color: #1d4ed8; color: #fff; }
+        .import-result-panel { border: 1px solid #dbe4ee; }
+        .import-result-status { border-radius: 12px; padding: 12px 14px; font-weight: 600; }
+        .import-result-status.is-success { background: #ecfdf5; color: #166534; border: 1px solid #bbf7d0; }
+        .import-result-status.is-danger { background: #fef2f2; color: #b91c1c; border: 1px solid #fecaca; }
+        .import-result-metric {
+            border: 1px solid #e2e8f0;
+            border-radius: 12px;
+            background: #f8fafc;
+            padding: 12px 14px;
+            height: 100%;
+        }
+        .import-result-metric-label {
+            display: block;
+            font-size: 0.72rem;
+            font-weight: 700;
+            letter-spacing: 0.04em;
+            text-transform: uppercase;
+            color: #64748b;
+            margin-bottom: 6px;
+        }
+        .import-result-metric-value {
+            font-size: 1.2rem;
+            font-weight: 800;
+            color: #0f172a;
+            line-height: 1.1;
+        }
+        .import-result-note {
+            margin: 0;
+            color: #475569;
+            font-size: 0.88rem;
+        }
+        .import-result-detail-table th {
+            font-size: 0.72rem;
+            text-transform: uppercase;
+            letter-spacing: 0.03em;
+            color: #64748b;
+        }
+        .import-result-detail-table td {
+            white-space: normal;
+            vertical-align: top;
+        }
         @media (max-width: 768px) {
             .device-table-pagination {
                 flex-direction: column;
@@ -182,6 +223,35 @@
             </div>
 
             <div id="alertBox" class="alert d-none" role="alert"></div>
+
+            <div class="card card-shadow mb-4 import-result-panel d-none" id="importResultPanel">
+                <div class="card-body">
+                    <div class="d-flex flex-wrap justify-content-between align-items-start gap-3 mb-3">
+                        <div>
+                            <h5 class="card-title mb-1">Hasil Import Excel</h5>
+                            <p class="text-muted mb-0" id="importResultSummaryText">Ringkasan hasil validasi dan penyimpanan import.</p>
+                        </div>
+                        <button type="button" class="btn btn-light border btn-sm" id="closeImportResultButton">Tutup</button>
+                    </div>
+                    <div class="import-result-status mb-3" id="importResultStatus"></div>
+                    <div class="row g-3 mb-3" id="importResultMetrics"></div>
+                    <p class="import-result-note mb-0" id="importResultNote"></p>
+                    <div class="mt-3 d-none" id="importResultFailureSection">
+                        <h6 class="fw-bold mb-2">Detail Baris Gagal</h6>
+                        <div class="table-responsive">
+                            <table class="table table-sm align-middle mb-0 import-result-detail-table">
+                                <thead>
+                                    <tr>
+                                        <th style="width: 120px;">Baris</th>
+                                        <th>Alasan Gagal</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="importResultFailureBody"></tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+            </div>
 
             <div class="card card-shadow mb-4">
                 <div class="card-body">
@@ -300,6 +370,14 @@
         const exportExcelButton = document.getElementById("exportExcelButton");
         const importExcelInput = document.getElementById("importExcelInput");
         const alertBox = document.getElementById("alertBox");
+        const importResultPanel = document.getElementById("importResultPanel");
+        const importResultSummaryText = document.getElementById("importResultSummaryText");
+        const importResultStatus = document.getElementById("importResultStatus");
+        const importResultMetrics = document.getElementById("importResultMetrics");
+        const importResultNote = document.getElementById("importResultNote");
+        const importResultFailureSection = document.getElementById("importResultFailureSection");
+        const importResultFailureBody = document.getElementById("importResultFailureBody");
+        const closeImportResultButton = document.getElementById("closeImportResultButton");
         const viewDrawerOverlay = document.getElementById("viewDrawerOverlay");
         const viewDrawerBody = document.getElementById("viewDrawerBody");
         const viewDrawerCloseButton = document.getElementById("viewDrawerCloseButton");
@@ -339,6 +417,93 @@
         function hideAlert() {
             alertBox.className = "alert d-none";
             alertBox.textContent = "";
+        }
+
+        function hideImportResult() {
+            importResultPanel.classList.add("d-none");
+            importResultStatus.className = "import-result-status mb-3";
+            importResultStatus.textContent = "";
+            importResultSummaryText.textContent = "Ringkasan hasil validasi dan penyimpanan import.";
+            importResultMetrics.innerHTML = "";
+            importResultNote.textContent = "";
+            importResultFailureSection.classList.add("d-none");
+            importResultFailureBody.innerHTML = "";
+        }
+
+        function renderImportMetrics(items) {
+            importResultMetrics.innerHTML = items.map((item) => `
+                <div class="col-xl-3 col-md-6">
+                    <div class="import-result-metric">
+                        <span class="import-result-metric-label">${escapeHtml(item.label)}</span>
+                        <div class="import-result-metric-value">${escapeHtml(item.value)}</div>
+                    </div>
+                </div>
+            `).join("");
+        }
+
+        function normalizeImportResultPayload(result = {}, isSuccess = false) {
+            const failureDetails = Array.isArray(result.failureDetails)
+                ? result.failureDetails
+                    .map((item) => ({
+                        rowNumber: Number.isFinite(Number(item?.rowNumber)) ? Number(item.rowNumber) : null,
+                        reason: String(item?.reason || "").trim(),
+                    }))
+                    .filter((item) => item.reason)
+                : [];
+            const totalRowsRead = Number(result.totalRowsRead ?? result.total ?? 0) || 0;
+            const created = Number(result.created ?? 0) || 0;
+            const updated = Number(result.updated ?? 0) || 0;
+            const importedRows = Number(result.importedRows ?? (created + updated)) || 0;
+            const validRows = Number(result.validRows ?? (isSuccess ? totalRowsRead : Math.max(totalRowsRead - failureDetails.length, 0))) || 0;
+            const failedRows = Number(result.failedRows ?? failureDetails.length) || 0;
+            const message = String(result.message || (isSuccess
+                ? "Import berhasil. Semua data valid telah disimpan."
+                : "Import dibatalkan. Terdapat data gagal, sehingga seluruh data pada file tidak disimpan.")).trim();
+
+            return {
+                success: Boolean(result.success ?? isSuccess),
+                message,
+                totalRowsRead,
+                validRows,
+                failedRows,
+                importedRows,
+                created,
+                updated,
+                importCancelled: Boolean(result.importCancelled ?? !isSuccess),
+                failureDetails,
+            };
+        }
+
+        function showImportResult(result, isSuccess = false) {
+            const normalized = normalizeImportResultPayload(result, isSuccess);
+            importResultPanel.classList.remove("d-none");
+            importResultStatus.className = `import-result-status mb-3 ${normalized.success ? "is-success" : "is-danger"}`;
+            importResultStatus.textContent = normalized.message;
+            importResultSummaryText.textContent = normalized.success
+                ? "Import selesai penuh. Semua data valid berhasil diproses."
+                : "Import dibatalkan total. Tidak ada data dari file yang disimpan ke database.";
+            renderImportMetrics([
+                { label: "Total Row Terbaca", value: normalized.totalRowsRead },
+                { label: "Data Valid", value: normalized.validRows },
+                { label: "Data Gagal", value: normalized.failedRows },
+                { label: "Data Tersimpan", value: normalized.success ? normalized.importedRows : 0 },
+            ]);
+            importResultNote.textContent = normalized.success
+                ? `Import berhasil. ${normalized.created} data ditambahkan, ${normalized.updated} data diperbarui, dan tidak ada data gagal.`
+                : "Import dibatalkan. Terdapat data gagal, sehingga seluruh data pada file tidak disimpan.";
+
+            if (normalized.failureDetails.length) {
+                importResultFailureSection.classList.remove("d-none");
+                importResultFailureBody.innerHTML = normalized.failureDetails.map((detail) => `
+                    <tr>
+                        <td>${detail.rowNumber ? `Baris ${escapeHtml(detail.rowNumber)}` : "File"}</td>
+                        <td>${escapeHtml(detail.reason)}</td>
+                    </tr>
+                `).join("");
+            } else {
+                importResultFailureSection.classList.add("d-none");
+                importResultFailureBody.innerHTML = "";
+            }
         }
 
         function syncBodyScrollLock() {
@@ -570,9 +735,12 @@
             syncBodyScrollLock();
         }
 
-        async function loadRows() {
+        async function loadRows(options = {}) {
+            const preserveAlert = Boolean(options?.preserveAlert);
             tableBody.innerHTML = '<tr><td colspan="8" class="text-center text-muted py-4">Loading data...</td></tr>';
-            hideAlert();
+            if (!preserveAlert) {
+                hideAlert();
+            }
             const response = await apiFetch(`${API_BASE}/email-records`);
             const result = await response.json().catch(() => ({}));
             if (!response.ok) {
@@ -606,6 +774,7 @@
                 return;
             }
 
+            hideAlert();
             const formData = new FormData();
             formData.append("file", file);
             const response = await apiFetch(`${API_BASE}/email-records/import`, {
@@ -614,12 +783,24 @@
             });
             const result = await response.json().catch(() => ({}));
             if (!response.ok) {
-                throw new Error(result.message || "Gagal import data email.");
+                showImportResult(result.importResult || {
+                    message: result.message || "Import dibatalkan. Terdapat data gagal, sehingga seluruh data pada file tidak disimpan.",
+                    failureDetails: [
+                        {
+                            rowNumber: null,
+                            reason: result.message || "Gagal import data email.",
+                        },
+                    ],
+                }, false);
+                showAlert(result.message || "Gagal import data email.", "danger");
+                importExcelInput.value = "";
+                return;
             }
 
-            const stats = result.stats || {};
-            showAlert(`Import selesai. Total ${stats.total || 0} baris, ${stats.created || 0} ditambahkan, ${stats.updated || 0} diperbarui.`, "success");
-            await loadRows();
+            showImportResult(result.importResult || result.stats || {}, true);
+            await loadRows({ preserveAlert: true });
+            const importResult = normalizeImportResultPayload(result.importResult || result.stats || {}, true);
+            showAlert(importResult.message, "success");
             importExcelInput.value = "";
         }
 
@@ -716,6 +897,7 @@
         importExcelButton.addEventListener("click", () => importExcelInput.click());
         importExcelInput.addEventListener("change", (event) => importFromExcel(event).catch((error) => showAlert(error.message, "danger")));
         exportExcelButton.addEventListener("click", () => exportCurrentRows().catch((error) => showAlert(error.message, "danger")));
+        closeImportResultButton.addEventListener("click", hideImportResult);
         viewDrawerCloseButton.addEventListener("click", closeViewDrawer);
         confirmCloseButton.addEventListener("click", () => closeConfirmModal(false));
         confirmCancelButton.addEventListener("click", () => closeConfirmModal(false));

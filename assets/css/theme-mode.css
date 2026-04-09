@@ -484,6 +484,39 @@ html.app-skin-dark #emailForm .btn-light:focus {
   color: #edf3ff !important;
 }
 
+html.app-skin-dark .import-result-panel {
+  background: var(--ci-surface-dark) !important;
+  border-color: var(--ci-border-dark) !important;
+}
+
+html.app-skin-dark .import-result-status.is-success {
+  background: rgba(34, 197, 94, 0.14) !important;
+  color: #86efac !important;
+  border-color: rgba(34, 197, 94, 0.28) !important;
+}
+
+html.app-skin-dark .import-result-status.is-danger {
+  background: rgba(239, 68, 68, 0.14) !important;
+  color: #fca5a5 !important;
+  border-color: rgba(239, 68, 68, 0.28) !important;
+}
+
+html.app-skin-dark .import-result-metric {
+  background: #14233b !important;
+  border-color: var(--ci-border-dark) !important;
+}
+
+html.app-skin-dark .import-result-metric-label,
+html.app-skin-dark .import-result-note,
+html.app-skin-dark .import-result-detail-table th {
+  color: #8fa4c2 !important;
+}
+
+html.app-skin-dark .import-result-metric-value,
+html.app-skin-dark .import-result-detail-table td {
+  color: var(--ci-text-dark) !important;
+}
+
 /* Data Perangkat / Flow Proses table + filter consistency */
 html.app-skin-dark .device-table-filters,
 html.app-skin-dark .flow-filter-group,

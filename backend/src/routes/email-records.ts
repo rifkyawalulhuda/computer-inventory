@@ -40,6 +40,25 @@ type PreparedEmailImportRow = {
   payload: EmailRecordPayload;
 };
 
+type EmailImportFailureDetail = {
+  rowNumber: number | null;
+  reason: string;
+};
+
+type EmailImportResult = {
+  success: boolean;
+  message: string;
+  totalRowsRead: number;
+  validRows: number;
+  failedRows: number;
+  importedRows: number;
+  created: number;
+  updated: number;
+  allOrNothing: true;
+  importCancelled: boolean;
+  failureDetails: EmailImportFailureDetail[];
+};
+
 const EMAIL_LICENSE_TYPES = [
   "Miccrosoft 365 Business Basic",
   "Miccrosoft 365 Business Standard",
@@ -137,6 +156,69 @@ function buildAdminEmailCreateNotificationMarker(entry: AdminEmailCreateNotifica
 
 function getActorName(req: Request): string {
   return cleanText(req.authUser?.name) || "Admin";
+}
+
+class EmailImportValidationError extends Error {
+  importResult: EmailImportResult;
+
+  constructor(message: string, importResult: EmailImportResult) {
+    super(message);
+    this.name = "EmailImportValidationError";
+    this.importResult = importResult;
+  }
+}
+
+function createEmailImportFailureResult(args: {
+  message?: string;
+  totalRowsRead: number;
+  validRows: number;
+  failureDetails: EmailImportFailureDetail[];
+}): EmailImportResult {
+  const message = cleanText(args.message)
+    || "Import dibatalkan. Terdapat data gagal, sehingga seluruh data pada file tidak disimpan.";
+  const failureDetails = args.failureDetails
+    .map((detail) => ({
+      rowNumber: typeof detail.rowNumber === "number" && detail.rowNumber > 0 ? detail.rowNumber : null,
+      reason: cleanText(detail.reason),
+    }))
+    .filter((detail) => detail.reason);
+
+  return {
+    success: false,
+    message,
+    totalRowsRead: Math.max(0, args.totalRowsRead),
+    validRows: Math.max(0, args.validRows),
+    failedRows: failureDetails.length,
+    importedRows: 0,
+    created: 0,
+    updated: 0,
+    allOrNothing: true,
+    importCancelled: true,
+    failureDetails,
+  };
+}
+
+function createEmailImportSuccessResult(args: {
+  totalRowsRead: number;
+  created: number;
+  updated: number;
+}): EmailImportResult {
+  const totalRowsRead = Math.max(0, args.totalRowsRead);
+  const created = Math.max(0, args.created);
+  const updated = Math.max(0, args.updated);
+  return {
+    success: true,
+    message: `Import berhasil. ${totalRowsRead} data valid telah diproses dan tidak ada data gagal.`,
+    totalRowsRead,
+    validRows: totalRowsRead,
+    failedRows: 0,
+    importedRows: totalRowsRead,
+    created,
+    updated,
+    allOrNothing: true,
+    importCancelled: false,
+    failureDetails: [],
+  };
 }
 
 function toNullableText(value: unknown): string | null {
@@ -742,7 +824,7 @@ async function prepareEmailImportRows(rows: EmailImportFileRow[]): Promise<Prepa
   const departmentByDisplay = new Map(
     departments.map((department) => [`${department.code} - ${department.siteName}`.toLowerCase(), department]),
   );
-  const rowErrors: string[] = [];
+  const failureDetails: EmailImportFailureDetail[] = [];
   const preparedRows: PreparedEmailImportRow[] = [];
   const seenNos = new Set<number>();
   const seenEmails = new Set<string>();
@@ -789,16 +871,39 @@ async function prepareEmailImportRows(rows: EmailImportFileRow[]): Promise<Prepa
         payload,
       });
     } catch (error) {
-      rowErrors.push(`Baris ${row.rowNumber}: ${error instanceof Error ? error.message : "Validasi gagal."}`);
+      failureDetails.push({
+        rowNumber: row.rowNumber,
+        reason: error instanceof Error ? error.message : "Validasi gagal.",
+      });
     }
   });
 
-  if (rowErrors.length) {
-    throw new Error(`Validasi import gagal.\n${rowErrors.join("\n")}`);
+  if (failureDetails.length) {
+    throw new EmailImportValidationError(
+      "Import dibatalkan. Terdapat data gagal, sehingga seluruh data pada file tidak disimpan.",
+      createEmailImportFailureResult({
+        totalRowsRead: rows.length,
+        validRows: preparedRows.length,
+        failureDetails,
+      }),
+    );
   }
 
   if (!preparedRows.length) {
-    throw new Error("Tidak ada data valid yang bisa diimport.");
+    throw new EmailImportValidationError(
+      "Import dibatalkan. Tidak ada data valid yang dapat diproses.",
+      createEmailImportFailureResult({
+        message: "Import dibatalkan. Tidak ada data valid yang dapat diproses.",
+        totalRowsRead: rows.length,
+        validRows: 0,
+        failureDetails: [
+          {
+            rowNumber: null,
+            reason: "Tidak ada data valid yang bisa diimport.",
+          },
+        ],
+      }),
+    );
   }
 
   return preparedRows;
@@ -1203,22 +1308,29 @@ emailRecordRouter.post("/email-records/import", requireRole("admin"), async (req
       return res.status(400).json({ message: "Sheet template tidak ditemukan." });
     }
 
-    const importRows = parseEmailImportRows(firstSheet);
-    const preparedRows = await prepareEmailImportRows(importRows);
+    let importRows: EmailImportFileRow[];
+    try {
+      importRows = parseEmailImportRows(firstSheet);
+    } catch (error) {
+      const reason = error instanceof Error ? error.message : "Template import tidak valid.";
+      const importResult = createEmailImportFailureResult({
+        totalRowsRead: 0,
+        validRows: 0,
+        failureDetails: [
+          {
+            rowNumber: null,
+            reason,
+          },
+        ],
+      });
 
-    const emails = preparedRows.map((row) => row.payload.email);
-    const existingRows = await prisma.emailAccount.findMany({
-      where: {
-        email: {
-          in: emails,
-        },
-      },
-      select: {
-        id: true,
-        email: true,
-      },
-    });
-    const existingByEmail = new Map(existingRows.map((row) => [row.email.toLowerCase(), row]));
+      return res.status(400).json({
+        message: importResult.message,
+        importResult,
+      });
+    }
+
+    const preparedRows = await prepareEmailImportRows(importRows);
 
     const stats = {
       total: preparedRows.length,
@@ -1227,6 +1339,19 @@ emailRecordRouter.post("/email-records/import", requireRole("admin"), async (req
     };
 
     const processedIds = await prisma.$transaction(async (tx) => {
+      const emails = preparedRows.map((row) => row.payload.email);
+      const existingRows = await tx.emailAccount.findMany({
+        where: {
+          email: {
+            in: emails,
+          },
+        },
+        select: {
+          id: true,
+          email: true,
+        },
+      });
+      const existingByEmail = new Map(existingRows.map((row) => [row.email.toLowerCase(), row]));
       const ids: string[] = [];
       for (const row of preparedRows) {
         const existing = existingByEmail.get(row.payload.email.toLowerCase());
@@ -1293,6 +1418,11 @@ emailRecordRouter.post("/email-records/import", requireRole("admin"), async (req
     res.json({
       message: "Import Data Email berhasil.",
       stats,
+      importResult: createEmailImportSuccessResult({
+        totalRowsRead: preparedRows.length,
+        created: stats.created,
+        updated: stats.updated,
+      }),
       data: orderedRows.map((row, index) => mapEmailRow(row, assignedDeviceMap, index + 1)),
     });
   } catch (error) {
@@ -1302,12 +1432,45 @@ emailRecordRouter.post("/email-records/import", requireRole("admin"), async (req
       });
     }
 
+    if (error instanceof EmailImportValidationError) {
+      return res.status(400).json({
+        message: error.importResult.message,
+        importResult: error.importResult,
+      });
+    }
+
     if (error instanceof Prisma.PrismaClientKnownRequestError && error.code === "P2002") {
-      return res.status(409).json({ message: "Email sudah terdaftar." });
+      const importResult = createEmailImportFailureResult({
+        totalRowsRead: 0,
+        validRows: 0,
+        failureDetails: [
+          {
+            rowNumber: null,
+            reason: "Ditemukan data duplikat sehingga seluruh import dibatalkan.",
+          },
+        ],
+      });
+      return res.status(409).json({
+        message: importResult.message,
+        importResult,
+      });
     }
 
     if (error instanceof Error) {
-      return res.status(400).json({ message: error.message });
+      const importResult = createEmailImportFailureResult({
+        totalRowsRead: 0,
+        validRows: 0,
+        failureDetails: [
+          {
+            rowNumber: null,
+            reason: error.message,
+          },
+        ],
+      });
+      return res.status(400).json({
+        message: importResult.message,
+        importResult,
+      });
     }
 
     next(error);

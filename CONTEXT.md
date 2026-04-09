@@ -123,6 +123,7 @@ Perubahan UI terbaru yang penting:
 - reject untuk flow `Ganti Job Code` dan `Transfer Site` tidak lagi menjadi prioritas utama di notifikasi workflow dan tidak menambah badge reject pada navbar/sidebar flow
 - tombol `All Notifications` di dropdown bell sekarang membuka modal notifikasi penuh dengan daftar history yang lebih lengkap, bukan langsung pindah halaman
 - modal `All Notifications` memakai sumber data yang sama dengan dropdown bell, tetapi tanpa limit 5 item per section dan dengan pesan notifikasi yang tidak dipotong
+- modal `All Notifications` dan panel dropdown notifikasi sudah punya perbaikan dark mode agar surface, teks, badge, dan item card tetap terbaca di skin gelap
 - dashboard `index.html` sekarang punya menu `Data Email` di bawah `Data Perangkat`
 - fitur `Data Email` mengikuti pola `Data Perangkat` untuk list, form, drawer detail, import template, import Excel, dan export
 - role admin bisa create/edit/import/export semua Data Email
@@ -131,6 +132,15 @@ Perubahan UI terbaru yang penting:
 - field `Data Email` yang dipakai saat ini: `No`, `Department`, `Job Code`, `Nama User`, `Email`, `Location`, `Jenis License`, `Password`, `Keterangan`, dan `Perangkat`
 - dropdown `Jenis License` mengikuti value literal: `Miccrosoft 365 Business Basic`, `Miccrosoft 365 Business Standard`, dan `Miccrosoft 365 E1`
 - `data-email-form.html` memakai mode create/edit terpisah seperti halaman form existing, dengan readonly berbasis role langsung di frontend dan backend
+- tabel `Data Email` sekarang memakai sorting per kolom, pagination dengan pola UI yang disamakan ke `Data Perangkat`, dan kolom `No` disembunyikan dari drawer detail
+- form `Data Email` sudah mengikuti dark mode yang konsisten, termasuk panel form, label, field, readonly state, dan tombol sekunder
+- aksi hapus `Data Email` di frontend sudah tidak memakai `window.confirm`, tetapi modal konfirmasi custom yang konsisten dengan halaman lain
+- tombol hapus `Data Email` hanya tampil untuk role admin
+- saat admin membuat `Data Email` baru untuk suatu department, PIC/user pada department tersebut menerima notifikasi `NEW` di bell notification
+- saat admin menghapus `Data Email`, PIC/user pada department tersebut menerima notifikasi `DELETED` di bell notification
+- template Excel `Data Email` terbaru sudah tidak lagi menampilkan kolom `No` karena nomor digenerate otomatis oleh sistem
+- parser import `Data Email` tetap kompatibel dengan template lama yang masih memiliki kolom `No`
+- halaman `Data Email` sekarang memiliki panel `Hasil Import Excel` yang menampilkan ringkasan valid/gagal, detail baris gagal, dan pesan eksplisit saat import dibatalkan total
 
 ## Backend
 
@@ -215,9 +225,16 @@ Area `device-records` juga menangani:
 - edit langsung perangkat oleh admin yang memindahkan kepemilikan/penempatan device menulis marker notifikasi ke histori agar user terkait menerima notifikasi `UPDATED`
 - notifikasi edit langsung admin harus bisa diterima oleh PIC lama, PIC baru, atau admin target jika device dipindahkan ke department/job code/PIC milik admin
 - `GET /api/device-records/dashboard-summary` sekarang juga mengembalikan `adminEditNotifications` selain ringkasan lease/dashboard biasa
+- `GET /api/device-records/dashboard-summary` juga mengembalikan `emailCreateNotifications`, yang sekarang dipakai untuk notifikasi create dan delete pada `Data Email`
 - payload flow gabungan membawa field seperti `flowItemType`, `requestTypeLabel`, `currentStepLabel`, `availableActions`, `Target PIC Name`, dan histori request
 - area `email-records` menerapkan scope department untuk role user, validasi readonly di backend, import template Excel, import file Excel, dan export file Excel
+- `GET /api/email-records/import-template` harus dideklarasikan sebelum `GET /api/email-records/:id` agar path statis `import-template` tidak terbaca sebagai ID
 - endpoint update `email-records` sengaja belum membuat workflow approval terpisah seperti `DeviceChangeRequest`; implementasi saat ini mengikuti rule paling aman yang konsisten dengan codebase, yaitu non-admin tidak bisa mengubah `Department`, `Job Code`, `Nama User`, `Email`, `Location`, dan `Jenis License` secara langsung
+- import `Data Email` sekarang wajib all-or-nothing:
+- jika seluruh row valid, semua row disimpan
+- jika ada minimal satu row gagal, seluruh import dibatalkan dan tidak ada row yang disimpan
+- response import `Data Email` mengembalikan payload `importResult` berisi `success`, `message`, `totalRowsRead`, `validRows`, `failedRows`, `importedRows`, `created`, `updated`, `allOrNothing`, `importCancelled`, dan `failureDetails`
+- frontend `data-email.html` menampilkan hasil import dari payload `importResult` dalam panel hasil khusus, bukan hanya alert singkat
 
 ## Data Model
 
@@ -240,6 +257,7 @@ Model domain yang penting:
 - `DeviceChangeRequest`
 - `DeviceChangeRequestEvent`
 - `EmailAccount`
+- `EmailAccountNotificationLog`
 
 Relasi bisnis utama:
 
@@ -247,6 +265,7 @@ Relasi bisnis utama:
 - `Department` juga punya banyak `EmailAccount`
 - `Device` terhubung ke category, model, location, assignment, IP, dan lease contract
 - `EmailAccount` terhubung ke `Department`, `DepartmentJobCode`, optional `Location`, dan optional satu `Device`
+- `EmailAccountNotificationLog` menyimpan notifikasi persisten untuk event create/delete Data Email yang perlu tetap muncul walaupun row `EmailAccount` sumber sudah dihapus
 - relasi utama perangkat-email memakai `Device.emailAccountId -> EmailAccount.id`
 - `LeaseContract` menyimpan start/end date, days lease, lease status, history log
 - `Device` menyimpan metadata flow approval seperti `flowStatus`, approver, reject note, signatures
@@ -273,6 +292,9 @@ Catatan khusus `Data Email`:
 - belum ada tabel workflow khusus `Data Email` yang setara `DeviceChangeRequest`
 - jika nanti dibutuhkan workflow perubahan `Job Code` atau transfer department untuk akun email, pola yang paling konsisten adalah meniru struktur approval milik `Data Perangkat`, bukan memperbolehkan edit langsung oleh user
 - import `Data Email` akan membuat atau mengupdate baris berdasarkan `Email` sebagai key unik
+- hasil import `Data Email` sekarang wajib mengembalikan detail validasi per baris jika gagal
+- validasi import yang umum sekarang mencakup department tidak ditemukan, job code tidak sesuai department, email invalid/kosong, jenis license invalid, field wajib kosong, dan duplikasi data
+- pada kondisi gagal import `Data Email`, pesan utama harus menegaskan bahwa seluruh data pada file tidak disimpan
 
 ## Environment Backend
 
@@ -314,6 +336,8 @@ Isi migration menunjukkan evolusi schema seperti:
 - penambahan kolom `poms_site_code_system` pada tabel `devices`
 - penambahan tabel `device_change_requests`
 - penambahan tabel `device_change_request_events`
+- penambahan kolom `history_log` pada tabel `email_accounts`
+- penambahan tabel `email_account_notification_logs`
 
 ## Dokumentasi dan Aset Tambahan
 
@@ -343,6 +367,8 @@ Jika mau melanjutkan pengembangan, area yang paling sentral biasanya:
 - `backend/prisma/migrations/20260408193000_add_device_poms_site_code_system/migration.sql`
 - `backend/prisma/migrations/20260408214500_add_device_change_request_workflow/migration.sql`
 - `backend/prisma/migrations/20260409120000_add_email_accounts/migration.sql`
+- `backend/prisma/migrations/20260409123000_add_email_account_history_log/migration.sql`
+- `backend/prisma/migrations/20260409153000_add_email_account_notification_logs/migration.sql`
 - `assets/js/app-config.js`
 - `assets/js/auth-client.js`
 
