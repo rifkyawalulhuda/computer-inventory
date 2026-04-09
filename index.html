@@ -4033,6 +4033,7 @@
                 flowRows: [],
                 leaseRows: [],
                 adminRows: [],
+                emailRows: [],
             };
             let headerNotificationsRenderedItems = [];
             let headerNotificationsAllItems = [];
@@ -5015,6 +5016,62 @@
                 };
             }
 
+            function buildAdminEmailCreateNotificationMessage(row) {
+                const notificationType = String(row?.notificationType || "ADMIN_CREATED").trim().toUpperCase();
+                const actorName = toDisplayText(row?.actorName);
+                const userName = toDisplayText(row?.userName);
+                const email = toDisplayText(row?.email);
+                const department = toDisplayText(row?.department);
+                const jobCode = toDisplayText(row?.jobCode);
+                const licenseType = toDisplayText(row?.licenseType);
+
+                if (notificationType === "ADMIN_DELETED") {
+                    return `Admin ${actorName} menghapus data email department ${department}${jobCode !== "-" ? ` / ${jobCode}` : ""}. User: ${userName}, email: ${email}${licenseType !== "-" ? `, license: ${licenseType}` : ""}.`;
+                }
+
+                return `Admin ${actorName} menambahkan data email baru untuk department ${department}${jobCode !== "-" ? ` / ${jobCode}` : ""}. User: ${userName}, email: ${email}, license: ${licenseType}.`;
+            }
+
+            function buildAdminEmailCreateNotificationItem(row) {
+                const emailAccountId = String(row?.emailAccountId || row?.id || "").trim();
+                const eventTimeRaw = String(row?.eventAt || "").trim();
+                if (!emailAccountId || !eventTimeRaw) {
+                    return null;
+                }
+
+                const parsedEventDate = parseDateTimeSafe(eventTimeRaw);
+                const email = toDisplayText(row?.email);
+                const department = toDisplayText(row?.department);
+                const notificationType = String(row?.notificationType || "ADMIN_CREATED").trim().toUpperCase();
+                const key = [
+                    "ADMIN_EMAIL",
+                    emailAccountId,
+                    notificationType,
+                    eventTimeRaw,
+                    email,
+                ].join("|");
+                const isDeleteNotification = notificationType === "ADMIN_DELETED";
+
+                return {
+                    key,
+                    status: isDeleteNotification ? "DELETED" : "NEW",
+                    message: buildAdminEmailCreateNotificationMessage(row),
+                    meta: {
+                        badgeClass: isDeleteNotification ? "bg-soft-danger text-danger" : "bg-soft-primary text-primary",
+                        badgeLabel: isDeleteNotification ? "DELETED" : "NEW",
+                        iconClass: isDeleteNotification ? "feather-trash-2" : "feather-mail",
+                    },
+                    department,
+                    serialNo: email,
+                    eventTimeRaw,
+                    targetPage: "data-email.html",
+                    targetTitle: "Data Email",
+                    priority: 2,
+                    sortTime: parsedEventDate ? parsedEventDate.getTime() : Number.NEGATIVE_INFINITY,
+                    fallbackSortValue: 0,
+                };
+            }
+
             function normalizeLeaseStatusText(value) {
                 return String(value || "")
                     .trim()
@@ -5135,13 +5192,15 @@
                     const flowRows = Array.isArray(cache.flowRows) ? cache.flowRows : [];
                     const leaseRows = Array.isArray(cache.leaseRows) ? cache.leaseRows : [];
                     const adminRows = Array.isArray(cache.adminRows) ? cache.adminRows : [];
-                    return { flowRows, leaseRows, adminRows };
+                    const emailRows = Array.isArray(cache.emailRows) ? cache.emailRows : [];
+                    return { flowRows, leaseRows, adminRows, emailRows };
                 }
 
                 return {
                     flowRows: Array.isArray(input) ? input : [],
                     leaseRows: [],
                     adminRows: [],
+                    emailRows: [],
                 };
             }
 
@@ -5228,10 +5287,13 @@
                 const adminItems = notificationCache.adminRows
                     .map((row) => buildAdminDeviceEditNotificationItem(row))
                     .filter((entry) => entry !== null);
+                const emailItems = notificationCache.emailRows
+                    .map((row) => buildAdminEmailCreateNotificationItem(row))
+                    .filter((entry) => entry !== null);
                 const leaseItems = notificationCache.leaseRows
                     .map((row) => buildLeaseNotificationItem(row))
                     .filter((entry) => entry !== null);
-                const workflowItems = [...flowItems, ...adminItems]
+                const workflowItems = [...flowItems, ...adminItems, ...emailItems]
                     .filter((item) => String(item?.meta?.badgeLabel || "").trim().toUpperCase() !== "EXPIRED")
                     .sort(sortFlowNotifications);
                 const leaseSortedItems = leaseItems.sort(sortFlowNotifications);
@@ -6409,6 +6471,7 @@
                 return {
                     leaseRows: Array.isArray(summaryData?.devices) ? summaryData.devices : [],
                     adminRows: Array.isArray(summaryData?.adminEditNotifications) ? summaryData.adminEditNotifications : [],
+                    emailRows: Array.isArray(summaryData?.emailCreateNotifications) ? summaryData.emailCreateNotifications : [],
                 };
             }
 
@@ -6431,6 +6494,9 @@
                 const adminRows = leaseResult.status === "fulfilled" && Array.isArray(leaseResult.value?.adminRows)
                     ? leaseResult.value.adminRows
                     : [];
+                const emailRows = leaseResult.status === "fulfilled" && Array.isArray(leaseResult.value?.emailRows)
+                    ? leaseResult.value.emailRows
+                    : [];
 
                 const pendingCount = flowRows.filter((row) => {
                     const normalizedStatus = normalizeFlowStatus(row?.["Flow Status"]);
@@ -6452,6 +6518,7 @@
                         flowRows,
                         leaseRows,
                         adminRows,
+                        emailRows,
                     });
                 }
             }

@@ -667,6 +667,9 @@ function buildHistoryEntry(message: string): string {
 }
 
 const ADMIN_DIRECT_DEVICE_EDIT_NOTIFICATION_PREFIX = "ADMIN_DIRECT_DEVICE_EDIT_NOTIFY";
+const ADMIN_EMAIL_CREATE_NOTIFICATION_PREFIX = "ADMIN_EMAIL_CREATE_NOTIFY";
+const ADMIN_EMAIL_NOTIFICATION_TYPE_CREATED = "ADMIN_CREATED";
+const ADMIN_EMAIL_NOTIFICATION_TYPE_DELETED = "ADMIN_DELETED";
 
 type AdminDirectDeviceEditRecipientRole = "SOURCE" | "TARGET" | "SOURCE_AND_TARGET";
 
@@ -687,6 +690,18 @@ type AdminDirectDeviceEditNotificationEntry = {
   toJobCode: string;
   toPicName: string;
   toPomsSiteCodeSystem: string;
+};
+
+type AdminEmailCreateNotificationEntry = {
+  eventAt: string;
+  recipientUserId: string;
+  actorName: string;
+  department: string;
+  jobCode: string;
+  userName: string;
+  email: string;
+  licenseType: string;
+  notificationType: string;
 };
 
 function buildAdminDirectDeviceEditNotificationMarker(entry: Omit<AdminDirectDeviceEditNotificationEntry, "eventAt">): string {
@@ -770,6 +785,58 @@ function parseAdminDirectDeviceEditNotifications(
       } satisfies AdminDirectDeviceEditNotificationEntry;
     })
     .filter((entry): entry is AdminDirectDeviceEditNotificationEntry => Boolean(entry));
+}
+
+function parseAdminEmailCreateNotifications(
+  historyLog: string | null | undefined,
+  recipientUserId: string,
+): AdminEmailCreateNotificationEntry[] {
+  const normalizedRecipientUserId = cleanText(recipientUserId);
+  if (!normalizedRecipientUserId) {
+    return [];
+  }
+
+  return String(historyLog || "")
+    .split(/\r?\n/)
+    .map((line) => cleanText(line))
+    .filter(Boolean)
+    .map((line) => {
+      const match = line.match(/^\[(.+?)\]\s+ADMIN_EMAIL_CREATE_NOTIFY\|(.*)$/);
+      if (!match) {
+        return null;
+      }
+
+      const eventAt = cleanText(match[1]);
+      const rawPayload = cleanText(match[2]);
+      const data = rawPayload.split("|").reduce<Record<string, string>>((accumulator, segment) => {
+        const separatorIndex = segment.indexOf("=");
+        if (separatorIndex < 1) {
+          return accumulator;
+        }
+
+        const key = cleanText(segment.slice(0, separatorIndex));
+        const rawValue = segment.slice(separatorIndex + 1);
+        accumulator[key] = decodeURIComponent(rawValue);
+        return accumulator;
+      }, {});
+
+      if (cleanText(data.recipientUserId) !== normalizedRecipientUserId) {
+        return null;
+      }
+
+      return {
+        eventAt,
+        recipientUserId: normalizedRecipientUserId,
+        actorName: cleanText(data.actorName),
+        department: cleanText(data.department),
+        jobCode: cleanText(data.jobCode),
+        userName: cleanText(data.userName),
+        email: cleanText(data.email),
+        licenseType: cleanText(data.licenseType),
+        notificationType: ADMIN_EMAIL_NOTIFICATION_TYPE_CREATED,
+      } satisfies AdminEmailCreateNotificationEntry;
+    })
+    .filter((entry): entry is AdminEmailCreateNotificationEntry => Boolean(entry));
 }
 
 function appendHistoryEntries(
@@ -2633,6 +2700,68 @@ deviceRecordRouter.get("/device-records/dashboard-summary", async (req, res, nex
       });
     }
 
+    const emailCreateNotifications: Array<AdminEmailCreateNotificationEntry & { emailAccountId: string }> = [];
+    if (scope.userId) {
+      const notificationToken = `${ADMIN_EMAIL_CREATE_NOTIFICATION_PREFIX}|recipientUserId=${encodeURIComponent(scope.userId)}`;
+      const notificationRows = await prisma.emailAccount.findMany({
+        where: {
+          historyLog: {
+            contains: notificationToken,
+          },
+        },
+        orderBy: { createdAt: "desc" },
+        select: {
+          id: true,
+          historyLog: true,
+        },
+      });
+
+      notificationRows.forEach((row) => {
+        const matchedNotifications = parseAdminEmailCreateNotifications(row.historyLog, scope.userId as string);
+        matchedNotifications.forEach((entry) => {
+          emailCreateNotifications.push({
+            ...entry,
+            emailAccountId: row.id,
+          });
+        });
+      });
+
+      const deleteNotificationRows = await prisma.emailAccountNotificationLog.findMany({
+        where: {
+          recipientUserId: scope.userId,
+          notificationType: ADMIN_EMAIL_NOTIFICATION_TYPE_DELETED,
+        },
+        orderBy: { createdAt: "desc" },
+        select: {
+          id: true,
+          originalEmailAccountId: true,
+          actorName: true,
+          department: true,
+          jobCode: true,
+          userName: true,
+          email: true,
+          licenseType: true,
+          createdAt: true,
+          notificationType: true,
+        },
+      });
+
+      deleteNotificationRows.forEach((row) => {
+        emailCreateNotifications.push({
+          eventAt: row.createdAt.toISOString(),
+          recipientUserId: scope.userId as string,
+          actorName: cleanText(row.actorName),
+          department: cleanText(row.department),
+          jobCode: cleanText(row.jobCode),
+          userName: cleanText(row.userName),
+          email: cleanText(row.email),
+          licenseType: cleanText(row.licenseType),
+          notificationType: cleanText(row.notificationType) || ADMIN_EMAIL_NOTIFICATION_TYPE_DELETED,
+          emailAccountId: cleanText(row.originalEmailAccountId) || cleanText(row.id),
+        });
+      });
+    }
+
     res.json({
       data: {
         generatedAt: new Date().toISOString(),
@@ -2641,6 +2770,7 @@ deviceRecordRouter.get("/device-records/dashboard-summary", async (req, res, nex
         expiringSoonDevices,
         devices,
         adminEditNotifications,
+        emailCreateNotifications,
       },
     });
   } catch (error) {

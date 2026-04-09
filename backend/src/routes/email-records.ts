@@ -24,7 +24,7 @@ type EmailRecordPayload = {
 
 type EmailImportFileRow = {
   rowNumber: number;
-  no: string;
+  no?: string;
   department: string;
   jobCode: string;
   userName: string;
@@ -47,7 +47,6 @@ const EMAIL_LICENSE_TYPES = [
 ] as const;
 
 const EMAIL_IMPORT_TEMPLATE_HEADERS = [
-  "No",
   "Department",
   "Job Code",
   "Nama User",
@@ -57,10 +56,13 @@ const EMAIL_IMPORT_TEMPLATE_HEADERS = [
   "Password",
   "Keterangan",
 ] as const;
+const EMAIL_IMPORT_LEGACY_TEMPLATE_HEADERS = ["No", ...EMAIL_IMPORT_TEMPLATE_HEADERS] as const;
 
 const MAX_EMAIL_IMPORT_FILE_SIZE = 5 * 1024 * 1024;
 const EMAIL_IMPORT_DROPDOWN_MAX_ROWS = 1000;
 const EMAIL_LEGACY_NO_LOCK_KEY = 9042026;
+const ADMIN_EMAIL_CREATE_NOTIFICATION_PREFIX = "ADMIN_EMAIL_CREATE_NOTIFY";
+const ADMIN_EMAIL_DELETE_NOTIFICATION_TYPE = "ADMIN_DELETED";
 
 const emailImportUpload = multer({
   storage: multer.memoryStorage(),
@@ -81,6 +83,60 @@ const emailImportUpload = multer({
 
 function cleanText(value: unknown): string {
   return String(value ?? "").trim();
+}
+
+function formatHistoryTimestamp(date = new Date()): string {
+  const year = date.getFullYear();
+  const month = String(date.getMonth() + 1).padStart(2, "0");
+  const day = String(date.getDate()).padStart(2, "0");
+  const hours = String(date.getHours()).padStart(2, "0");
+  const minutes = String(date.getMinutes()).padStart(2, "0");
+  const seconds = String(date.getSeconds()).padStart(2, "0");
+  return `${year}-${month}-${day} ${hours}:${minutes}:${seconds}`;
+}
+
+function buildHistoryEntry(message: string): string {
+  return `[${formatHistoryTimestamp()}] ${message}`;
+}
+
+function appendHistoryEntries(existingHistory: string | null | undefined, entries: string[]): string | null {
+  const base = toNullableText(existingHistory);
+  const cleanEntries = entries.map((entry) => cleanText(entry)).filter(Boolean);
+  if (!cleanEntries.length) {
+    return base;
+  }
+
+  return base ? `${base}\n${cleanEntries.join("\n")}` : cleanEntries.join("\n");
+}
+
+type AdminEmailCreateNotificationEntry = {
+  recipientUserId: string;
+  actorName: string;
+  department: string;
+  jobCode: string;
+  userName: string;
+  email: string;
+  licenseType: string;
+};
+
+function buildAdminEmailCreateNotificationMarker(entry: AdminEmailCreateNotificationEntry): string {
+  const parts: Array<[string, string]> = [
+    ["recipientUserId", entry.recipientUserId],
+    ["actorName", entry.actorName],
+    ["department", entry.department],
+    ["jobCode", entry.jobCode],
+    ["userName", entry.userName],
+    ["email", entry.email],
+    ["licenseType", entry.licenseType],
+  ];
+
+  return `${ADMIN_EMAIL_CREATE_NOTIFICATION_PREFIX}|${parts
+    .map(([key, value]) => `${key}=${encodeURIComponent(cleanText(value))}`)
+    .join("|")}`;
+}
+
+function getActorName(req: Request): string {
+  return cleanText(req.authUser?.name) || "Admin";
 }
 
 function toNullableText(value: unknown): string | null {
@@ -127,13 +183,30 @@ function normalizeImportHeaderText(value: unknown): string {
     .replace(/[.]/g, "");
 }
 
-function ensureEmailImportTemplateHeader(headerRow: unknown[]): void {
-  const expected = EMAIL_IMPORT_TEMPLATE_HEADERS.map((header) => normalizeImportHeaderText(header));
-  const actual = headerRow.slice(0, EMAIL_IMPORT_TEMPLATE_HEADERS.length).map((header) => normalizeImportHeaderText(header));
-  const isSame = expected.length === actual.length && expected.every((header, index) => header === actual[index]);
-  if (!isSame) {
-    throw new Error(`Header template tidak sesuai. Gunakan urutan: ${EMAIL_IMPORT_TEMPLATE_HEADERS.join(", ")}`);
+function resolveEmailImportTemplateHeaderOffset(headerRow: unknown[]): number {
+  const normalizedHeaderRow = headerRow.map((header) => normalizeImportHeaderText(header));
+  const currentExpected = EMAIL_IMPORT_TEMPLATE_HEADERS.map((header) => normalizeImportHeaderText(header));
+  const legacyExpected = EMAIL_IMPORT_LEGACY_TEMPLATE_HEADERS.map((header) => normalizeImportHeaderText(header));
+  const currentActual = normalizedHeaderRow.slice(0, EMAIL_IMPORT_TEMPLATE_HEADERS.length);
+  const legacyActual = normalizedHeaderRow.slice(0, EMAIL_IMPORT_LEGACY_TEMPLATE_HEADERS.length);
+
+  const isCurrentTemplate =
+    currentExpected.length === currentActual.length
+    && currentExpected.every((header, index) => header === currentActual[index]);
+  if (isCurrentTemplate) {
+    return 0;
   }
+
+  const isLegacyTemplate =
+    legacyExpected.length === legacyActual.length
+    && legacyExpected.every((header, index) => header === legacyActual[index]);
+  if (isLegacyTemplate) {
+    return 1;
+  }
+
+  throw new Error(
+    `Header template tidak sesuai. Gunakan urutan: ${EMAIL_IMPORT_TEMPLATE_HEADERS.join(", ")}.`,
+  );
 }
 
 function parseEditorRole(req: Request): EditorRole {
@@ -493,12 +566,15 @@ function parseEmailImportRows(sheet: XLSX.WorkSheet): EmailImportFileRow[] {
   }
 
   const headerRow = Array.isArray(rows[0]) ? rows[0] : [];
-  ensureEmailImportTemplateHeader(headerRow);
+  const headerOffset = resolveEmailImportTemplateHeaderOffset(headerRow);
 
   const parsedRows: EmailImportFileRow[] = [];
   for (let index = 1; index < rows.length; index += 1) {
     const rawRow = Array.isArray(rows[index]) ? rows[index] : [];
-    const values = Array.from({ length: EMAIL_IMPORT_TEMPLATE_HEADERS.length }, (_value, idx) => rawRow[idx]);
+    const values = Array.from(
+      { length: EMAIL_IMPORT_TEMPLATE_HEADERS.length },
+      (_value, idx) => rawRow[idx + headerOffset],
+    );
     const hasValue = values.some((value) => cleanText(value));
     if (!hasValue) {
       continue;
@@ -506,15 +582,15 @@ function parseEmailImportRows(sheet: XLSX.WorkSheet): EmailImportFileRow[] {
 
     parsedRows.push({
       rowNumber: index + 1,
-      no: cleanText(values[0]),
-      department: cleanText(values[1]),
-      jobCode: cleanText(values[2]),
-      userName: cleanText(values[3]),
-      email: cleanText(values[4]),
-      location: cleanText(values[5]),
-      licenseType: cleanText(values[6]),
-      password: cleanText(values[7]),
-      keterangan: cleanText(values[8]),
+      no: headerOffset === 1 ? cleanText(rawRow[0]) : "",
+      department: cleanText(values[0]),
+      jobCode: cleanText(values[1]),
+      userName: cleanText(values[2]),
+      email: cleanText(values[3]),
+      location: cleanText(values[4]),
+      licenseType: cleanText(values[5]),
+      password: cleanText(values[6]),
+      keterangan: cleanText(values[7]),
     });
   }
 
@@ -546,7 +622,6 @@ async function createEmailImportTemplateWorkbookBuffer(): Promise<Buffer> {
 
   templateSheet.addRow([...EMAIL_IMPORT_TEMPLATE_HEADERS]);
   templateSheet.addRow([
-    1,
     departmentRefs[0] || "",
     jobCodeRefs[0] || "",
     "Nama User",
@@ -558,7 +633,6 @@ async function createEmailImportTemplateWorkbookBuffer(): Promise<Buffer> {
   ]);
 
   templateSheet.columns = [
-    { width: 12 },
     { width: 30 },
     { width: 18 },
     { width: 28 },
@@ -602,17 +676,17 @@ async function createEmailImportTemplateWorkbookBuffer(): Promise<Buffer> {
   }
 
   for (let row = 2; row <= EMAIL_IMPORT_DROPDOWN_MAX_ROWS; row += 1) {
-    templateSheet.getCell(row, 2).dataValidation = {
+    templateSheet.getCell(row, 1).dataValidation = {
       type: "list",
       allowBlank: false,
       formulae: [`Referensi!$A$2:$A$${Math.max(departmentRefs.length + 1, 2)}`],
     };
-    templateSheet.getCell(row, 3).dataValidation = {
+    templateSheet.getCell(row, 2).dataValidation = {
       type: "list",
       allowBlank: false,
       formulae: [`Referensi!$B$2:$B$${Math.max(jobCodeRefs.length + 1, 2)}`],
     };
-    templateSheet.getCell(row, 7).dataValidation = {
+    templateSheet.getCell(row, 6).dataValidation = {
       type: "list",
       allowBlank: false,
       formulae: [`Referensi!$C$2:$C$${Math.max(EMAIL_LICENSE_TYPES.length + 1, 2)}`],
@@ -622,11 +696,12 @@ async function createEmailImportTemplateWorkbookBuffer(): Promise<Buffer> {
   instructionSheet.addRows([
     ["Panduan Import Data Email"],
     ["1. Isi data mulai baris ke-2 di sheet Template."],
-    ["2. Kolom wajib: No, Department, Job Code, Nama User, Email, Jenis License."],
+    ["2. Kolom wajib: Department, Job Code, Nama User, Email, Jenis License."],
     ["3. Kolom Location, Password, dan Keterangan boleh dikosongkan."],
     ["4. Department harus memakai format 'CODE - Site Name' seperti di dropdown template."],
     ["5. Job Code harus sesuai dengan Department yang dipilih."],
-    ["6. Email yang sudah ada akan diupdate otomatis saat import ulang."],
+    ["6. Kolom No tidak perlu diisi karena akan digenerate otomatis oleh sistem."],
+    ["7. Email yang sudah ada akan diupdate otomatis saat import ulang."],
   ]);
   instructionSheet.getColumn(1).width = 120;
   instructionSheet.getRow(1).font = { bold: true };
@@ -788,6 +863,22 @@ emailRecordRouter.get("/email-records", async (req, res, next) => {
   }
 });
 
+emailRecordRouter.get("/email-records/import-template", requireRole("admin"), async (_req, res, next) => {
+  try {
+    const buffer = await createEmailImportTemplateWorkbookBuffer();
+    const fileName = "template-data-email.xlsx";
+
+    res.setHeader("Content-Disposition", `attachment; filename="${fileName}"`);
+    res.setHeader(
+      "Content-Type",
+      "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+    );
+    res.send(buffer);
+  } catch (error) {
+    next(error);
+  }
+});
+
 emailRecordRouter.get("/email-records/:id", async (req, res, next) => {
   try {
     const id = cleanText(req.params.id);
@@ -853,6 +944,34 @@ emailRecordRouter.post("/email-records", requireRole("admin"), async (req, res, 
       });
 
       await syncDirectDeviceRelationForEmail(tx, row.id, row.email);
+      const recipientUsers = await tx.masterUser.findMany({
+        where: {
+          role: "user",
+          jobCodeId: payload.departmentId,
+        },
+        select: {
+          id: true,
+        },
+      });
+      const notificationEntries = recipientUsers.map((user) => buildHistoryEntry(buildAdminEmailCreateNotificationMarker({
+        recipientUserId: user.id,
+        actorName: getActorName(req),
+        department: cleanText(row.department?.code),
+        jobCode: cleanText(row.departmentJobCode?.code),
+        userName: cleanText(row.userName),
+        email: cleanText(row.email),
+        licenseType: cleanText(row.licenseType),
+      })));
+
+      if (notificationEntries.length) {
+        await tx.emailAccount.update({
+          where: { id: row.id },
+          data: {
+            historyLog: appendHistoryEntries(row.historyLog, notificationEntries),
+          },
+        });
+      }
+
       return tx.emailAccount.findUniqueOrThrow({
         where: { id: row.id },
         include: emailAccountInclude,
@@ -987,29 +1106,75 @@ emailRecordRouter.delete("/email-records/:id", requireRole("admin"), async (req,
       return res.status(400).json({ message: "ID tidak valid." });
     }
 
-    await prisma.emailAccount.delete({ where: { id } });
+    await prisma.$transaction(async (tx) => {
+      const existing = await tx.emailAccount.findUnique({
+        where: { id },
+        select: {
+          id: true,
+          departmentId: true,
+          userName: true,
+          email: true,
+          licenseType: true,
+          department: {
+            select: {
+              code: true,
+            },
+          },
+          departmentJobCode: {
+            select: {
+              code: true,
+            },
+          },
+        },
+      });
+
+      if (!existing) {
+        throw new Error("DATA_EMAIL_NOT_FOUND");
+      }
+
+      const recipientUsers = await tx.masterUser.findMany({
+        where: {
+          role: "user",
+          jobCodeId: existing.departmentId,
+        },
+        select: {
+          id: true,
+        },
+      });
+
+      if (recipientUsers.length) {
+        await Promise.all(
+          recipientUsers.map((user) =>
+            tx.emailAccountNotificationLog.create({
+              data: {
+                originalEmailAccountId: existing.id,
+                recipientUserId: user.id,
+                notificationType: ADMIN_EMAIL_DELETE_NOTIFICATION_TYPE,
+                actorName: getActorName(req),
+                department: cleanText(existing.department?.code),
+                jobCode: cleanText(existing.departmentJobCode?.code) || null,
+                userName: cleanText(existing.userName),
+                email: cleanText(existing.email),
+                licenseType: cleanText(existing.licenseType) || null,
+              },
+            }),
+          ),
+        );
+      }
+
+      await tx.emailAccount.delete({ where: { id } });
+    });
+
     res.status(204).send();
   } catch (error) {
+    if (error instanceof Error && error.message === "DATA_EMAIL_NOT_FOUND") {
+      return res.status(404).json({ message: "Data Email tidak ditemukan." });
+    }
+
     if (error instanceof Prisma.PrismaClientKnownRequestError && error.code === "P2025") {
       return res.status(404).json({ message: "Data Email tidak ditemukan." });
     }
 
-    next(error);
-  }
-});
-
-emailRecordRouter.get("/email-records/import-template", requireRole("admin"), async (_req, res, next) => {
-  try {
-    const buffer = await createEmailImportTemplateWorkbookBuffer();
-    const fileName = "template-data-email.xlsx";
-
-    res.setHeader("Content-Disposition", `attachment; filename="${fileName}"`);
-    res.setHeader(
-      "Content-Type",
-      "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
-    );
-    res.send(buffer);
-  } catch (error) {
     next(error);
   }
 });

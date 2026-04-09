@@ -128,6 +128,9 @@ Perubahan UI terbaru yang penting:
 - role admin bisa create/edit/import/export semua Data Email
 - role user hanya bisa melihat Data Email milik department sendiri dan hanya boleh mengubah `Password` serta `Keterangan`
 - kolom `Perangkat` pada `Data Email` mengambil hostname perangkat yang terhubung lewat relasi langsung atau fallback kecocokan email lama
+- field `Data Email` yang dipakai saat ini: `No`, `Department`, `Job Code`, `Nama User`, `Email`, `Location`, `Jenis License`, `Password`, `Keterangan`, dan `Perangkat`
+- dropdown `Jenis License` mengikuti value literal: `Miccrosoft 365 Business Basic`, `Miccrosoft 365 Business Standard`, dan `Miccrosoft 365 E1`
+- `data-email-form.html` memakai mode create/edit terpisah seperti halaman form existing, dengan readonly berbasis role langsung di frontend dan backend
 
 ## Backend
 
@@ -214,6 +217,7 @@ Area `device-records` juga menangani:
 - `GET /api/device-records/dashboard-summary` sekarang juga mengembalikan `adminEditNotifications` selain ringkasan lease/dashboard biasa
 - payload flow gabungan membawa field seperti `flowItemType`, `requestTypeLabel`, `currentStepLabel`, `availableActions`, `Target PIC Name`, dan histori request
 - area `email-records` menerapkan scope department untuk role user, validasi readonly di backend, import template Excel, import file Excel, dan export file Excel
+- endpoint update `email-records` sengaja belum membuat workflow approval terpisah seperti `DeviceChangeRequest`; implementasi saat ini mengikuti rule paling aman yang konsisten dengan codebase, yaitu non-admin tidak bisa mengubah `Department`, `Job Code`, `Nama User`, `Email`, `Location`, dan `Jenis License` secara langsung
 
 ## Data Model
 
@@ -243,6 +247,7 @@ Relasi bisnis utama:
 - `Department` juga punya banyak `EmailAccount`
 - `Device` terhubung ke category, model, location, assignment, IP, dan lease contract
 - `EmailAccount` terhubung ke `Department`, `DepartmentJobCode`, optional `Location`, dan optional satu `Device`
+- relasi utama perangkat-email memakai `Device.emailAccountId -> EmailAccount.id`
 - `LeaseContract` menyimpan start/end date, days lease, lease status, history log
 - `Device` menyimpan metadata flow approval seperti `flowStatus`, approver, reject note, signatures
 - `DeviceChangeRequest` menyimpan workflow perubahan `Job Code` dan transfer site/device di luar `Device.flowStatus`
@@ -262,6 +267,12 @@ Workflow baru yang perlu dipahami:
 - `Transfer ke Site lain`: user memilih department tujuan dan PIC tujuan, lalu request melewati review PIC tujuan, assign job code tujuan oleh PIC, dan final review admin
 - setiap device hanya boleh memiliki satu request perubahan aktif berstatus `PENDING`
 - PIC penerima tetap harus bisa melihat request transfer site yang ditujukan kepadanya di halaman `Flow Proses` walaupun request sudah berada di step `FINAL_ADMIN_REVIEW`
+
+Catatan khusus `Data Email`:
+
+- belum ada tabel workflow khusus `Data Email` yang setara `DeviceChangeRequest`
+- jika nanti dibutuhkan workflow perubahan `Job Code` atau transfer department untuk akun email, pola yang paling konsisten adalah meniru struktur approval milik `Data Perangkat`, bukan memperbolehkan edit langsung oleh user
+- import `Data Email` akan membuat atau mengupdate baris berdasarkan `Email` sebagai key unik
 
 ## Environment Backend
 

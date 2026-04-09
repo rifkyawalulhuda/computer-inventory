@@ -269,6 +269,106 @@ html.app-skin-dark .nxl-notifications-menu .notifications-footer-link {
   color: #d8e5fa !important;
 }
 
+html.app-skin-dark .all-notifications-modal .modal-content {
+  background: #111b30 !important;
+  border-color: #2a3a58 !important;
+  box-shadow: 0 28px 60px rgba(0, 0, 0, 0.5) !important;
+}
+
+html.app-skin-dark .all-notifications-modal .modal-header {
+  background: linear-gradient(180deg, #141f36 0%, #101a2f 100%) !important;
+  border-bottom-color: #2a3a58 !important;
+}
+
+html.app-skin-dark .all-notifications-modal .modal-body {
+  background: #0f172a !important;
+}
+
+html.app-skin-dark .all-notifications-modal .modal-title {
+  color: #e7effd !important;
+}
+
+html.app-skin-dark .all-notifications-summary {
+  color: #8fa4c2 !important;
+}
+
+html.app-skin-dark .all-notifications-modal .btn-close {
+  filter: invert(1) brightness(1.4);
+  opacity: 0.85;
+}
+
+html.app-skin-dark .all-notifications-modal .btn-close:hover {
+  opacity: 1;
+}
+
+html.app-skin-dark .all-notifications-modal .notifications-mark-read {
+  color: #34d399 !important;
+}
+
+html.app-skin-dark .all-notifications-modal .notifications-mark-read.disabled {
+  color: #5e7698 !important;
+}
+
+html.app-skin-dark .all-notifications-list {
+  background: linear-gradient(180deg, #0f172a 0%, #111b30 100%) !important;
+}
+
+html.app-skin-dark .all-notifications-list .notifications-section-title {
+  color: #8fa4c2 !important;
+}
+
+html.app-skin-dark .all-notifications-list .notifications-section-divider {
+  border-top-color: #2a3a58 !important;
+}
+
+html.app-skin-dark .all-notifications-list .notifications-item {
+  background: #15243d !important;
+  border-color: #2a3a58 !important;
+  box-shadow: 0 10px 22px rgba(3, 8, 18, 0.28) !important;
+}
+
+html.app-skin-dark .all-notifications-list .notifications-item:hover {
+  background: #1a2b47 !important;
+  border-color: #3a5176 !important;
+}
+
+html.app-skin-dark .all-notifications-list .notifications-item.is-read {
+  background: #132137 !important;
+}
+
+html.app-skin-dark .all-notifications-list .notification-open-btn {
+  color: #e4ecf7 !important;
+}
+
+html.app-skin-dark .all-notifications-list .notification-icon {
+  box-shadow: inset 0 0 0 1px rgba(228, 236, 247, 0.08) !important;
+}
+
+html.app-skin-dark .all-notifications-list .notification-title {
+  color: #b6c8e1 !important;
+}
+
+html.app-skin-dark .all-notifications-list .notification-title.notification-title-read {
+  color: #7f95b5 !important;
+}
+
+html.app-skin-dark .all-notifications-list .notification-message {
+  color: #e4ecf7 !important;
+}
+
+html.app-skin-dark .all-notifications-list .notification-time {
+  color: #8fa4c2 !important;
+}
+
+html.app-skin-dark .all-notifications-list .notification-status-badge {
+  border: 1px solid rgba(255, 255, 255, 0.08) !important;
+}
+
+html.app-skin-dark .all-notifications-empty {
+  background: #0f172a !important;
+  color: #8fa4c2 !important;
+}
+
 html.app-skin-dark .view-drawer-overlay,
 html.app-skin-dark .signature-modal-overlay,
 html.app-skin-dark .confirm-modal-overlay,
@@ -318,6 +418,70 @@ html.app-skin-dark .device-form-layout .select2-container--default.select2-conta
 
 html.app-skin-dark .device-form-layout .select2-container--default .select2-selection--single .select2-selection__placeholder {
   color: #7f95b3 !important;
+}
+
+/* Data Email form */
+html.app-skin-dark #emailForm {
+  background: var(--ci-surface-dark) !important;
+  border-color: var(--ci-border-dark) !important;
+  box-shadow: none !important;
+}
+
+html.app-skin-dark #emailForm .card-body {
+  background: transparent !important;
+}
+
+html.app-skin-dark .form-section {
+  background: #14233b !important;
+  border-color: var(--ci-border-dark) !important;
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.02);
+}
+
+html.app-skin-dark .form-section-title,
+html.app-skin-dark #emailForm .form-label {
+  color: #c5d6ef !important;
+}
+
+html.app-skin-dark #emailForm .form-control,
+html.app-skin-dark #emailForm .form-select,
+html.app-skin-dark #emailForm textarea {
+  background: #0f1a2d !important;
+  border-color: var(--ci-border-dark) !important;
+  color: var(--ci-text-dark) !important;
+}
+
+html.app-skin-dark #emailForm .form-control::placeholder,
+html.app-skin-dark #emailForm textarea::placeholder {
+  color: #7f95b3 !important;
+}
+
+html.app-skin-dark #emailForm .form-control:focus,
+html.app-skin-dark #emailForm .form-select:focus,
+html.app-skin-dark #emailForm textarea:focus {
+  background: #12203a !important;
+  border-color: #3d5b89 !important;
+  box-shadow: 0 0 0 0.2rem rgba(96, 165, 250, 0.18) !important;
+}
+
+html.app-skin-dark #emailForm .form-control[readonly],
+html.app-skin-dark #emailForm .form-control:disabled,
+html.app-skin-dark #emailForm .form-select:disabled {
+  background: #111f37 !important;
+  color: #a9bbd4 !important;
+  border-color: #2c3f60 !important;
+}
+
+html.app-skin-dark #emailForm .btn-light {
+  background: #1a2843 !important;
+  border-color: var(--ci-border-dark) !important;
+  color: var(--ci-text-dark) !important;
+}
+
+html.app-skin-dark #emailForm .btn-light:hover,
+html.app-skin-dark #emailForm .btn-light:focus {
+  background: #213454 !important;
+  border-color: #3a5176 !important;
+  color: #edf3ff !important;
 }
 
 /* Data Perangkat / Flow Proses table + filter consistency */

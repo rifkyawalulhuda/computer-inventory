@@ -182,6 +182,7 @@ model EmailAccount {
   licenseType         String             @map("license_type") @db.VarChar(100)
   password            String?            @db.Text
   notes               String?            @db.Text
+  historyLog          String?            @map("history_log") @db.Text
 
   department          Department         @relation(fields: [departmentId], references: [id], onDelete: Restrict)
   departmentJobCode   DepartmentJobCode? @relation(fields: [departmentJobCodeId], references: [id], onDelete: SetNull)
@@ -195,6 +196,26 @@ model EmailAccount {
   @@index([departmentJobCodeId], map: "idx_email_accounts_department_job_code_id")
   @@index([locationId], map: "idx_email_accounts_location_id")
   @@map("email_accounts")
+}
+
+model EmailAccountNotificationLog {
+  id                   String   @id @default(cuid())
+  originalEmailAccountId String? @map("original_email_account_id")
+  recipientUserId      String   @map("recipient_user_id")
+  notificationType     String   @map("notification_type") @db.VarChar(40)
+  actorName            String   @map("actor_name") @db.VarChar(100)
+  department           String   @db.VarChar(50)
+  jobCode              String?  @map("job_code") @db.VarChar(30)
+  userName             String   @map("user_name") @db.VarChar(191)
+  email                String   @db.VarChar(191)
+  licenseType          String?  @map("license_type") @db.VarChar(100)
+
+  createdAt DateTime @default(now()) @map("created_at")
+
+  @@index([recipientUserId], map: "idx_email_account_notification_logs_recipient_user_id")
+  @@index([notificationType], map: "idx_email_account_notification_logs_notification_type")
+  @@index([createdAt], map: "idx_email_account_notification_logs_created_at")
+  @@map("email_account_notification_logs")
 }
 
 model DeviceChangeRequest {

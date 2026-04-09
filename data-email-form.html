@@ -51,11 +51,7 @@
                     <div class="form-section mb-4">
                         <h5 class="form-section-title">Informasi Email</h5>
                         <div class="row g-3">
-                            <div class="col-lg-2 col-md-4">
-                                <label class="form-label fw-semibold" for="legacyNo">No</label>
-                                <input type="number" class="form-control" id="legacyNo" placeholder="Otomatis jika kosong">
-                            </div>
-                            <div class="col-lg-5 col-md-8">
+                            <div class="col-lg-6 col-md-8">
                                 <label class="form-label fw-semibold" for="departmentId">Department</label>
                                 <select class="form-select" id="departmentId" required>
                                     <option value="">Pilih Department</option>
@@ -127,7 +123,6 @@
         const backButton = document.getElementById("backButton");
         const cancelButton = document.getElementById("cancelButton");
         const submitButton = document.getElementById("submitButton");
-        const legacyNoInput = document.getElementById("legacyNo");
         const departmentIdInput = document.getElementById("departmentId");
         const departmentJobCodeIdInput = document.getElementById("departmentJobCodeId");
         const userNameInput = document.getElementById("userName");
@@ -191,7 +186,6 @@
             roleEditHint.classList.toggle("d-none", !isUserRestrictedEdit);
 
             [
-                legacyNoInput,
                 departmentIdInput,
                 departmentJobCodeIdInput,
                 userNameInput,
@@ -243,7 +237,6 @@
 
             pageTitle.textContent = "Edit Data Email";
             submitButton.textContent = "Update Data";
-            legacyNoInput.value = currentRow["No"] || "";
             userNameInput.value = currentRow["Nama User"] || "";
             emailInput.value = currentRow["Email"] || "";
             locationInput.value = currentRow["Location"] || "";
@@ -265,7 +258,7 @@
 
         function getPayload() {
             return {
-                no: legacyNoInput.value ? Number(legacyNoInput.value) : null,
+                no: null,
                 departmentId: Number(departmentIdInput.value),
                 departmentJobCodeId: Number(departmentJobCodeIdInput.value),
                 userName: userNameInput.value,
