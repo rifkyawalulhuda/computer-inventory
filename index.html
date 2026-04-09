@@ -589,6 +589,103 @@
             text-decoration: none;
         }
 
+        .all-notifications-modal .modal-dialog {
+            max-width: min(980px, calc(100vw - 28px));
+        }
+
+        .all-notifications-modal .modal-content {
+            border: 1px solid #dbe5f2;
+            border-radius: 18px;
+            overflow: hidden;
+            box-shadow: 0 24px 56px rgba(15, 23, 42, 0.24);
+        }
+
+        .all-notifications-modal .modal-header {
+            padding: 16px 18px;
+            border-bottom: 1px solid #e5edf7;
+            background: linear-gradient(180deg, #ffffff 0%, #f8fbff 100%);
+        }
+
+        .all-notifications-modal .modal-title {
+            font-size: 1.15rem;
+            font-weight: 800;
+            color: #1e293b;
+        }
+
+        .all-notifications-summary {
+            font-size: 0.82rem;
+            color: #64748b;
+            margin-top: 4px;
+        }
+
+        .all-notifications-modal .notifications-mark-read {
+            font-size: 0.75rem;
+            font-weight: 700;
+            color: #16a34a;
+            letter-spacing: 0.02em;
+            text-transform: uppercase;
+            text-decoration: none;
+        }
+
+        .all-notifications-modal .notifications-mark-read.disabled {
+            opacity: 0.45;
+            pointer-events: none;
+        }
+
+        .all-notifications-list {
+            max-height: min(70vh, 720px);
+            overflow-y: auto;
+            padding: 14px;
+            background: linear-gradient(180deg, #fcfdff 0%, #f8fbff 100%);
+        }
+
+        .all-notifications-list .notifications-section {
+            padding: 0;
+            gap: 12px;
+        }
+
+        .all-notifications-list .notifications-section + .notifications-section {
+            padding-top: 0;
+        }
+
+        .all-notifications-list .notifications-section-title {
+            padding: 0;
+            font-size: 0.72rem;
+        }
+
+        .all-notifications-list .notifications-item {
+            padding: 14px;
+            margin-bottom: 10px;
+            border-radius: 14px;
+        }
+
+        .all-notifications-list .notification-message {
+            display: block;
+            -webkit-line-clamp: unset;
+            -webkit-box-orient: unset;
+            overflow: visible;
+            line-height: 1.45;
+        }
+
+        .all-notifications-list .notification-title {
+            font-size: 0.78rem;
+        }
+
+        .all-notifications-list .notification-status-badge {
+            font-size: 0.66rem;
+        }
+
+        .all-notifications-list .notification-time {
+            font-size: 0.74rem;
+        }
+
+        .all-notifications-empty {
+            padding: 24px 16px;
+            text-align: center;
+            color: #64748b;
+            font-size: 0.84rem;
+        }
+
         .profile-detail-modal .modal-dialog {
             max-width: 960px;
         }
@@ -3798,6 +3895,29 @@
             </div>
         </div>
     </div>
+    <div class="modal fade all-notifications-modal" id="allNotificationsModal" tabindex="-1" aria-labelledby="allNotificationsModalTitle" aria-hidden="true">
+        <div class="modal-dialog modal-dialog-centered modal-dialog-scrollable">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <div>
+                        <h5 class="modal-title" id="allNotificationsModalTitle">All Notifications</h5>
+                        <p class="all-notifications-summary mb-0" id="allNotificationsSummary">Memuat notifikasi...</p>
+                    </div>
+                    <div class="d-flex align-items-center gap-3">
+                        <a href="javascript:void(0);" class="notifications-mark-read" id="allNotificationsMarkRead">
+                            <i class="feather-check"></i>
+                            <span>Make as Read</span>
+                        </a>
+                        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                    </div>
+                </div>
+                <div class="modal-body p-0">
+                    <div class="all-notifications-empty d-none" id="allNotificationsEmptyState">Belum ada notifikasi.</div>
+                    <div class="all-notifications-list" id="allNotificationsList"></div>
+                </div>
+            </div>
+        </div>
+    </div>
     <!--! ================================================================ !-->
     <!--! Footer Script !-->
     <!--! ================================================================ !-->
@@ -3852,6 +3972,11 @@
             const headerNotificationsList = document.getElementById("headerNotificationsList");
             const headerNotificationsEmptyState = document.getElementById("headerNotificationsEmptyState");
             const headerNotificationsFooterLink = document.getElementById("headerNotificationsFooterLink");
+            const allNotificationsModalElement = document.getElementById("allNotificationsModal");
+            const allNotificationsList = document.getElementById("allNotificationsList");
+            const allNotificationsEmptyState = document.getElementById("allNotificationsEmptyState");
+            const allNotificationsSummary = document.getElementById("allNotificationsSummary");
+            const allNotificationsMarkRead = document.getElementById("allNotificationsMarkRead");
             const currentUserRole = window.AuthClient ? window.AuthClient.getUserRole() : "";
             const adminOnlyElements = document.querySelectorAll('[data-admin-only="true"]');
             const masterDataMenuItem = document.getElementById("masterDataMenuItem");
@@ -3889,6 +4014,7 @@
             let dashboardSummaryCache = null;
             let dashboardDetailModalInstance = null;
             let profileDetailModalInstance = null;
+            let allNotificationsModalInstance = null;
             let dashboardDetailCurrent = null;
             let dashboardDetailSort = { key: "", direction: "asc" };
             let dashboardExpiringRowsCache = [];
@@ -3904,8 +4030,10 @@
             let headerNotificationRowsCache = {
                 flowRows: [],
                 leaseRows: [],
+                adminRows: [],
             };
             let headerNotificationsRenderedItems = [];
+            let headerNotificationsAllItems = [];
             let headerNotificationReadKeys = new Set();
             let headerNotificationDismissedKeys = new Set();
 
@@ -4554,6 +4682,19 @@
                 DropdownCtor.getOrCreateInstance(headerNotificationToggle).hide();
             }
 
+            function closeAllNotificationsModal() {
+                const ModalCtor = window.bootstrap?.Modal;
+                if (typeof ModalCtor !== "function" || !(allNotificationsModalElement instanceof HTMLElement)) {
+                    return;
+                }
+
+                if (!allNotificationsModalInstance) {
+                    allNotificationsModalInstance = ModalCtor.getOrCreateInstance(allNotificationsModalElement);
+                }
+
+                allNotificationsModalInstance.hide();
+            }
+
             function normalizeFlowStatus(value) {
                 return String(value || "")
                     .trim()
@@ -5046,16 +5187,39 @@
                 const navLink = document.querySelector(`.nxl-navigation .nxl-link[href="${page}"]`);
                 setActiveNav(navLink instanceof HTMLElement ? navLink : null);
                 openInlinePage(page, title);
+                closeAllNotificationsModal();
                 closeHeaderNotificationDropdown();
             }
 
-            function renderHeaderNotifications(rows) {
-                if (!headerNotificationsList || !headerNotificationsEmptyState) {
-                    return;
-                }
+            function renderNotificationItem(item) {
+                const isRead = headerNotificationReadKeys.has(item.key);
+                const timeText = formatRelativeDateTime(item.eventTimeRaw);
+                return `
+                    <div class="notifications-item ${isRead ? "is-read" : ""}" data-header-notification-key="${escapeHtml(item.key)}">
+                        <button type="button" class="notification-open-btn" data-header-notification-open="${escapeHtml(item.key)}" data-header-notification-target-page="${escapeHtml(item.targetPage || "flow-proses.html")}" data-header-notification-target-title="${escapeHtml(item.targetTitle || "Flow Proses")}">
+                            <span class="notification-icon ${item.meta.badgeClass}">
+                                <i class="${item.meta.iconClass}"></i>
+                            </span>
+                            <div class="notification-content">
+                                <div class="notification-topline">
+                                    <p class="notification-title ${isRead ? "notification-title-read" : ""}">${escapeHtml(item.department)} - ${escapeHtml(item.serialNo)}</p>
+                                    <span class="badge notification-status-badge ${item.meta.badgeClass}">${escapeHtml(item.meta.badgeLabel)}</span>
+                                </div>
+                                <p class="notification-message">${escapeHtml(item.message)}</p>
+                                <div class="notification-meta">
+                                    <span class="notification-time">${escapeHtml(timeText)}</span>
+                                    ${isRead ? "" : '<span class="notification-unread-dot" aria-hidden="true"></span>'}
+                                </div>
+                            </div>
+                        </button>
+                        <button type="button" class="notification-dismiss-btn" data-header-notification-dismiss="${escapeHtml(item.key)}" aria-label="Hapus notifikasi">
+                            <i class="feather-x"></i>
+                        </button>
+                    </div>
+                `;
+            }
 
-                const notificationCache = toHeaderNotificationCache(rows);
-                headerNotificationRowsCache = notificationCache;
+            function buildHeaderNotificationCollections(notificationCache) {
                 const flowItems = notificationCache.flowRows
                     .map((row) => buildFlowNotificationItem(row))
                     .filter((entry) => entry !== null);
@@ -5069,8 +5233,102 @@
                     .filter((item) => String(item?.meta?.badgeLabel || "").trim().toUpperCase() !== "EXPIRED")
                     .sort(sortFlowNotifications);
                 const leaseSortedItems = leaseItems.sort(sortFlowNotifications);
+                const activeWorkflowItems = workflowItems.filter((item) => !headerNotificationDismissedKeys.has(item.key));
+                const activeLeaseItems = leaseSortedItems.filter((item) => !headerNotificationDismissedKeys.has(item.key));
 
-                const notificationItems = [...workflowItems, ...leaseSortedItems];
+                return {
+                    workflowItems,
+                    leaseSortedItems,
+                    activeWorkflowItems,
+                    activeLeaseItems,
+                    allActiveItems: [...activeWorkflowItems, ...activeLeaseItems],
+                };
+            }
+
+            function renderNotificationSections(workflowItems, leaseItems, sectionPrefix = "header") {
+                const workflowTitleId = `${sectionPrefix}WorkflowNotificationsTitle`;
+                const leaseTitleId = `${sectionPrefix}LeaseNotificationsTitle`;
+                const sections = [];
+                if (workflowItems.length > 0) {
+                    sections.push(`
+                        <section class="notifications-section" aria-labelledby="${workflowTitleId}">
+                            <h6 class="notifications-section-title" id="${workflowTitleId}">Workflow</h6>
+                            ${workflowItems.map((item) => renderNotificationItem(item)).join("")}
+                        </section>
+                    `);
+                }
+
+                if (workflowItems.length > 0 && leaseItems.length > 0) {
+                    sections.push('<hr class="notifications-section-divider" aria-hidden="true">');
+                }
+
+                if (leaseItems.length > 0) {
+                    sections.push(`
+                        <section class="notifications-section" aria-labelledby="${leaseTitleId}">
+                            <h6 class="notifications-section-title" id="${leaseTitleId}">Lease</h6>
+                            ${leaseItems.map((item) => renderNotificationItem(item)).join("")}
+                        </section>
+                    `);
+                }
+
+                return sections.join("");
+            }
+
+            function updateAllNotificationsMarkReadButtonState(unreadCount) {
+                if (!allNotificationsMarkRead) {
+                    return;
+                }
+
+                const hasUnread = Number.isFinite(unreadCount) && unreadCount > 0;
+                allNotificationsMarkRead.classList.toggle("disabled", !hasUnread);
+                allNotificationsMarkRead.setAttribute("aria-disabled", hasUnread ? "false" : "true");
+            }
+
+            function renderAllNotificationsModal(rows) {
+                if (!allNotificationsList || !allNotificationsEmptyState) {
+                    return;
+                }
+
+                const notificationCache = toHeaderNotificationCache(rows);
+                const collections = buildHeaderNotificationCollections(notificationCache);
+                const allActiveItems = collections.allActiveItems;
+                const unreadCount = allActiveItems.filter((item) => !headerNotificationReadKeys.has(item.key)).length;
+
+                if (allNotificationsSummary) {
+                    const totalText = allActiveItems.length === 1
+                        ? "1 notifikasi aktif"
+                        : `${allActiveItems.length} notifikasi aktif`;
+                    const unreadText = unreadCount === 1 ? "1 belum dibaca" : `${unreadCount} belum dibaca`;
+                    allNotificationsSummary.textContent = allActiveItems.length > 0
+                        ? `${totalText} | ${unreadText}`
+                        : "Belum ada notifikasi aktif.";
+                }
+
+                updateAllNotificationsMarkReadButtonState(unreadCount);
+
+                if (allActiveItems.length === 0) {
+                    allNotificationsList.innerHTML = "";
+                    allNotificationsEmptyState.classList.remove("d-none");
+                    return;
+                }
+
+                allNotificationsEmptyState.classList.add("d-none");
+                allNotificationsList.innerHTML = renderNotificationSections(
+                    collections.activeWorkflowItems,
+                    collections.activeLeaseItems,
+                    "all",
+                );
+            }
+
+            function renderHeaderNotifications(rows) {
+                if (!headerNotificationsList || !headerNotificationsEmptyState) {
+                    return;
+                }
+
+                const notificationCache = toHeaderNotificationCache(rows);
+                headerNotificationRowsCache = notificationCache;
+                const collections = buildHeaderNotificationCollections(notificationCache);
+                const notificationItems = [...collections.workflowItems, ...collections.leaseSortedItems];
 
                 if (notificationItems.length > 0) {
                     const activeKeys = new Set(notificationItems.map((item) => item.key));
@@ -5079,80 +5337,27 @@
                     persistHeaderNotificationState();
                 }
 
-                const visibleWorkflowItems = workflowItems
-                    .filter((item) => !headerNotificationDismissedKeys.has(item.key))
-                    .slice(0, 5);
-                const visibleLeaseItems = leaseSortedItems
-                    .filter((item) => !headerNotificationDismissedKeys.has(item.key))
-                    .slice(0, 5);
+                const visibleWorkflowItems = collections.activeWorkflowItems.slice(0, 5);
+                const visibleLeaseItems = collections.activeLeaseItems.slice(0, 5);
 
                 const visibleItems = [...visibleWorkflowItems, ...visibleLeaseItems];
-
+                headerNotificationsAllItems = collections.allActiveItems;
                 headerNotificationsRenderedItems = visibleItems;
-                const unreadCount = visibleItems.filter((item) => !headerNotificationReadKeys.has(item.key)).length;
+                const unreadCount = headerNotificationsAllItems.filter((item) => !headerNotificationReadKeys.has(item.key)).length;
                 setHeaderNotificationBadgeCount(unreadCount);
                 updateHeaderNotificationMarkReadButtonState(unreadCount);
+                updateAllNotificationsMarkReadButtonState(unreadCount);
 
                 if (visibleItems.length === 0) {
                     headerNotificationsList.innerHTML = "";
                     headerNotificationsEmptyState.classList.remove("d-none");
+                    renderAllNotificationsModal(notificationCache);
                     return;
                 }
 
                 headerNotificationsEmptyState.classList.add("d-none");
-
-                function renderNotificationItem(item) {
-                    const isRead = headerNotificationReadKeys.has(item.key);
-                    const timeText = formatRelativeDateTime(item.eventTimeRaw);
-                    return `
-                        <div class="notifications-item ${isRead ? "is-read" : ""}" data-header-notification-key="${escapeHtml(item.key)}">
-                            <button type="button" class="notification-open-btn" data-header-notification-open="${escapeHtml(item.key)}" data-header-notification-target-page="${escapeHtml(item.targetPage || "flow-proses.html")}" data-header-notification-target-title="${escapeHtml(item.targetTitle || "Flow Proses")}">
-                                <span class="notification-icon ${item.meta.badgeClass}">
-                                    <i class="${item.meta.iconClass}"></i>
-                                </span>
-                                <div class="notification-content">
-                                    <div class="notification-topline">
-                                        <p class="notification-title ${isRead ? "notification-title-read" : ""}">${escapeHtml(item.department)} - ${escapeHtml(item.serialNo)}</p>
-                                        <span class="badge notification-status-badge ${item.meta.badgeClass}">${escapeHtml(item.meta.badgeLabel)}</span>
-                                    </div>
-                                    <p class="notification-message">${escapeHtml(item.message)}</p>
-                                    <div class="notification-meta">
-                                        <span class="notification-time">${escapeHtml(timeText)}</span>
-                                        ${isRead ? "" : '<span class="notification-unread-dot" aria-hidden="true"></span>'}
-                                    </div>
-                                </div>
-                            </button>
-                            <button type="button" class="notification-dismiss-btn" data-header-notification-dismiss="${escapeHtml(item.key)}" aria-label="Hapus notifikasi">
-                                <i class="feather-x"></i>
-                            </button>
-                        </div>
-                    `;
-                }
-
-                const sections = [];
-                if (visibleWorkflowItems.length > 0) {
-                    sections.push(`
-                        <section class="notifications-section" aria-labelledby="workflowNotificationsTitle">
-                            <h6 class="notifications-section-title" id="workflowNotificationsTitle">Workflow</h6>
-                            ${visibleWorkflowItems.map((item) => renderNotificationItem(item)).join("")}
-                        </section>
-                    `);
-                }
-
-                if (visibleWorkflowItems.length > 0 && visibleLeaseItems.length > 0) {
-                    sections.push('<hr class="notifications-section-divider" aria-hidden="true">');
-                }
-
-                if (visibleLeaseItems.length > 0) {
-                    sections.push(`
-                        <section class="notifications-section" aria-labelledby="leaseNotificationsTitle">
-                            <h6 class="notifications-section-title" id="leaseNotificationsTitle">Lease</h6>
-                            ${visibleLeaseItems.map((item) => renderNotificationItem(item)).join("")}
-                        </section>
-                    `);
-                }
-
-                headerNotificationsList.innerHTML = sections.join("");
+                headerNotificationsList.innerHTML = renderNotificationSections(visibleWorkflowItems, visibleLeaseItems, "header");
+                renderAllNotificationsModal(notificationCache);
             }
 
             function markHeaderNotificationAsRead(key) {
@@ -5171,11 +5376,11 @@
             }
 
             function markAllHeaderNotificationsAsRead() {
-                if (headerNotificationsRenderedItems.length === 0) {
+                if (headerNotificationsAllItems.length === 0) {
                     return;
                 }
 
-                headerNotificationsRenderedItems.forEach((item) => {
+                headerNotificationsAllItems.forEach((item) => {
                     headerNotificationReadKeys.add(item.key);
                 });
                 persistHeaderNotificationState();
@@ -5203,8 +5408,15 @@
                 if (headerNotificationsEmptyState) {
                     headerNotificationsEmptyState.classList.remove("d-none");
                 }
+                if (allNotificationsEmptyState) {
+                    allNotificationsEmptyState.classList.remove("d-none");
+                }
+                if (allNotificationsList) {
+                    allNotificationsList.innerHTML = "";
+                }
                 setHeaderNotificationBadgeCount(0);
                 updateHeaderNotificationMarkReadButtonState(0);
+                updateAllNotificationsMarkReadButtonState(0);
 
                 headerNotificationsList.addEventListener("click", (event) => {
                     const target = event.target;
@@ -5233,8 +5445,44 @@
                     event.preventDefault();
                 });
 
+                if (allNotificationsList) {
+                    allNotificationsList.addEventListener("click", (event) => {
+                        const target = event.target;
+                        if (!(target instanceof Element)) {
+                            return;
+                        }
+
+                        const dismissButton = target.closest("[data-header-notification-dismiss]");
+                        if (dismissButton instanceof HTMLElement) {
+                            const dismissKey = String(dismissButton.getAttribute("data-header-notification-dismiss") || "").trim();
+                            dismissHeaderNotification(dismissKey);
+                            event.preventDefault();
+                            return;
+                        }
+
+                        const openButton = target.closest("[data-header-notification-open]");
+                        if (!(openButton instanceof HTMLElement)) {
+                            return;
+                        }
+
+                        const openKey = String(openButton.getAttribute("data-header-notification-open") || "").trim();
+                        const targetPage = String(openButton.getAttribute("data-header-notification-target-page") || "flow-proses.html").trim() || "flow-proses.html";
+                        const targetTitle = String(openButton.getAttribute("data-header-notification-target-title") || "").trim();
+                        markHeaderNotificationAsRead(openKey);
+                        navigateToPageFromNotification(targetPage, targetTitle);
+                        event.preventDefault();
+                    });
+                }
+
                 if (headerNotificationsMarkRead) {
                     headerNotificationsMarkRead.addEventListener("click", (event) => {
+                        event.preventDefault();
+                        markAllHeaderNotificationsAsRead();
+                    });
+                }
+
+                if (allNotificationsMarkRead) {
+                    allNotificationsMarkRead.addEventListener("click", (event) => {
                         event.preventDefault();
                         markAllHeaderNotificationsAsRead();
                     });
@@ -5243,13 +5491,29 @@
                 if (headerNotificationsFooterLink) {
                     headerNotificationsFooterLink.addEventListener("click", (event) => {
                         event.preventDefault();
-                        markAllHeaderNotificationsAsRead();
-                        navigateToPageFromNotification("flow-proses.html", "Flow Proses");
+                        closeHeaderNotificationDropdown();
+                        const ModalCtor = window.bootstrap?.Modal;
+                        if (typeof ModalCtor !== "function" || !(allNotificationsModalElement instanceof HTMLElement)) {
+                            navigateToPageFromNotification("flow-proses.html", "Flow Proses");
+                            return;
+                        }
+
+                        renderAllNotificationsModal(headerNotificationRowsCache);
+                        if (!allNotificationsModalInstance) {
+                            allNotificationsModalInstance = ModalCtor.getOrCreateInstance(allNotificationsModalElement);
+                        }
+                        allNotificationsModalInstance.show();
                     });
                 }
 
                 if (headerNotificationContainer) {
                     headerNotificationContainer.addEventListener("shown.bs.dropdown", () => {
+                        void refreshFlowStatusBadges();
+                    });
+                }
+
+                if (allNotificationsModalElement) {
+                    allNotificationsModalElement.addEventListener("shown.bs.modal", () => {
                         void refreshFlowStatusBadges();
                     });
                 }
