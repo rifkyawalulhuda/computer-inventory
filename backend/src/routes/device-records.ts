@@ -106,7 +106,6 @@ type DeviceImportFileRow = {
   ipList: string;
   startDate: string;
   endDate: string;
-  leaseStatus: string;
   keterangan: string;
   bitlockerKey: string;
 };
@@ -114,6 +113,13 @@ type DeviceImportFileRow = {
 type PreparedImportRow = {
   rowNumber: number;
   payload: DeviceRecordPayload;
+};
+
+type ImportEmailAccountOption = {
+  id: string;
+  departmentId: number;
+  userName: string;
+  email: string;
 };
 
 type HistoryFieldChange = {
@@ -159,7 +165,6 @@ const DEVICE_IMPORT_TEMPLATE_HEADERS = [
   "IP List",
   "Start Date",
   "End Date",
-  "Lease Status",
   "Keterangan",
   "Bitlocker Key",
 ] as const;
@@ -1741,6 +1746,13 @@ function normalizeImportLeaseStatus(value: unknown): string {
   throw new Error('Lease Status hanya boleh "ACTIVE", "EXPIRED", atau "Back To KDDI".');
 }
 
+function deriveImportLeaseStatusFromDates(startDateValue: string, endDateValue: string): string {
+  const startDate = parseDate(startDateValue, "Start Date");
+  const endDate = parseDate(endDateValue, "End Date");
+  const daysLease = calculateDaysLease(startDate, endDate);
+  return resolveLeaseStatus("ACTIVE", daysLease, endDate) ?? "ACTIVE";
+}
+
 function parseDeviceImportRows(sheet: XLSX.WorkSheet): DeviceImportFileRow[] {
   const rows = XLSX.utils.sheet_to_json<unknown[]>(sheet, {
     header: 1,
@@ -1788,9 +1800,8 @@ function parseDeviceImportRows(sheet: XLSX.WorkSheet): DeviceImportFileRow[] {
       ipList: cleanText(values[11]),
       startDate: normalizeImportDateValue(values[12]),
       endDate: normalizeImportDateValue(values[13]),
-      leaseStatus: cleanText(values[14]),
-      keterangan: cleanText(values[15]),
-      bitlockerKey: cleanText(values[16]),
+      keterangan: cleanText(values[14]),
+      bitlockerKey: cleanText(values[15]),
     });
   });
 
@@ -1803,14 +1814,16 @@ function parseDeviceImportRows(sheet: XLSX.WorkSheet): DeviceImportFileRow[] {
 
 async function createDeviceImportTemplateWorkbookBuffer(): Promise<Buffer> {
   const workbook = new ExcelJS.Workbook();
+  workbook.calcProperties.fullCalcOnLoad = true;
   const templateSheet = workbook.addWorksheet("Template");
   const instructionSheet = workbook.addWorksheet("Instruksi");
   const referenceSheet = workbook.addWorksheet("Referensi");
 
-  const [departments, picUsers] = await Promise.all([
+  const [departments, picUsers, emailAccounts] = await Promise.all([
     prisma.department.findMany({
       orderBy: { code: "asc" },
       select: {
+        id: true,
         code: true,
         jobCodes: {
           orderBy: { code: "asc" },
@@ -1825,27 +1838,44 @@ async function createDeviceImportTemplateWorkbookBuffer(): Promise<Buffer> {
       select: {
         name: true,
         email: true,
+        jobCodeId: true,
+      },
+    }),
+    prisma.emailAccount.findMany({
+      orderBy: [{ userName: "asc" }, { email: "asc" }],
+      select: {
+        id: true,
+        departmentId: true,
+        userName: true,
+        email: true,
       },
     }),
   ]);
 
+  const firstDepartment = departments[0] ?? null;
+  const samplePicUser = firstDepartment
+    ? picUsers.find((user) => user.jobCodeId === firstDepartment.id) ?? null
+    : picUsers[0] ?? null;
+  const sampleEmailAccount = firstDepartment
+    ? emailAccounts.find((row) => row.departmentId === firstDepartment.id) ?? null
+    : emailAccounts[0] ?? null;
+
   templateSheet.addRow([...DEVICE_IMPORT_TEMPLATE_HEADERS]);
   templateSheet.addRow([
-    departments[0]?.code ?? "",
-    departments[0]?.code ?? "",
-    departments[0]?.jobCodes?.[0]?.code ?? "",
-    picUsers[0] ? `${picUsers[0].name} (${picUsers[0].email})` : "",
+    firstDepartment?.code ?? "",
+    firstDepartment?.code ?? "",
+    firstDepartment?.jobCodes?.[0]?.code ?? "",
+    samplePicUser ? `${samplePicUser.name} (${samplePicUser.email})` : "",
     "SN-001",
     "Laptop",
     "DELL 5420",
     "L-ID-22-030",
-    "Kipli",
-    "rifki@sankyu.co.id",
+    sampleEmailAccount?.userName ?? "",
+    "",
     "Cikarang",
     "192.168.1.10",
     "2026-02-01",
     "2026-12-31",
-    "ACTIVE",
     "Data awal",
     "",
   ]);
@@ -1865,7 +1895,6 @@ async function createDeviceImportTemplateWorkbookBuffer(): Promise<Buffer> {
     { width: 18 },
     { width: 14 },
     { width: 14 },
-    { width: 16 },
     { width: 24 },
     { width: 24 },
   ];
@@ -1881,7 +1910,9 @@ async function createDeviceImportTemplateWorkbookBuffer(): Promise<Buffer> {
     { width: 42 },
     { width: 16 },
     { width: 16 },
-    { width: 16 },
+    { width: 28 },
+    { width: 40 },
+    { width: 28 },
   ];
 
   referenceSheet.getCell("A1").value = "Site Code Sistem POMS";
@@ -1889,10 +1920,11 @@ async function createDeviceImportTemplateWorkbookBuffer(): Promise<Buffer> {
   referenceSheet.getCell("C1").value = "Job Code";
   referenceSheet.getCell("D1").value = "PIC Name";
   referenceSheet.getCell("E1").value = "Category";
-  referenceSheet.getCell("F1").value = "Lease Status";
+  referenceSheet.getCell("F1").value = "User Name";
+  referenceSheet.getCell("G1").value = "Department|User Name";
+  referenceSheet.getCell("H1").value = "User Email";
 
   const categoryOptions = ["Laptop", "Desktop"];
-  const leaseStatusOptions = ["ACTIVE", "EXPIRED", "Back To KDDI"];
 
   const jobCodeValues = departments.length > 0 ? departments.map((row) => row.code) : [""];
   const departmentJobCodeValues = departments.length > 0
@@ -1900,6 +1932,9 @@ async function createDeviceImportTemplateWorkbookBuffer(): Promise<Buffer> {
     : [""];
   const picValues = picUsers.length > 0
     ? picUsers.map((user) => `${user.name} (${user.email})`)
+    : [""];
+  const userNameValues = emailAccounts.length > 0
+    ? [...new Set(emailAccounts.map((row) => cleanText(row.userName)).filter(Boolean))]
     : [""];
 
   const fillColumn = (column: "A" | "B" | "C" | "D" | "E" | "F", values: string[]) => {
@@ -1913,7 +1948,13 @@ async function createDeviceImportTemplateWorkbookBuffer(): Promise<Buffer> {
   fillColumn("C", departmentJobCodeValues);
   fillColumn("D", picValues);
   fillColumn("E", categoryOptions);
-  fillColumn("F", leaseStatusOptions);
+  fillColumn("F", userNameValues);
+
+  emailAccounts.forEach((row, index) => {
+    const departmentCode = departments.find((department) => department.id === row.departmentId)?.code ?? "";
+    referenceSheet.getCell(`G${index + 2}`).value = `${cleanText(departmentCode).toUpperCase()}|${cleanText(row.userName)}`;
+    referenceSheet.getCell(`H${index + 2}`).value = cleanText(row.email).toLowerCase();
+  });
 
   const addListValidation = (
     column: number,
@@ -1937,15 +1978,21 @@ async function createDeviceImportTemplateWorkbookBuffer(): Promise<Buffer> {
   const jobCodeLastRow = Math.max(2, jobCodeValues.length + 1);
   const departmentJobCodeLastRow = Math.max(2, departmentJobCodeValues.length + 1);
   const picLastRow = Math.max(2, picValues.length + 1);
+  const userNameLastRow = Math.max(2, userNameValues.length + 1);
+  const emailAccountLastRow = Math.max(2, emailAccounts.length + 1);
 
   addListValidation(1, `=Referensi!$A$2:$A$${jobCodeLastRow}`, true, "Jika diisi, Site Code Sistem POMS harus dipilih dari dropdown.");
   addListValidation(2, `=Referensi!$B$2:$B$${jobCodeLastRow}`, false, "Department wajib dipilih dari dropdown.");
   addListValidation(3, `=Referensi!$C$2:$C$${departmentJobCodeLastRow}`, true, "Jika diisi, Job Code harus dipilih dari dropdown.");
   addListValidation(4, `=Referensi!$D$2:$D$${picLastRow}`, false, "PIC Name wajib dipilih dari dropdown.");
+  addListValidation(9, `=Referensi!$F$2:$F$${userNameLastRow}`, true, "Jika diisi, User Name harus dipilih dari dropdown Data Email.");
   addListValidation(6, "=Referensi!$E$2:$E$3");
-  addListValidation(15, "=Referensi!$F$2:$F$4");
 
   for (let row = 2; row <= DEVICE_IMPORT_DROPDOWN_MAX_ROWS; row += 1) {
+    templateSheet.getCell(row, 10).value = {
+      formula: `IF(OR($B${row}="",$I${row}=""),"",IFERROR(VLOOKUP($B${row}&"|"&$I${row},Referensi!$G$2:$H$${emailAccountLastRow},2,FALSE),""))`,
+    };
+
     templateSheet.getCell(row, 13).dataValidation = {
       type: "date",
       operator: "greaterThanOrEqual",
@@ -1973,15 +2020,19 @@ async function createDeviceImportTemplateWorkbookBuffer(): Promise<Buffer> {
     ["Panduan Import Data Perangkat"],
     ["1. Isi data mulai baris ke-2 di sheet Template."],
     ["2. Kolom NO tidak perlu diisi karena otomatis generate oleh sistem."],
-    ["3. Kolom dropdown: Site Code Sistem POMS, Department, Job Code, PIC Name, Category, Lease Status."],
+    ["3. Kolom dropdown: Site Code Sistem POMS, Department, Job Code, PIC Name, Category, User Name."],
     ["4. Department dan PIC Name wajib diisi serta harus terdaftar di master."],
     ["5. Site Code Sistem POMS opsional dan diambil dari master Site Code, tetapi tidak terikat ke Department pada baris yang sama."],
     ["6. Job Code opsional. Jika diisi, Job Code harus sesuai dengan Department pada baris yang sama."],
     ["7. PIC Name harus user yang terdaftar di Master User."],
-    ["8. Format tanggal yang disarankan: YYYY-MM-DD (contoh 2026-02-28)."],
-    ["9. Lease Status: ACTIVE, EXPIRED, atau Back To KDDI."],
-    ["10. Kolom opsional: Site Code Sistem POMS, Job Code, User Name, User Email, Location, IP List, Keterangan."],
-    ["11. Jika Serial No sudah ada, data akan diupdate. Jika belum ada, data baru dibuat."],
+    ["8. User Name bersumber dari Data Email dan hanya valid jika terdaftar pada Department yang sama."],
+    ["9. Kolom User Email akan terisi otomatis di template saat Department dan User Name cocok dengan data pada sheet referensi tersembunyi."],
+    ["10. Jika User Name diisi tetapi Department tersebut tidak memiliki Data Email yang cocok, baris import akan gagal."],
+    ["11. Jika kolom User Email kosong atau formula diubah manual, backend tetap akan memvalidasi User Name dan mengisi email sesuai master Data Email saat import."],
+    ["12. Format tanggal yang disarankan: YYYY-MM-DD (contoh 2026-02-28)."],
+    ["13. Lease Status tidak perlu diisi di template. Sistem akan menghitung otomatis dari Start Date dan End Date saat import."],
+    ["14. Kolom opsional: Site Code Sistem POMS, Job Code, User Name, User Email, Location, IP List, Keterangan."],
+    ["15. Jika Serial No sudah ada, data akan diupdate. Jika belum ada, data baru dibuat."],
   ]);
   instructionSheet.getColumn(1).width = 120;
   instructionSheet.getRow(1).font = { bold: true };
@@ -2048,6 +2099,67 @@ function resolvePicUserFromImport(
   throw new Error("PIC Name tidak ditemukan untuk Department ini.");
 }
 
+function resolveDeviceEmailFromImport(
+  emailAccounts: ImportEmailAccountOption[],
+  departmentCode: string,
+  userNameReference: string,
+  userEmailReference: string,
+): {
+  emailAccountId: string | null;
+  userName: string | null;
+  userEmail: string | null;
+} {
+  const normalizedUserName = cleanText(userNameReference);
+  const normalizedUserEmail = cleanText(userEmailReference).toLowerCase();
+
+  if (!normalizedUserName && !normalizedUserEmail) {
+    return {
+      emailAccountId: null,
+      userName: null,
+      userEmail: null,
+    };
+  }
+
+  if (!normalizedUserName && normalizedUserEmail) {
+    throw new Error("User Name wajib diisi jika User Email diisi.");
+  }
+
+  if (!emailAccounts.length) {
+    throw new Error(`Department "${departmentCode}" belum memiliki Data Email untuk dipilih sebagai User Name.`);
+  }
+
+  const matchesByUserName = emailAccounts.filter((row) => (
+    cleanText(row.userName).toLowerCase() === normalizedUserName.toLowerCase()
+  ));
+
+  if (!matchesByUserName.length) {
+    throw new Error("User Name tidak terdaftar pada Data Email untuk Department ini.");
+  }
+
+  if (normalizedUserEmail) {
+    const matchedByEmail = matchesByUserName.find((row) => cleanText(row.email).toLowerCase() === normalizedUserEmail);
+    if (!matchedByEmail) {
+      throw new Error("User Email tidak sesuai dengan User Name pada Data Email.");
+    }
+
+    return {
+      emailAccountId: matchedByEmail.id,
+      userName: cleanText(matchedByEmail.userName) || null,
+      userEmail: cleanText(matchedByEmail.email).toLowerCase() || null,
+    };
+  }
+
+  if (matchesByUserName.length > 1) {
+    throw new Error("User Name duplikat pada Data Email untuk Department ini. Isi User Email sesuai master agar spesifik.");
+  }
+
+  return {
+    emailAccountId: matchesByUserName[0].id,
+    userName: cleanText(matchesByUserName[0].userName) || null,
+    userEmail: cleanText(matchesByUserName[0].email).toLowerCase() || null,
+  };
+}
+
 async function prepareDeviceImportRows(rows: DeviceImportFileRow[]): Promise<PreparedImportRow[]> {
   const uniqueDepartmentCodes = [...new Set(
     rows.flatMap((row) => [row.pomsSiteCodeSystem, row.jobCode].map((value) => cleanText(value).toUpperCase()).filter(Boolean))
@@ -2094,6 +2206,33 @@ async function prepareDeviceImportRows(rows: DeviceImportFileRow[]): Promise<Pre
     usersByJobCode.set(user.jobCodeId, list);
   });
 
+  const emailAccounts = await prisma.emailAccount.findMany({
+    where: {
+      departmentId: {
+        in: departments.map((row) => row.id),
+      },
+    },
+    orderBy: [{ userName: "asc" }, { email: "asc" }],
+    select: {
+      id: true,
+      departmentId: true,
+      userName: true,
+      email: true,
+    },
+  });
+
+  const emailAccountsByDepartmentId = new Map<number, ImportEmailAccountOption[]>();
+  emailAccounts.forEach((row) => {
+    const list = emailAccountsByDepartmentId.get(row.departmentId) || [];
+    list.push({
+      id: row.id,
+      departmentId: row.departmentId,
+      userName: cleanText(row.userName),
+      email: cleanText(row.email).toLowerCase(),
+    });
+    emailAccountsByDepartmentId.set(row.departmentId, list);
+  });
+
   const preparedRows: PreparedImportRow[] = [];
   const rowErrors: string[] = [];
   const seenSerialNo = new Set<string>();
@@ -2137,14 +2276,21 @@ async function prepareDeviceImportRows(rows: DeviceImportFileRow[]): Promise<Pre
 
       const jobCodeUsers = usersByJobCode.get(department.id) || [];
       const picUser = resolvePicUserFromImport(jobCodeUsers, row.picName);
+      const selectedEmailAccount = resolveDeviceEmailFromImport(
+        emailAccountsByDepartmentId.get(department.id) || [],
+        jobCodeText,
+        row.userName,
+        row.userEmail,
+      );
 
       const payload = parsePayload({
         pomsSiteCodeSystem,
         jobCodeId: department.id,
         departmentJobCodeId: selectedDepartmentJobCode?.id ?? null,
+        emailAccountId: selectedEmailAccount.emailAccountId,
         picUserId: picUser.id,
-        userName: row.userName,
-        userEmail: row.userEmail,
+        userName: selectedEmailAccount.userName,
+        userEmail: selectedEmailAccount.userEmail,
         serialNo,
         category: row.category,
         model: row.model,
@@ -2153,7 +2299,7 @@ async function prepareDeviceImportRows(rows: DeviceImportFileRow[]): Promise<Pre
         ipList: row.ipList,
         startDate: row.startDate,
         endDate: row.endDate,
-        leaseStatus: normalizeImportLeaseStatus(row.leaseStatus),
+        leaseStatus: deriveImportLeaseStatusFromDates(row.startDate, row.endDate),
         hystoryLog: "",
         keterangan: row.keterangan,
         bitlockerKey: row.bitlockerKey,
@@ -3199,6 +3345,7 @@ deviceRecordRouter.post("/device-records/import", requireRole("admin"), async (r
       for (const row of preparedRows) {
         const payload = row.payload;
         const picUser = await validateJobAndPic(tx, payload);
+        const selectedEmailAccount = await validateDeviceEmailSelection(tx, payload);
         const pomsSiteCodeSystem = await resolvePomsSiteCodeSystem(tx, payload.pomsSiteCodeSystem);
         const { categoryId, modelId, locationId } = await resolveLookupIds(tx, payload);
 
@@ -3208,6 +3355,7 @@ deviceRecordRouter.post("/device-records/import", requireRole("admin"), async (r
             select: {
               id: true,
               legacyNo: true,
+              emailAccountId: true,
               serialNumber: true,
               hostName: true,
               userNameRaw: true,
@@ -3256,8 +3404,8 @@ deviceRecordRouter.post("/device-records/import", requireRole("admin"), async (r
               flowSubmittedByUserId: actorUserId,
               serialNumber: payload.serialNo,
               hostName: payload.hostName,
-              userNameRaw: payload.userName,
-              userEmailRaw: payload.userEmail,
+              userNameRaw: selectedEmailAccount.userName,
+              userEmailRaw: selectedEmailAccount.userEmail,
               locationRaw: payload.location,
               ipListRaw: payload.ipList,
               picNameRaw: picUser.name,
@@ -3266,6 +3414,7 @@ deviceRecordRouter.post("/device-records/import", requireRole("admin"), async (r
               pomsSiteCodeSystem,
               jobCodeId: payload.jobCodeId,
               departmentJobCodeId: payload.departmentJobCodeId,
+              emailAccountId: selectedEmailAccount.emailAccountId,
               categoryId,
               modelId,
               locationId,
@@ -3291,6 +3440,11 @@ deviceRecordRouter.post("/device-records/import", requireRole("admin"), async (r
         }
 
         const latestLease = existing.leaseContracts[0] ?? null;
+        const selectedEmailAccountForExisting = await validateDeviceEmailSelection(tx, payload, {
+          existingEmailAccountId: existing.emailAccountId,
+          existingUserName: existing.userNameRaw,
+          existingUserEmail: existing.userEmailRaw,
+        });
 
         const changedFieldMessages = getChangedFieldMessages([
           {
@@ -3331,12 +3485,12 @@ deviceRecordRouter.post("/device-records/import", requireRole("admin"), async (r
           {
             label: "User Name",
             before: existing.userNameRaw,
-            after: payload.userName,
+            after: selectedEmailAccountForExisting.userName,
           },
           {
             label: "User Email",
             before: existing.userEmailRaw,
-            after: payload.userEmail,
+            after: selectedEmailAccountForExisting.userEmail,
           },
           {
             label: "Location",
@@ -3388,8 +3542,8 @@ deviceRecordRouter.post("/device-records/import", requireRole("admin"), async (r
             legacyNo: existing.legacyNo,
             serialNumber: payload.serialNo,
             hostName: payload.hostName,
-            userNameRaw: payload.userName,
-            userEmailRaw: payload.userEmail,
+            userNameRaw: selectedEmailAccountForExisting.userName,
+            userEmailRaw: selectedEmailAccountForExisting.userEmail,
             locationRaw: payload.location,
             ipListRaw: payload.ipList,
             picNameRaw: picUser.name,
@@ -3398,6 +3552,7 @@ deviceRecordRouter.post("/device-records/import", requireRole("admin"), async (r
             pomsSiteCodeSystem,
             jobCodeId: payload.jobCodeId,
             departmentJobCodeId: payload.departmentJobCodeId,
+            emailAccountId: selectedEmailAccountForExisting.emailAccountId,
             flowAssignedPicUserId: payload.picUserId,
             categoryId,
             modelId,
@@ -3431,7 +3586,7 @@ deviceRecordRouter.post("/device-records/import", requireRole("admin"), async (r
     }
 
     if (error instanceof Prisma.PrismaClientKnownRequestError && error.code === "P2002") {
-      return res.status(409).json({ message: "Serial No. sudah terdaftar." });
+      return res.status(409).json({ message: getDeviceUniqueConstraintMessage(error) ?? "Data perangkat duplikat." });
     }
 
     if (error instanceof Error) {
