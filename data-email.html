@@ -48,6 +48,49 @@
             font-size: 0.8rem;
             line-height: 1;
         }
+        .filter-dropdown-button {
+            min-height: 46px;
+            display: inline-flex;
+            align-items: center;
+            justify-content: space-between;
+        }
+        .filter-dropdown-menu {
+            display: none;
+            position: absolute;
+            top: calc(100% + 8px);
+            left: 0;
+            right: 0;
+            z-index: 30;
+            max-height: 260px;
+            overflow-y: auto;
+            border: 1px solid #dbe4ee;
+            border-radius: 12px;
+            background: #ffffff;
+            box-shadow: 0 18px 44px rgba(15, 23, 42, 0.14);
+        }
+        .filter-dropdown-menu.show {
+            display: block;
+        }
+        .filter-option-item {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            padding: 8px 10px;
+            border-radius: 8px;
+            cursor: pointer;
+            color: #0f172a;
+        }
+        .filter-option-item:hover {
+            background: #f8fafc;
+        }
+        .filter-option-item input {
+            margin: 0;
+        }
+        .filter-empty {
+            padding: 10px;
+            color: #64748b;
+            font-size: 0.88rem;
+        }
         .table-action-group .btn { display: inline-flex; align-items: center; justify-content: center; width: 34px; height: 30px; padding: 0; }
         .view-drawer-overlay { position: fixed; inset: 0; background: rgba(15, 23, 42, 0.35); opacity: 0; visibility: hidden; transition: opacity 0.2s ease; z-index: 1050; }
         .view-drawer-overlay.open { opacity: 1; visibility: visible; }
@@ -276,9 +319,12 @@
                         </div>
                         <div class="col-lg-3 col-md-6">
                             <label class="form-label fw-semibold">Filter Department</label>
-                            <select class="form-select" id="departmentFilter">
-                                <option value="">Semua Department</option>
-                            </select>
+                            <div class="position-relative">
+                                <button class="btn btn-light border dropdown-toggle w-100 text-start filter-dropdown-button" type="button" id="departmentFilterButton" aria-expanded="false">
+                                    Semua Department
+                                </button>
+                                <div class="filter-dropdown-menu p-2" id="departmentFilterMenu"></div>
+                            </div>
                         </div>
                     </div>
 
@@ -359,7 +405,8 @@
         const API_BASE = window.AppConfig.API_BASE;
         const tableBody = document.getElementById("tableBody");
         const searchInput = document.getElementById("searchInput");
-        const departmentFilter = document.getElementById("departmentFilter");
+        const departmentFilterButton = document.getElementById("departmentFilterButton");
+        const departmentFilterMenu = document.getElementById("departmentFilterMenu");
         const pageSizeInput = document.getElementById("pageSizeInput");
         const paginationInfo = document.getElementById("paginationInfo");
         const paginationControls = document.getElementById("paginationControls");
@@ -396,6 +443,7 @@
         let currentSortKey = "No";
         let currentSortDirection = "asc";
         let confirmResolve = null;
+        const activeDepartmentFilters = new Set();
 
         function apiFetch(url, options = {}) {
             if (window.AuthClient) {
@@ -547,6 +595,10 @@
             return sortDirection === "desc" ? comparison * -1 : comparison;
         }
 
+        function normalizeFilterValue(value) {
+            return String(value || "").trim();
+        }
+
         function sortFilteredRows() {
             filteredRows = [...filteredRows].sort((leftRow, rightRow) => compareRowValues(leftRow, rightRow, currentSortKey, currentSortDirection));
         }
@@ -572,14 +624,74 @@
             });
         }
 
+        function renderMultiSelectFilterMenu(menuElement, options, selectedValues, filterType) {
+            if (!menuElement) {
+                return;
+            }
+
+            if (!options.length) {
+                menuElement.innerHTML = '<div class="filter-empty">Belum ada opsi.</div>';
+                return;
+            }
+
+            menuElement.innerHTML = options.map((option, index) => {
+                const optionValue = String(option);
+                const checkboxId = `${filterType}-filter-${index}`;
+                const checked = selectedValues.has(optionValue) ? "checked" : "";
+                return `
+                    <label class="filter-option-item" for="${checkboxId}">
+                        <input type="checkbox" id="${checkboxId}" value="${escapeHtml(optionValue)}" ${checked}>
+                        <span>${escapeHtml(optionValue)}</span>
+                    </label>
+                `;
+            }).join("");
+        }
+
+        function updateFilterDropdownLabel(button, placeholder, selectedValues) {
+            if (!button) {
+                return;
+            }
+
+            const selectedCount = selectedValues.size;
+            button.textContent = selectedCount > 0
+                ? `${placeholder} (${selectedCount})`
+                : `Semua ${placeholder}`;
+        }
+
+        function closeFilterDropdowns(exceptMenu = null) {
+            const shouldKeepDepartmentOpen = exceptMenu && exceptMenu === departmentFilterMenu;
+            if (!shouldKeepDepartmentOpen) {
+                departmentFilterMenu.classList.remove("show");
+                departmentFilterButton.setAttribute("aria-expanded", "false");
+            }
+        }
+
+        function toggleFilterDropdown(button, menu) {
+            const willOpen = !menu.classList.contains("show");
+            closeFilterDropdowns();
+
+            if (willOpen) {
+                menu.classList.add("show");
+                button.setAttribute("aria-expanded", "true");
+            }
+        }
+
         function populateDepartmentFilter() {
-            const departments = [...new Set(emailRows.map((row) => String(row["Department"] || "").trim()).filter(Boolean))];
-            departmentFilter.innerHTML = ['<option value="">Semua Department</option>', ...departments.map((department) => `<option value="${escapeHtml(department)}">${escapeHtml(department)}</option>`)].join("");
+            const departments = [...new Set(emailRows.map((row) => normalizeFilterValue(row["Department"])).filter(Boolean))]
+                .sort((a, b) => a.localeCompare(b, undefined, { sensitivity: "base" }));
+
+            [...activeDepartmentFilters].forEach((value) => {
+                if (!departments.includes(value)) {
+                    activeDepartmentFilters.delete(value);
+                }
+            });
+
+            renderMultiSelectFilterMenu(departmentFilterMenu, departments, activeDepartmentFilters, "department");
+            updateFilterDropdownLabel(departmentFilterButton, "Department", activeDepartmentFilters);
         }
 
         function applyFilters() {
             const keyword = String(searchInput.value || "").trim().toLowerCase();
-            const department = String(departmentFilter.value || "").trim().toLowerCase();
             filteredRows = emailRows.filter((row) => {
                 const matchesKeyword = !keyword || [
                     row["Nama User"],
@@ -589,7 +701,8 @@
                     row["Location"],
                     row["Perangkat"],
                 ].join(" ").toLowerCase().includes(keyword);
-                const matchesDepartment = !department || String(row["Department"] || "").trim().toLowerCase() === department;
+                const department = normalizeFilterValue(row["Department"]);
+                const matchesDepartment = activeDepartmentFilters.size === 0 || activeDepartmentFilters.has(department);
                 return matchesKeyword && matchesDepartment;
             });
             sortFilteredRows();
@@ -880,7 +993,27 @@
         });
 
         searchInput.addEventListener("input", applyFilters);
-        departmentFilter.addEventListener("change", applyFilters);
+        departmentFilterButton.addEventListener("click", () => toggleFilterDropdown(departmentFilterButton, departmentFilterMenu));
+        departmentFilterMenu.addEventListener("change", (event) => {
+            const target = event.target;
+            if (!(target instanceof HTMLInputElement) || target.type !== "checkbox") {
+                return;
+            }
+
+            const value = String(target.value || "").trim();
+            if (!value) {
+                return;
+            }
+
+            if (target.checked) {
+                activeDepartmentFilters.add(value);
+            } else {
+                activeDepartmentFilters.delete(value);
+            }
+
+            updateFilterDropdownLabel(departmentFilterButton, "Department", activeDepartmentFilters);
+            applyFilters();
+        });
         pageSizeInput.addEventListener("change", () => {
             currentPage = 1;
             renderTable();
@@ -932,8 +1065,24 @@
                 closeConfirmModal(false);
             }
         });
+        document.addEventListener("click", (event) => {
+            const target = event.target instanceof Element ? event.target : null;
+            if (!target) {
+                return;
+            }
+
+            const clickedInsideDepartmentFilter = target.closest("#departmentFilterButton") || target.closest("#departmentFilterMenu");
+            if (!clickedInsideDepartmentFilter) {
+                closeFilterDropdowns();
+            }
+        });
         document.addEventListener("keydown", (event) => {
             if (event.key !== "Escape") {
+                return;
+            }
+
+            if (departmentFilterMenu.classList.contains("show")) {
+                closeFilterDropdowns();
                 return;
             }
 

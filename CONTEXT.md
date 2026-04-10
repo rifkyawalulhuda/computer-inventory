@@ -115,6 +115,11 @@ Perubahan UI terbaru yang penting:
 - form edit user menyediakan tombol `Ubah Job Code` yang membuka popup request workflow
 - popup request mendukung kategori `Ganti Job Code` dan `Transfer ke Site lain`
 - dropdown `PIC Tujuan` untuk kategori `Transfer ke Site lain` harus mengambil user dari `Department Tujuan`, bukan requester yang sedang login
+- `data-perangkat-form.html` sekarang punya tombol admin `Back To KDDI` di header edit perangkat, dengan modal custom yang mewajibkan input `Tanggal Back To KDDI`
+- popup `Back To KDDI` di `data-perangkat-form.html` sudah memakai layering/z-index khusus agar tidak tertimpa `select2` atau field form di bawahnya
+- setelah admin submit `Back To KDDI`, tampilan lease status di form/detail perangkat dirender sebagai `Back To KDDI (dd/mm/yyyy)` jika tanggal tersedia
+- aksi hapus `Data Perangkat` sekarang memiliki konfirmasi tambahan dengan pesan tegas bahwa perangkat yang dihapus tidak akan bisa dikembalikan
+- daftar `Data Perangkat` sekarang selalu mendorong row dengan `Lease Status = Back To KDDI` ke bagian paling bawah tabel
 - `flow-proses.html` menampilkan item gabungan antara flow approval perangkat biasa dan request `DeviceChangeRequest`
 - tabel utama di `flow-proses.html` sudah tidak menampilkan kolom `Lease Status`, tetapi status lease masih tersedia di drawer detail
 - `flow-proses.html` mendukung aksi request baru: `approve`, `reject`, dan `assign-job-code`
@@ -138,6 +143,7 @@ Perubahan UI terbaru yang penting:
 - dropdown `Jenis License` mengikuti value literal: `Miccrosoft 365 Business Basic`, `Miccrosoft 365 Business Standard`, dan `Miccrosoft 365 E1`
 - `data-email-form.html` memakai mode create/edit terpisah seperti halaman form existing, dengan readonly berbasis role langsung di frontend dan backend
 - tabel `Data Email` sekarang memakai sorting per kolom, pagination dengan pola UI yang disamakan ke `Data Perangkat`, dan kolom `No` disembunyikan dari drawer detail
+- filter `Department` pada tabel `Data Email` sekarang memakai dropdown multi-checkbox seperti `Data Perangkat`, bukan lagi single select
 - form `Data Email` sudah mengikuti dark mode yang konsisten, termasuk panel form, label, field, readonly state, dan tombol sekunder
 - aksi hapus `Data Email` di frontend sudah tidak memakai `window.confirm`, tetapi modal konfirmasi custom yang konsisten dengan halaman lain
 - tombol hapus `Data Email` hanya tampil untuk role admin
@@ -204,6 +210,7 @@ Endpoint penting yang terlihat dari source dan README backend:
 - `POST /api/email-records/export`
 - `GET /api/device-records`
 - `POST /api/device-records`
+- `POST /api/device-records/:id/back-to-kddi`
 - `POST /api/device-records/:id/change-requests`
 - `POST /api/device-change-requests/:id/approve`
 - `POST /api/device-change-requests/:id/reject`
@@ -217,6 +224,7 @@ Area `device-records` juga menangani:
 - tanda tangan digital user dan pengirim
 - generate/cetak BAST
 - update lease status tertentu seperti `Back To KDDI`
+- endpoint `POST /api/device-records/:id/back-to-kddi` sekarang menerima payload `{ backToKddiDate: "YYYY-MM-DD" }`, memvalidasi admin + tanggal wajib, lalu menyimpan tanggal terstruktur dan menulis history log
 - penyimpanan field `Site Code Sistem POMS`
 - pembatasan edit field tertentu berdasarkan role, termasuk `Site Code Sistem POMS` yang hanya boleh diubah admin saat edit
 - pembatasan perubahan `departmentJobCodeId` agar user wajib lewat workflow request
@@ -278,7 +286,7 @@ Relasi bisnis utama:
 - `EmailAccountNotificationLog` menyimpan notifikasi persisten untuk event create/delete Data Email yang perlu tetap muncul walaupun row `EmailAccount` sumber sudah dihapus
 - relasi utama perangkat-email memakai `Device.emailAccountId -> EmailAccount.id`
 - untuk flow form/edit/import perangkat, `User Name` menjadi referensi utama ke `EmailAccount`, sedangkan `User Email` harus mengikuti data master email yang cocok
-- `LeaseContract` menyimpan start/end date, days lease, lease status, history log
+- `LeaseContract` menyimpan start/end date, days lease, lease status, `backToKddiDate`, dan history log
 - `Device` menyimpan metadata flow approval seperti `flowStatus`, approver, reject note, signatures
 - `DeviceChangeRequest` menyimpan workflow perubahan `Job Code` dan transfer site/device di luar `Device.flowStatus`
 - `DeviceChangeRequestEvent` menyimpan audit trail setiap aksi request seperti create, approve, reject, dan assign job code
@@ -291,6 +299,7 @@ Field perangkat yang perlu diperhatikan:
 - validasinya tetap mengambil daftar site code dari master `Department`
 - `Device.departmentJobCodeId`: untuk role user tidak lagi boleh diedit langsung, perubahan dilakukan melalui `DeviceChangeRequest`
 - `Device.departmentJobCodeId`: untuk direct edit admin juga tidak boleh kosong; `Job Code` sekarang wajib tetap terisi
+- `LeaseContract.backToKddiDate`: tanggal terstruktur saat admin mengubah lease status perangkat menjadi `Back To KDDI`
 
 Workflow baru yang perlu dipahami:
 
@@ -356,6 +365,7 @@ Isi migration menunjukkan evolusi schema seperti:
 - penambahan tabel `device_change_request_events`
 - penambahan kolom `history_log` pada tabel `email_accounts`
 - penambahan tabel `email_account_notification_logs`
+- penambahan kolom `back_to_kddi_date` pada tabel `lease_contracts`
 
 ## Dokumentasi dan Aset Tambahan
 
@@ -387,6 +397,7 @@ Jika mau melanjutkan pengembangan, area yang paling sentral biasanya:
 - `backend/prisma/migrations/20260409120000_add_email_accounts/migration.sql`
 - `backend/prisma/migrations/20260409123000_add_email_account_history_log/migration.sql`
 - `backend/prisma/migrations/20260409153000_add_email_account_notification_logs/migration.sql`
+- `backend/prisma/migrations/20260411093000_add_lease_contract_back_to_kddi_date/migration.sql`
 - `assets/js/app-config.js`
 - `assets/js/auth-client.js`
 
