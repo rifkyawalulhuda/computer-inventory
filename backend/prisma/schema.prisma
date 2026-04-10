@@ -328,13 +328,14 @@ model DeviceAssignment {
 }
 
 model LeaseContract {
-  id          String    @id @default(cuid())
-  deviceId    String    @map("device_id")
-  startDate   DateTime? @map("start_date")
-  endDate     DateTime? @map("end_date")
-  daysLease   Int?      @map("days_lease")
-  leaseStatus String?   @map("lease_status")
-  historyLog  String?   @map("history_log") @db.Text
+  id             String    @id @default(cuid())
+  deviceId       String    @map("device_id")
+  startDate      DateTime? @map("start_date")
+  endDate        DateTime? @map("end_date")
+  daysLease      Int?      @map("days_lease")
+  leaseStatus    String?   @map("lease_status")
+  backToKddiDate DateTime? @map("back_to_kddi_date")
+  historyLog     String?   @map("history_log") @db.Text
 
   device Device @relation(fields: [deviceId], references: [id], onDelete: Cascade)
 

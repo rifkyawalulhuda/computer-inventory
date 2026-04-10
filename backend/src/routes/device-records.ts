@@ -5,7 +5,7 @@ import { type Request, type Response, Router } from "express";
 import XLSX from "xlsx";
 import ExcelJS from "exceljs";
 import { prisma } from "../lib/prisma";
-import { requireRole } from "../middleware/auth";
+import { requireAuth, requireRole } from "../middleware/auth";
 import {
   sendDeviceFlowApprovedBastEmail,
   sendDeviceChangeRequestCompletedEmail,
@@ -657,6 +657,17 @@ function formatDate(date: Date | null | undefined): string {
   return `${year}-${month}-${day}`;
 }
 
+function formatDisplayDate(date: Date | null | undefined): string {
+  if (!date) {
+    return "";
+  }
+
+  const day = String(date.getUTCDate()).padStart(2, "0");
+  const month = String(date.getUTCMonth() + 1).padStart(2, "0");
+  const year = date.getUTCFullYear();
+  return `${day}/${month}/${year}`;
+}
+
 function normalizeComparableValue(value: string | number | null | undefined): string {
   return String(value ?? "").trim();
 }
@@ -1031,6 +1042,7 @@ const latestLeaseSelect = {
   endDate: true,
   daysLease: true,
   leaseStatus: true,
+  backToKddiDate: true,
   historyLog: true,
 } as const;
 
@@ -1098,6 +1110,7 @@ type MappedDeviceRow = {
     endDate: Date | null;
     daysLease: number | null;
     leaseStatus: string | null;
+    backToKddiDate: Date | null;
     historyLog: string | null;
   }>;
   changeRequests: Array<{
@@ -1124,10 +1137,12 @@ function mapDeviceToExcelRecord(row: MappedDeviceRow, fallbackNo?: number) {
     displayDaysLease,
     latestLease?.endDate ?? null,
   ) ?? "";
+  const displayBackToKddiDate = formatDate(latestLease?.backToKddiDate);
 
   return {
     id: row.id,
     emailAccountId: row.emailAccountId ?? "",
+    backToKddiDate: displayBackToKddiDate,
     NO: row.legacyNo ?? fallbackNo ?? "",
     "Site Code Sistem POMS": row.pomsSiteCodeSystem ?? "",
     "Department": row.jobCode?.code ?? "",
@@ -1145,6 +1160,7 @@ function mapDeviceToExcelRecord(row: MappedDeviceRow, fallbackNo?: number) {
     "End Date": formatDate(latestLease?.endDate),
     "Days Lease": displayDaysLease,
     "Lease Status": displayLeaseStatus,
+    "Back To KDDI Date": displayBackToKddiDate,
     "Hystory Log": latestLease?.historyLog ?? "",
     Keterangan: row.notes ?? "",
     "Bitlocker Key": row.bitlockerKey ?? "",
@@ -5813,11 +5829,20 @@ deviceRecordRouter.post("/device-records/:id/flow/sender-signature", requireRole
   }
 });
 
-deviceRecordRouter.post("/device-records/:id/back-to-kddi", requireRole("admin"), async (req, res, next) => {
+deviceRecordRouter.post("/device-records/:id/back-to-kddi", requireAuth, async (req, res, next) => {
   try {
     const id = cleanText(req.params.id);
     if (!id) {
       return res.status(400).json({ message: "ID tidak valid." });
+    }
+
+    if (req.authUser?.role !== "admin") {
+      return res.status(403).json({ message: "Hanya admin yang dapat melakukan aksi Back To KDDI." });
+    }
+
+    const backToKddiDate = parseDate((req.body as Record<string, unknown> | undefined)?.backToKddiDate, "Tanggal Back To KDDI");
+    if (!backToKddiDate) {
+      return res.status(400).json({ message: "Tanggal Back To KDDI wajib diisi." });
     }
 
     const actorName = getHistoryActorName(req);
@@ -5834,6 +5859,7 @@ deviceRecordRouter.post("/device-records/:id/back-to-kddi", requireRole("admin")
             select: {
               id: true,
               leaseStatus: true,
+              backToKddiDate: true,
               historyLog: true,
             },
           },
@@ -5857,7 +5883,7 @@ deviceRecordRouter.post("/device-records/:id/back-to-kddi", requireRole("admin")
         latestLease.historyLog,
         [
           buildHistoryEntry(
-            `Lease Status diubah menjadi Back To KDDI oleh ${actorName}${existing.serialNumber ? ` (Serial No: ${existing.serialNumber})` : ""}.`,
+            `Status lease diubah ke Back To KDDI oleh ${actorName}${existing.serialNumber ? ` (Serial No: ${existing.serialNumber})` : ""} (Tanggal Back To KDDI: ${formatDisplayDate(backToKddiDate)}).`,
           ),
         ],
       );
@@ -5866,6 +5892,7 @@ deviceRecordRouter.post("/device-records/:id/back-to-kddi", requireRole("admin")
         where: { id: latestLease.id },
         data: {
           leaseStatus: "Back To KDDI",
+          backToKddiDate,
           historyLog: updatedHistoryLog,
         },
       });
@@ -5873,7 +5900,13 @@ deviceRecordRouter.post("/device-records/:id/back-to-kddi", requireRole("admin")
       return getMappedDeviceById(tx, id);
     });
 
-    res.json({ data: updated, message: "Lease Status berhasil diubah menjadi Back To KDDI." });
+    res.json({
+      data: updated,
+      leaseStatus: "Back To KDDI",
+      backToKddiDate: formatDate(backToKddiDate),
+      historyLog: updated?.["Hystory Log"] ?? "",
+      message: "Lease Status berhasil diubah menjadi Back To KDDI.",
+    });
   } catch (error) {
     if (error instanceof Error && error.message === "DATA_PERANGKAT_NOT_FOUND") {
       return res.status(404).json({ message: "Data perangkat tidak ditemukan." });

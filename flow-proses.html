@@ -1440,9 +1440,9 @@
             const startIndex = (safePage - 1) * rowsPerPage;
             const pageRows = rows.slice(startIndex, startIndex + rowsPerPage);
 
-            tableBody.innerHTML = pageRows.map((row) => `
+            tableBody.innerHTML = pageRows.map((row, pageIndex) => `
                 <tr>
-                    <td>${escapeHtml(toDisplayValue(row["NO"]))}</td>
+                    <td>${escapeHtml(String(startIndex + pageIndex + 1))}</td>
                     <td>${escapeHtml(toDisplayValue(row["Department"]))}</td>
                     <td>${escapeHtml(toDisplayValue(row["PIC Name"]))}</td>
                     <td>${escapeHtml(toDisplayValue(row["Serial No."]))}</td>

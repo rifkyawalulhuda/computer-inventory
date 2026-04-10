@@ -119,6 +119,29 @@
             margin-top: 4px;
         }
 
+        .lease-status-display {
+            display: block;
+            margin-top: 0.45rem;
+            font-size: 0.78rem;
+            color: #64748b;
+        }
+
+        .confirm-modal-field {
+            margin-top: 1rem;
+        }
+
+        .confirm-modal-field .form-label {
+            font-size: 0.8rem;
+            font-weight: 700;
+            color: #334155;
+        }
+
+        .confirm-modal-error {
+            margin-top: 0.5rem;
+            font-size: 0.78rem;
+            color: #dc2626;
+        }
+
 
         .table-responsive {
             overflow-x: auto;
@@ -509,6 +532,20 @@
         body.change-request-modal-open .change-request-modal-overlay .select2-dropdown {
             z-index: 4002 !important;
         }
+
+        body.back-to-kddi-modal-open .device-form-layout .select2-container,
+        body.back-to-kddi-modal-open .select2-container {
+            z-index: 1 !important;
+        }
+
+        body.back-to-kddi-modal-open #backToKddiModalOverlay {
+            z-index: 4000;
+        }
+
+        body.back-to-kddi-modal-open #backToKddiModalOverlay .confirm-modal {
+            position: relative;
+            z-index: 4001;
+        }
     </style>
 </head>
 
@@ -530,6 +567,7 @@
                             <p class="text-warning mb-0 mt-1 d-none" id="roleEditHint">Role user hanya bisa edit: User Name, Location, IP List, dan Keterangan. User Email terisi otomatis dari Data Email. Perubahan Job Code harus lewat workflow approval.</p>
                         </div>
                         <div class="d-flex flex-wrap gap-2">
+                            <button type="button" class="btn btn-warning d-none" id="backToKddiButton">Back To KDDI</button>
                             <button type="button" class="btn btn-warning d-none" id="changeJobCodeButton">Ubah Job Code</button>
                             <button type="button" class="btn btn-light border" id="closeFormButton">Kembali ke Data Perangkat</button>
                         </div>
@@ -604,6 +642,7 @@
                                                 <option value="EXPIRED">EXPIRED</option>
                                                 <option value="Back To KDDI">Back To KDDI</option>
                                             </select>
+                                            <small class="lease-status-display" id="leaseStatusDisplay">ACTIVE</small>
                                         </div>
                                     </div>
                                 </div>
@@ -812,6 +851,29 @@
         </div>
     </div>
 
+    <div class="confirm-modal-overlay" id="backToKddiModalOverlay" aria-hidden="true">
+        <div class="confirm-modal" role="dialog" aria-modal="true" aria-labelledby="backToKddiModalTitle">
+            <div class="confirm-modal-header">
+                <h5 class="confirm-modal-title" id="backToKddiModalTitle">Konfirmasi Back To KDDI</h5>
+                <button type="button" class="confirm-modal-close" id="backToKddiCloseButton" aria-label="Tutup Konfirmasi Back To KDDI">
+                    <i class="feather-x"></i>
+                </button>
+            </div>
+            <div class="confirm-modal-body">
+                <p class="mb-0" id="backToKddiModalMessage">Ubah lease status perangkat ini menjadi Back To KDDI. Tanggal Back To KDDI wajib diisi sebelum konfirmasi.</p>
+                <div class="confirm-modal-field">
+                    <label for="backToKddiDateInput" class="form-label">Tanggal Back To KDDI</label>
+                    <input type="date" class="form-control" id="backToKddiDateInput">
+                    <div class="confirm-modal-error d-none" id="backToKddiError">Tanggal Back To KDDI wajib diisi</div>
+                </div>
+            </div>
+            <div class="confirm-modal-footer">
+                <button type="button" class="btn btn-light border" id="backToKddiCancelButton">Cancel</button>
+                <button type="button" class="btn btn-warning" id="backToKddiConfirmButton" disabled>Confirm</button>
+            </div>
+        </div>
+    </div>
+
     <script src="assets/vendors/js/jquery.min.js"></script>
     <script src="assets/vendors/js/select2.min.js"></script>
     <script>
@@ -851,6 +913,7 @@
         const bitlockerKeyInput = document.getElementById("bitlockerKey");
         const closeFormButton = document.getElementById("closeFormButton");
         const roleEditHint = document.getElementById("roleEditHint");
+        const backToKddiButton = document.getElementById("backToKddiButton");
         const changeJobCodeButton = document.getElementById("changeJobCodeButton");
         const addDataButton = document.getElementById("addDataButton");
         const refreshButton = document.getElementById("refreshButton");
@@ -868,6 +931,13 @@
         const confirmCancelButton = document.getElementById("confirmCancelButton");
         const confirmSecondaryButton = document.getElementById("confirmSecondaryButton");
         const confirmConfirmButton = document.getElementById("confirmConfirmButton");
+        const backToKddiModalOverlay = document.getElementById("backToKddiModalOverlay");
+        const backToKddiCloseButton = document.getElementById("backToKddiCloseButton");
+        const backToKddiCancelButton = document.getElementById("backToKddiCancelButton");
+        const backToKddiConfirmButton = document.getElementById("backToKddiConfirmButton");
+        const backToKddiDateInput = document.getElementById("backToKddiDateInput");
+        const backToKddiError = document.getElementById("backToKddiError");
+        const leaseStatusDisplay = document.getElementById("leaseStatusDisplay");
         const changeRequestModalOverlay = document.getElementById("changeRequestModalOverlay");
         const changeRequestCloseButton = document.getElementById("changeRequestCloseButton");
         const changeRequestCancelButton = document.getElementById("changeRequestCancelButton");
@@ -892,6 +962,7 @@
         let lastManualLeaseStatus = "ACTIVE";
         let currentDrawerHistoryLog = "";
         let isLoadingPicOptions = false;
+        let backToKddiTargetRow = null;
         const editableInputs = [
             pomsSiteCodeSystemInput,
             jobCodeIdInput,
@@ -1053,6 +1124,7 @@
 
         function applyRoleBasedFieldPermissions() {
             const isUserRestrictedEdit = currentUserRole === "user" && Boolean(editingDeviceId);
+            const isBackToKddiLocked = Boolean(editingDeviceId) && isBackToKddiStatus(currentEditingRow?.["Lease Status"]);
             roleEditHint.classList.toggle("d-none", !isUserRestrictedEdit);
 
             editableInputs.forEach((input) => {
@@ -1061,7 +1133,7 @@
                 }
 
                 const isAllowedForUserEdit = userAllowedEditInputIds.has(input.id);
-                const shouldDisable = isUserRestrictedEdit && !isAllowedForUserEdit;
+                const shouldDisable = isBackToKddiLocked || (isUserRestrictedEdit && !isAllowedForUserEdit);
 
                 if (input === hystoryLogInput) {
                     input.readOnly = true;
@@ -1082,6 +1154,10 @@
                 daysLeaseInput.readOnly = true;
                 refreshLeaseStatusByEndDate();
             }
+
+            submitButton.disabled = isBackToKddiLocked;
+            updateBackToKddiButtonState();
+            updateLeaseStatusDisplay();
 
             syncSearchableSelectStates();
         }
@@ -1215,8 +1291,107 @@
             changeRequestModalOverlay.classList.remove("open");
             changeRequestModalOverlay.setAttribute("aria-hidden", "true");
             document.body.classList.remove("change-request-modal-open");
-            const shouldLockScroll = viewDrawerOverlay.classList.contains("open") || historyLogOverlay.classList.contains("open") || confirmModalOverlay.classList.contains("open");
+            const shouldLockScroll = viewDrawerOverlay.classList.contains("open")
+                || historyLogOverlay.classList.contains("open")
+                || confirmModalOverlay.classList.contains("open")
+                || backToKddiModalOverlay.classList.contains("open");
             document.body.style.overflow = shouldLockScroll ? "hidden" : "";
+        }
+
+        function validateBackToKddiDateInput() {
+            const hasValue = Boolean(String(backToKddiDateInput.value || "").trim());
+            backToKddiConfirmButton.disabled = !hasValue;
+            backToKddiError.classList.toggle("d-none", hasValue);
+            return hasValue;
+        }
+
+        function openBackToKddiModal(row) {
+            if (!row || currentUserRole !== "admin") {
+                return;
+            }
+
+            backToKddiTargetRow = row;
+            backToKddiDateInput.value = "";
+            backToKddiError.classList.add("d-none");
+            backToKddiConfirmButton.disabled = true;
+            closeUnderlyingSelect2Dropdowns();
+            document.body.classList.add("back-to-kddi-modal-open");
+            backToKddiModalOverlay.classList.add("open");
+            backToKddiModalOverlay.setAttribute("aria-hidden", "false");
+            document.body.style.overflow = "hidden";
+        }
+
+        function closeBackToKddiModal() {
+            backToKddiModalOverlay.classList.remove("open");
+            backToKddiModalOverlay.setAttribute("aria-hidden", "true");
+            document.body.classList.remove("back-to-kddi-modal-open");
+            backToKddiDateInput.value = "";
+            backToKddiError.classList.add("d-none");
+            backToKddiConfirmButton.disabled = true;
+            backToKddiTargetRow = null;
+            const shouldLockScroll = viewDrawerOverlay.classList.contains("open")
+                || historyLogOverlay.classList.contains("open")
+                || confirmModalOverlay.classList.contains("open")
+                || changeRequestModalOverlay.classList.contains("open");
+            document.body.style.overflow = shouldLockScroll ? "hidden" : "";
+        }
+
+        async function submitBackToKddiRequest(row, backToKddiDate) {
+            const response = await apiFetch(`${API_BASE}/device-records/${row.id}/back-to-kddi`, {
+                method: "POST",
+                headers: {
+                    "Content-Type": "application/json"
+                },
+                body: JSON.stringify({
+                    backToKddiDate
+                })
+            });
+
+            const result = await response.json().catch(() => ({}));
+            if (!response.ok) {
+                throw new Error(result.message || "Gagal mengubah Lease Status ke Back To KDDI.");
+            }
+
+            return result;
+        }
+
+        async function confirmBackToKddi() {
+            const row = backToKddiTargetRow;
+            if (!row) {
+                return;
+            }
+
+            if (!validateBackToKddiDateInput()) {
+                showAlert("Tanggal Back To KDDI wajib diisi.", "warning");
+                return;
+            }
+
+            const originalText = backToKddiConfirmButton.textContent;
+            backToKddiConfirmButton.disabled = true;
+            backToKddiConfirmButton.textContent = "Menyimpan...";
+
+            try {
+                const result = await submitBackToKddiRequest(row, backToKddiDateInput.value);
+                closeBackToKddiModal();
+                showAlert(result.message || "Lease Status berhasil diubah menjadi Back To KDDI.", "success");
+
+                const refreshedRow = result?.data && typeof result.data === "object"
+                    ? result.data
+                    : await loadDeviceById(row.id);
+
+                deviceRows = deviceRows.map((item) => String(item.id) === String(refreshedRow.id) ? refreshedRow : item);
+
+                if (editingDeviceId === row.id || editingFromQueryId === row.id) {
+                    await populateFormFromRow(refreshedRow, { allowBackToKddiReadonly: true });
+                } else {
+                    await loadRows();
+                }
+            } catch (error) {
+                showAlert(error.message || "Gagal mengubah Lease Status ke Back To KDDI.", "danger");
+                validateBackToKddiDateInput();
+            } finally {
+                backToKddiConfirmButton.textContent = originalText;
+            }
         }
 
         async function submitChangeRequest() {
@@ -1306,6 +1481,58 @@
 
         function isBackToKddiStatus(value) {
             return normalizeLeaseStatusKey(value) === "BACK TO KDDI";
+        }
+
+        function formatDisplayDate(value) {
+            const text = String(value ?? "").trim();
+            if (!text) {
+                return "";
+            }
+
+            const match = text.match(/^(\d{4})-(\d{2})-(\d{2})$/);
+            if (match) {
+                return `${match[3]}/${match[2]}/${match[1]}`;
+            }
+
+            const parsed = new Date(text);
+            if (Number.isNaN(parsed.getTime())) {
+                return text;
+            }
+
+            const day = String(parsed.getDate()).padStart(2, "0");
+            const month = String(parsed.getMonth() + 1).padStart(2, "0");
+            const year = parsed.getFullYear();
+            return `${day}/${month}/${year}`;
+        }
+
+        function getLeaseStatusDisplayText(row) {
+            const status = String(row?.["Lease Status"] || "").trim() || "ACTIVE";
+            const backToKddiDate = formatDisplayDate(row?.["Back To KDDI Date"] || row?.backToKddiDate);
+            if (isBackToKddiStatus(status) && backToKddiDate) {
+                return `${status} (${backToKddiDate})`;
+            }
+
+            return status;
+        }
+
+        function updateLeaseStatusDisplay(row = currentEditingRow) {
+            if (!leaseStatusDisplay) {
+                return;
+            }
+
+            const fallbackStatus = String(leaseStatusInput?.value || "").trim() || "ACTIVE";
+            leaseStatusDisplay.textContent = row ? getLeaseStatusDisplayText(row) : fallbackStatus;
+        }
+
+        function updateBackToKddiButtonState() {
+            if (!backToKddiButton) {
+                return;
+            }
+
+            const shouldShow = currentUserRole === "admin"
+                && Boolean(editingDeviceId)
+                && !isBackToKddiStatus(currentEditingRow?.["Lease Status"]);
+            backToKddiButton.classList.toggle("d-none", !shouldShow);
         }
 
         function resolveUserJobCodeId(user) {
@@ -1629,9 +1856,18 @@
 
         function refreshLeaseStatusByEndDate() {
             const isUserRestrictedEdit = currentUserRole === "user" && Boolean(editingDeviceId);
+            const isCurrentBackToKddi = Boolean(editingDeviceId) && isBackToKddiStatus(currentEditingRow?.["Lease Status"]);
             const endDateValue = endDateInput.value;
             const parsedEndDate = endDateValue ? new Date(`${endDateValue}T00:00:00`) : null;
             const hasValidEndDate = parsedEndDate && !Number.isNaN(parsedEndDate.getTime());
+
+            if (isCurrentBackToKddi) {
+                leaseStatusInput.value = "Back To KDDI";
+                leaseStatusInput.disabled = true;
+                syncSearchableSelect(leaseStatusInput);
+                updateLeaseStatusDisplay();
+                return;
+            }
 
             if (hasValidEndDate) {
                 const today = new Date();
@@ -1644,12 +1880,14 @@
                 leaseStatusInput.value = parsedEndDate.getTime() <= today.getTime() ? "EXPIRED" : "ACTIVE";
                 leaseStatusInput.disabled = true;
                 syncSearchableSelect(leaseStatusInput);
+                updateLeaseStatusDisplay();
                 return;
             }
 
             if (isUserRestrictedEdit) {
                 leaseStatusInput.disabled = true;
                 syncSearchableSelect(leaseStatusInput);
+                updateLeaseStatusDisplay();
                 return;
             }
 
@@ -1659,6 +1897,7 @@
             }
 
             syncSearchableSelect(leaseStatusInput);
+            updateLeaseStatusDisplay();
         }
 
         function refreshDaysLease() {
@@ -1699,9 +1938,11 @@
         function resetForm() {
             currentEditingRow = null;
             editingDeviceId = "";
+            backToKddiTargetRow = null;
             form.reset();
             formCardTitle.textContent = "Form Input Data Perangkat";
             submitButton.textContent = "Simpan Data";
+            submitButton.disabled = false;
             pomsSiteCodeSystemInput.value = "";
             jobCodeIdInput.value = "";
             picUserIdInput.value = "";
@@ -1715,6 +1956,8 @@
             refreshDaysLease();
             applyRoleBasedFieldPermissions();
             updateChangeJobCodeButtonState();
+            updateBackToKddiButtonState();
+            updateLeaseStatusDisplay();
         }
 
         function getPayload() {
@@ -1995,7 +2238,7 @@
                     <td>${escapeHtml(row["User Name"])}</td>
                     <td title="${escapeHtml(row["User Email"])}">${escapeHtml(row["User Email"])}</td>
                     <td>${escapeHtml(row["Days Lease"])}</td>
-                    <td>${escapeHtml(row["Lease Status"])}</td>
+                    <td>${escapeHtml(getLeaseStatusDisplayText(row))}</td>
                     <td>
                         <div class="btn-group btn-group-sm table-action-group" role="group" aria-label="Aksi Data Perangkat">
                             <button type="button" class="btn btn-light border text-info" data-action="view" data-id="${escapeHtml(row.id)}" title="Lihat">
@@ -2182,7 +2425,10 @@
                 confirmResolve(confirmed);
                 confirmResolve = null;
             }
-            const shouldLockScroll = viewDrawerOverlay.classList.contains("open") || historyLogOverlay.classList.contains("open");
+            const shouldLockScroll = viewDrawerOverlay.classList.contains("open")
+                || historyLogOverlay.classList.contains("open")
+                || changeRequestModalOverlay.classList.contains("open")
+                || backToKddiModalOverlay.classList.contains("open");
             document.body.style.overflow = shouldLockScroll ? "hidden" : "";
         }
 
@@ -2206,7 +2452,7 @@
                 ["User Name", row["User Name"]],
                 ["User Email", row["User Email"]],
                 ["Days Lease", row["Days Lease"]],
-                ["Lease Status", row["Lease Status"]],
+                ["Lease Status", getLeaseStatusDisplayText(row)],
                 ["Location", row["Location"]],
                 ["IP List", row["IP List"]],
                 ["Start Date", row["Start Date"]],
@@ -2241,11 +2487,12 @@
             openViewDrawer(row);
         }
 
-        async function editRow(row) {
+        async function populateFormFromRow(row, options = {}) {
+            const allowBackToKddiReadonly = Boolean(options.allowBackToKddiReadonly);
             currentEditingRow = row;
-            if (isBackToKddiStatus(row["Lease Status"])) {
+            if (isBackToKddiStatus(row["Lease Status"]) && !allowBackToKddiReadonly) {
                 showAlert("Data dengan Lease Status Back To KDDI tidak dapat diedit.", "warning");
-                return;
+                return false;
             }
 
             pomsSiteCodeSystemInput.value = row["Site Code Sistem POMS"] || "";
@@ -2285,6 +2532,7 @@
             syncSearchableSelect(departmentJobCodeIdInput, true);
             syncSearchableSelect(categoryInput);
             syncSearchableSelect(leaseStatusInput);
+            updateLeaseStatusDisplay(row);
 
             editingDeviceId = row.id;
             formCardTitle.textContent = "Edit Data Perangkat";
@@ -2292,6 +2540,11 @@
             applyRoleBasedFieldPermissions();
             updateChangeJobCodeButtonState();
             setFormVisibility(true, true);
+            return true;
+        }
+
+        async function editRow(row) {
+            await populateFormFromRow(row);
         }
 
         async function deleteRow(row) {
@@ -2303,24 +2556,19 @@
             hideAlert();
 
             if (action === "back-to-kddi") {
-                const response = await apiFetch(`${API_BASE}/device-records/${row.id}/back-to-kddi`, {
-                    method: "POST",
-                    headers: {
-                        "Content-Type": "application/json"
-                    }
-                });
+                openBackToKddiModal(row);
+                return;
+            }
 
-                const result = await response.json().catch(() => ({}));
-                if (!response.ok) {
-                    throw new Error(result.message || "Gagal mengubah Lease Status ke Back To KDDI.");
-                }
-
-                showAlert(result.message || "Lease Status berhasil diubah menjadi Back To KDDI.", "success");
-                if (editingDeviceId === row.id) {
-                    resetForm();
-                    setFormVisibility(false);
-                }
-                await loadRows();
+            const shouldDelete = await openConfirmModal({
+                title: "Konfirmasi Hapus Data Perangkat",
+                message: "Perangkat yang dihapus tidak akan bisa dikembalikan.",
+                confirmText: "Hapus",
+                confirmClass: "btn-danger",
+                confirmIcon: "feather-trash-2",
+                cancelText: "Batal"
+            });
+            if (!shouldDelete) {
                 return;
             }
 
@@ -2510,6 +2758,7 @@
             if (leaseStatusInput.value && leaseStatusInput.value !== "EXPIRED") {
                 lastManualLeaseStatus = leaseStatusInput.value;
             }
+            updateLeaseStatusDisplay();
         });
         ipListInput.addEventListener("input", () => {
             const sanitized = sanitizeIpListValue(ipListInput.value);
@@ -2520,6 +2769,11 @@
 
         tableBody.addEventListener("click", handleTableAction);
         form.addEventListener("submit", submitForm);
+        backToKddiButton.addEventListener("click", () => {
+            if (currentEditingRow) {
+                openBackToKddiModal(currentEditingRow);
+            }
+        });
         changeJobCodeButton.addEventListener("click", openChangeRequestModal);
         changeRequestCategoryInput.addEventListener("change", syncChangeRequestCategoryFields);
         changeRequestTargetDepartmentIdInput.addEventListener("change", async () => {
@@ -2545,11 +2799,20 @@
         confirmCancelButton.addEventListener("click", () => closeConfirmModal());
         confirmSecondaryButton.addEventListener("click", () => closeConfirmModal(confirmSecondaryValue));
         confirmConfirmButton.addEventListener("click", () => closeConfirmModal(confirmConfirmValue));
+        backToKddiCloseButton.addEventListener("click", closeBackToKddiModal);
+        backToKddiCancelButton.addEventListener("click", closeBackToKddiModal);
+        backToKddiDateInput.addEventListener("input", validateBackToKddiDateInput);
+        backToKddiConfirmButton.addEventListener("click", confirmBackToKddi);
         changeRequestCloseButton.addEventListener("click", closeChangeRequestModal);
         changeRequestCancelButton.addEventListener("click", closeChangeRequestModal);
         confirmModalOverlay.addEventListener("click", (event) => {
             if (event.target === confirmModalOverlay) {
                 closeConfirmModal();
+            }
+        });
+        backToKddiModalOverlay.addEventListener("click", (event) => {
+            if (event.target === backToKddiModalOverlay) {
+                closeBackToKddiModal();
             }
         });
         changeRequestModalOverlay.addEventListener("click", (event) => {
@@ -2579,6 +2842,11 @@
 
             if (event.key === "Escape" && changeRequestModalOverlay.classList.contains("open")) {
                 closeChangeRequestModal();
+                return;
+            }
+
+            if (event.key === "Escape" && backToKddiModalOverlay.classList.contains("open")) {
+                closeBackToKddiModal();
                 return;
             }
 
