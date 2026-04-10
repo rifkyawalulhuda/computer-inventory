@@ -4711,6 +4711,10 @@ deviceRecordRouter.put("/device-records/:id", async (req, res, next) => {
         throw new Error("ROLE_USER_SCOPE_FORBIDDEN");
       }
 
+      if (editorRole === "admin" && payload.departmentJobCodeId === null) {
+        throw new Error("ADMIN_DIRECT_EDIT_JOB_CODE_REQUIRED");
+      }
+
       const picUser = await validateJobAndPic(tx, payload);
       const selectedEmailAccount = await validateDeviceEmailSelection(tx, payload, {
         existingEmailAccountId: existing.emailAccountId,
@@ -5014,6 +5018,10 @@ deviceRecordRouter.put("/device-records/:id", async (req, res, next) => {
 
     if (error instanceof Error && error.message === "ROLE_USER_SCOPE_FORBIDDEN") {
       return res.status(403).json({ message: "Role user tidak diizinkan mengakses data perangkat di Department lain." });
+    }
+
+    if (error instanceof Error && error.message === "ADMIN_DIRECT_EDIT_JOB_CODE_REQUIRED") {
+      return res.status(400).json({ message: "Job Code wajib dipilih saat Admin melakukan direct edit data perangkat." });
     }
 
     if (error instanceof Error && error.message.startsWith("ROLE_USER_FORBIDDEN_FIELDS:")) {

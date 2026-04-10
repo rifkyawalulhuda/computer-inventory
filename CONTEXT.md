@@ -107,6 +107,10 @@ Perubahan UI terbaru yang penting:
 - field `Site Code Sistem POMS` hanya bisa diedit oleh role admin saat edit perangkat
 - drawer detail di `data-perangkat.html` dan `data-perangkat-form.html` sudah menampilkan `Site Code Sistem POMS`
 - import Excel dan template Excel `Data Perangkat` sudah menyertakan kolom `Site Code Sistem POMS`
+- field `User Name` pada `data-perangkat-form.html` sekarang berupa dropdown yang mengambil data dari `Data Email` sesuai `Department`
+- field `User Email` pada `data-perangkat-form.html` sekarang readonly dan otomatis terisi dari `Data Email` berdasarkan `User Name` yang dipilih
+- edit perangkat existing tetap mendukung fallback `Data existing` untuk pasangan `User Name`/`User Email` lama yang belum punya relasi `emailAccountId`
+- saat admin mengubah `Department` di form perangkat, opsi `User Name` ikut refresh berdasarkan `Data Email` department tersebut
 - user tidak bisa lagi mengubah `Job Code` langsung dari form edit perangkat
 - form edit user menyediakan tombol `Ubah Job Code` yang membuka popup request workflow
 - popup request mendukung kategori `Ganti Job Code` dan `Transfer ke Site lain`
@@ -117,6 +121,7 @@ Perubahan UI terbaru yang penting:
 - confirm box aksi approve di `flow-proses.html` sudah tidak memakai `window.confirm`, tetapi modal custom yang mengikuti template
 - tab status `Pending` di `flow-proses.html` memakai warna aktif oranye mengikuti status pending
 - kolom `Department` dan `PIC Name` di tabel `Flow Proses` diprioritaskan dari requester/submitted-by agar tampil sebagai histori, bukan mengikuti PIC/department perangkat terbaru
+- modal/detail `History Log` pada form/edit perangkat dan `flow-proses.html` sekarang menyembunyikan marker notifikasi internal agar histori bisnis lebih bersih dibaca
 - `index.html` bell notification menampilkan request `Ganti Job Code` dan `Transfer Site` untuk admin atau PIC reviewer yang sedang dituju
 - dropdown notifikasi di `index.html` dipisah menjadi section `Workflow` dan `Lease`
 - urutan notifikasi sekarang mengutamakan item terbaru di paling atas; item lama terdorong ke bawah saat ada notifikasi baru
@@ -190,6 +195,7 @@ Endpoint penting yang terlihat dari source dan README backend:
 - `DELETE /api/master-users/:id`
 - `GET /api/email-records`
 - `GET /api/email-records/:id`
+- `GET /api/email-records/options`
 - `POST /api/email-records`
 - `PUT /api/email-records/:id`
 - `DELETE /api/email-records/:id`
@@ -214,6 +220,9 @@ Area `device-records` juga menangani:
 - penyimpanan field `Site Code Sistem POMS`
 - pembatasan edit field tertentu berdasarkan role, termasuk `Site Code Sistem POMS` yang hanya boleh diubah admin saat edit
 - pembatasan perubahan `departmentJobCodeId` agar user wajib lewat workflow request
+- `GET /api/email-records/options?departmentId=:id` dipakai oleh form perangkat untuk lookup dropdown `User Name` dari master `Data Email` sesuai department
+- create/update perangkat sekarang menerima `emailAccountId` dan memvalidasi bahwa `User Name`/`User Email` berasal dari `Data Email` dengan `Department` yang sama
+- jika `emailAccountId` yang dipilih sudah dipakai perangkat lain, backend mengembalikan pesan konflik spesifik agar tidak tertukar dengan validasi `Serial No`
 - `GET /api/master-users` untuk role user harus tetap menghormati query `jobCodeId` saat form transfer site meminta daftar PIC department tujuan
 - `GET /api/device-records/flows` mengembalikan gabungan flow approval perangkat biasa dan item `DeviceChangeRequest`
 - `GET /api/device-records/flows` untuk role user harus menjaga dua perilaku sekaligus:
@@ -222,6 +231,7 @@ Area `device-records` juga menangani:
 - mapping hasil `GET /api/device-records/flows` untuk kolom `Department` dan `PIC Name` diprioritaskan dari requester/submitted-by agar histori tetap stabil setelah perpindahan site/job code
 - `GET /api/device-records/:id` untuk halaman edit perangkat harus tetap mengembalikan `Department` dan `PIC Name` dari current device state, bukan dari mapping histori flow
 - edit langsung perangkat oleh admin yang mengubah `Site Code Sistem POMS`, `Department`, `Job Code`, atau `PIC` sekarang juga menyinkronkan `flowAssignedPicUserId` ke PIC terbaru
+- edit langsung perangkat oleh admin sekarang ditolak jika `Job Code`/`departmentJobCodeId` kosong
 - edit langsung perangkat oleh admin yang memindahkan kepemilikan/penempatan device menulis marker notifikasi ke histori agar user terkait menerima notifikasi `UPDATED`
 - notifikasi edit langsung admin harus bisa diterima oleh PIC lama, PIC baru, atau admin target jika device dipindahkan ke department/job code/PIC milik admin
 - `GET /api/device-records/dashboard-summary` sekarang juga mengembalikan `adminEditNotifications` selain ringkasan lease/dashboard biasa
@@ -267,6 +277,7 @@ Relasi bisnis utama:
 - `EmailAccount` terhubung ke `Department`, `DepartmentJobCode`, optional `Location`, dan optional satu `Device`
 - `EmailAccountNotificationLog` menyimpan notifikasi persisten untuk event create/delete Data Email yang perlu tetap muncul walaupun row `EmailAccount` sumber sudah dihapus
 - relasi utama perangkat-email memakai `Device.emailAccountId -> EmailAccount.id`
+- untuk flow form/edit/import perangkat, `User Name` menjadi referensi utama ke `EmailAccount`, sedangkan `User Email` harus mengikuti data master email yang cocok
 - `LeaseContract` menyimpan start/end date, days lease, lease status, history log
 - `Device` menyimpan metadata flow approval seperti `flowStatus`, approver, reject note, signatures
 - `DeviceChangeRequest` menyimpan workflow perubahan `Job Code` dan transfer site/device di luar `Device.flowStatus`
@@ -279,6 +290,7 @@ Field perangkat yang perlu diperhatikan:
 - field ini bersifat independen dari `Device.jobCodeId`
 - validasinya tetap mengambil daftar site code dari master `Department`
 - `Device.departmentJobCodeId`: untuk role user tidak lagi boleh diedit langsung, perubahan dilakukan melalui `DeviceChangeRequest`
+- `Device.departmentJobCodeId`: untuk direct edit admin juga tidak boleh kosong; `Job Code` sekarang wajib tetap terisi
 
 Workflow baru yang perlu dipahami:
 
@@ -295,6 +307,12 @@ Catatan khusus `Data Email`:
 - hasil import `Data Email` sekarang wajib mengembalikan detail validasi per baris jika gagal
 - validasi import yang umum sekarang mencakup department tidak ditemukan, job code tidak sesuai department, email invalid/kosong, jenis license invalid, field wajib kosong, dan duplikasi data
 - pada kondisi gagal import `Data Email`, pesan utama harus menegaskan bahwa seluruh data pada file tidak disimpan
+- form/edit/import `Data Perangkat` sekarang memakai master `Data Email` sebagai sumber `User Name` dan `User Email`
+- import `Data Perangkat` memvalidasi `User Name` ke `Data Email` berdasarkan `Department` pada row yang sama
+- `User Email` pada import `Data Perangkat` akan di-auto-fill dari master `Data Email` jika kosong, dan jika diisi harus persis cocok dengan data master
+- template import `Data Perangkat` sekarang punya dropdown `User Name` dari referensi `Data Email` dengan pola validasi yang setara kolom referensi lain seperti `PIC Name`
+- template import `Data Perangkat` sekarang mengisi `User Email` otomatis dengan formula Excel berdasarkan kombinasi `Department` + `User Name`
+- kolom `Lease Status` sudah dihapus dari template import `Data Perangkat`; backend menghitung `Lease Status` otomatis dari `Start Date` dan `End Date` saat import
 
 ## Environment Backend
 

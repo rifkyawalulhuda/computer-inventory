@@ -1608,6 +1608,10 @@
             }
 
             const selectedDepartment = getSelectedDepartmentRow(payload.jobCodeId, resolveSelectedJobCodeCode());
+            if (currentUserRole === "admin" && editingDeviceId && payload.departmentJobCodeId === null) {
+                throw new Error("Job Code wajib dipilih saat Admin melakukan direct edit data perangkat.");
+            }
+
             if (payload.departmentJobCodeId !== null) {
                 const selectedDepartmentJobCode = Array.isArray(selectedDepartment?.jobCodes)
                     ? selectedDepartment.jobCodes.find((row) => String(row.id) === String(payload.departmentJobCodeId))
