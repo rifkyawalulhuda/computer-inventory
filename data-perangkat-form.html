@@ -2063,11 +2063,27 @@
             return text ? text : "-";
         }
 
+        const INTERNAL_HISTORY_LOG_PREFIXES = [
+            "ADMIN_DIRECT_DEVICE_EDIT_NOTIFY|",
+            "ADMIN_EMAIL_CREATE_NOTIFY|"
+        ];
+
+        function isInternalHistoryLogLine(line) {
+            const normalizedLine = String(line ?? "").trim();
+            if (!normalizedLine) {
+                return false;
+            }
+
+            return INTERNAL_HISTORY_LOG_PREFIXES.some((prefix) => {
+                return normalizedLine.includes(`] ${prefix}`) || normalizedLine.startsWith(prefix);
+            });
+        }
+
         function parseHistoryLogLines(value) {
             return String(value ?? "")
                 .split(/\r?\n/)
                 .map((line) => line.trim())
-                .filter(Boolean);
+                .filter((line) => Boolean(line) && !isInternalHistoryLogLine(line));
         }
 
         function closeHistoryLogOverlay() {
@@ -2254,7 +2270,7 @@
             if (leaseStatusInput.value && leaseStatusInput.value !== "EXPIRED") {
                 lastManualLeaseStatus = leaseStatusInput.value;
             }
-            hystoryLogInput.value = row["Hystory Log"] || "";
+            hystoryLogInput.value = parseHistoryLogLines(row["Hystory Log"]).join("\n");
             keteranganInput.value = row["Keterangan"] || "";
             bitlockerKeyInput.value = row["Bitlocker Key"] || "";
 
