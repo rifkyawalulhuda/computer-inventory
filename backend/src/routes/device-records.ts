@@ -24,6 +24,7 @@ type DeviceRecordPayload = {
   pomsSiteCodeSystem: string | null;
   jobCodeId: number;
   departmentJobCodeId: number | null;
+  emailAccountId: string | null;
   picUserId: string;
   userName: string | null;
   userEmail: string | null;
@@ -536,6 +537,7 @@ function parsePayload(payload: unknown): DeviceRecordPayload {
   const pomsSiteCodeSystem = normalizeSiteCode(body.pomsSiteCodeSystem, "Site Code Sistem POMS");
   const jobCodeId = Number(body.jobCodeId);
   const parsedDepartmentJobCodeId = parseInteger(body.departmentJobCodeId, "Job Code", { min: 1 });
+  const emailAccountId = toNullableText(body.emailAccountId);
   const picUserId = cleanText(body.picUserId);
   const userName = toNullableText(body.userName);
   const userEmail = toNullableText(body.userEmail);
@@ -610,6 +612,7 @@ function parsePayload(payload: unknown): DeviceRecordPayload {
     pomsSiteCodeSystem,
     jobCodeId,
     departmentJobCodeId,
+    emailAccountId,
     picUserId,
     userName,
     userEmail,
@@ -1056,6 +1059,7 @@ type MappedDeviceRow = {
   id: string;
   legacyNo: number | null;
   pomsSiteCodeSystem: string | null;
+  emailAccountId: string | null;
   createdAt: Date;
   updatedAt: Date;
   flowStatus: string;
@@ -1118,6 +1122,7 @@ function mapDeviceToExcelRecord(row: MappedDeviceRow, fallbackNo?: number) {
 
   return {
     id: row.id,
+    emailAccountId: row.emailAccountId ?? "",
     NO: row.legacyNo ?? fallbackNo ?? "",
     "Site Code Sistem POMS": row.pomsSiteCodeSystem ?? "",
     "Department": row.jobCode?.code ?? "",
@@ -2228,6 +2233,100 @@ async function validateJobAndPic(
     departmentJobCodeId: departmentJobCode?.id ?? null,
     departmentJobCodeCode: departmentJobCode?.code ?? null,
   };
+}
+
+async function validateDeviceEmailSelection(
+  tx: Prisma.TransactionClient,
+  payload: DeviceRecordPayload,
+  options?: {
+    existingEmailAccountId?: string | null;
+    existingUserName?: string | null;
+    existingUserEmail?: string | null;
+  },
+): Promise<{
+  emailAccountId: string | null;
+  userName: string | null;
+  userEmail: string | null;
+}> {
+  const selectedEmailAccountId = cleanText(payload.emailAccountId);
+  const selectedUserName = toNullableText(payload.userName);
+  const selectedUserEmail = toNullableText(payload.userEmail)?.toLowerCase() ?? null;
+
+  if (!selectedEmailAccountId) {
+    if (selectedUserName || selectedUserEmail) {
+      const existingEmailAccountId = cleanText(options?.existingEmailAccountId);
+      const existingUserName = toNullableText(options?.existingUserName);
+      const existingUserEmail = toNullableText(options?.existingUserEmail)?.toLowerCase() ?? null;
+      const isUnchangedLegacySelection = !existingEmailAccountId
+        && selectedUserName === existingUserName
+        && selectedUserEmail === existingUserEmail;
+
+      if (!isUnchangedLegacySelection) {
+        throw new Error("User Name harus dipilih dari Data Email dengan Department yang sama.");
+      }
+    }
+
+    return {
+      emailAccountId: null,
+      userName: selectedUserName,
+      userEmail: selectedUserEmail,
+    };
+  }
+
+  const emailAccount = await tx.emailAccount.findUnique({
+    where: { id: selectedEmailAccountId },
+    select: {
+      id: true,
+      departmentId: true,
+      userName: true,
+      email: true,
+    },
+  });
+
+  if (!emailAccount) {
+    throw new Error("Data Email yang dipilih tidak ditemukan.");
+  }
+
+  if (emailAccount.departmentId !== payload.jobCodeId) {
+    throw new Error("User Name harus berasal dari Data Email dengan Department yang sama.");
+  }
+
+  const normalizedEmailAccountUserName = cleanText(emailAccount.userName);
+  const normalizedEmailAccountEmail = cleanText(emailAccount.email).toLowerCase();
+
+  if (selectedUserName && normalizedEmailAccountUserName !== selectedUserName) {
+    throw new Error("User Name tidak sesuai dengan Data Email yang dipilih.");
+  }
+
+  if (selectedUserEmail && normalizedEmailAccountEmail !== selectedUserEmail) {
+    throw new Error("User Email tidak sesuai dengan Data Email yang dipilih.");
+  }
+
+  return {
+    emailAccountId: emailAccount.id,
+    userName: normalizedEmailAccountUserName || null,
+    userEmail: normalizedEmailAccountEmail || null,
+  };
+}
+
+function getDeviceUniqueConstraintMessage(error: Prisma.PrismaClientKnownRequestError): string | null {
+  if (error.code !== "P2002") {
+    return null;
+  }
+
+  const targets = Array.isArray(error.meta?.target)
+    ? error.meta.target.map((entry) => cleanText(entry))
+    : [];
+
+  if (targets.includes("serialNumber") || targets.includes("serial_number")) {
+    return "Serial No. sudah terdaftar.";
+  }
+
+  if (targets.includes("emailAccountId") || targets.includes("email_account_id")) {
+    return "Data Email tersebut sudah dipakai pada perangkat lain.";
+  }
+
+  return "Data perangkat mengandung nilai unik yang sudah terdaftar.";
 }
 
 async function resolvePomsSiteCodeSystem(
@@ -4304,6 +4403,7 @@ deviceRecordRouter.post("/device-records", async (req, res, next) => {
 
     const createdResult = await prisma.$transaction(async (tx) => {
       const picUser = await validateJobAndPic(tx, payload);
+      const selectedEmailAccount = await validateDeviceEmailSelection(tx, payload);
       const pomsSiteCodeSystem = await resolvePomsSiteCodeSystem(tx, payload.pomsSiteCodeSystem);
       const { categoryId, modelId, locationId } = await resolveLookupIds(tx, payload);
       await lockLegacyNoSequence(tx);
@@ -4317,8 +4417,8 @@ deviceRecordRouter.post("/device-records", async (req, res, next) => {
           flowSubmittedByUserId: cleanText(req.authUser?.id) || null,
           serialNumber: payload.serialNo,
           hostName: payload.hostName,
-          userNameRaw: payload.userName,
-          userEmailRaw: payload.userEmail,
+          userNameRaw: selectedEmailAccount.userName,
+          userEmailRaw: selectedEmailAccount.userEmail,
           locationRaw: payload.location,
           ipListRaw: payload.ipList,
           picNameRaw: picUser.name,
@@ -4327,6 +4427,7 @@ deviceRecordRouter.post("/device-records", async (req, res, next) => {
           pomsSiteCodeSystem,
           jobCodeId: payload.jobCodeId,
           departmentJobCodeId: payload.departmentJobCodeId,
+          emailAccountId: selectedEmailAccount.emailAccountId,
           categoryId,
           modelId,
           locationId,
@@ -4377,7 +4478,7 @@ deviceRecordRouter.post("/device-records", async (req, res, next) => {
     res.status(201).json({ data: created });
   } catch (error) {
     if (error instanceof Prisma.PrismaClientKnownRequestError && error.code === "P2002") {
-      return res.status(409).json({ message: "Serial No. sudah terdaftar." });
+      return res.status(409).json({ message: getDeviceUniqueConstraintMessage(error) ?? "Data perangkat duplikat." });
     }
 
     if (error instanceof Error) {
@@ -4407,6 +4508,7 @@ deviceRecordRouter.put("/device-records/:id", async (req, res, next) => {
           id: true,
           legacyNo: true,
           pomsSiteCodeSystem: true,
+          emailAccountId: true,
           jobCodeId: true,
           departmentJobCodeId: true,
           flowAssignedPicUserId: true,
@@ -4455,6 +4557,11 @@ deviceRecordRouter.put("/device-records/:id", async (req, res, next) => {
       }
 
       const picUser = await validateJobAndPic(tx, payload);
+      const selectedEmailAccount = await validateDeviceEmailSelection(tx, payload, {
+        existingEmailAccountId: existing.emailAccountId,
+        existingUserName: existing.userNameRaw,
+        existingUserEmail: existing.userEmailRaw,
+      });
       const pomsSiteCodeSystem = await resolvePomsSiteCodeSystem(tx, payload.pomsSiteCodeSystem);
       const { categoryId, modelId, locationId } = await resolveLookupIds(tx, payload);
       const latestLease = existing.leaseContracts[0] ?? null;
@@ -4700,8 +4807,8 @@ deviceRecordRouter.put("/device-records/:id", async (req, res, next) => {
           legacyNo: resolvedLegacyNo,
           serialNumber: payload.serialNo,
           hostName: payload.hostName,
-          userNameRaw: payload.userName,
-          userEmailRaw: payload.userEmail,
+          userNameRaw: selectedEmailAccount.userName,
+          userEmailRaw: selectedEmailAccount.userEmail,
           locationRaw: payload.location,
           ipListRaw: payload.ipList,
           flowAssignedPicUserId: picUser.userId,
@@ -4711,6 +4818,7 @@ deviceRecordRouter.put("/device-records/:id", async (req, res, next) => {
           pomsSiteCodeSystem,
           jobCodeId: payload.jobCodeId,
           departmentJobCodeId: payload.departmentJobCodeId,
+          emailAccountId: selectedEmailAccount.emailAccountId,
           categoryId,
           modelId,
           locationId,
@@ -4734,7 +4842,7 @@ deviceRecordRouter.put("/device-records/:id", async (req, res, next) => {
     res.json({ data: updated });
   } catch (error) {
     if (error instanceof Prisma.PrismaClientKnownRequestError && error.code === "P2002") {
-      return res.status(409).json({ message: "Serial No. sudah terdaftar." });
+      return res.status(409).json({ message: getDeviceUniqueConstraintMessage(error) ?? "Data perangkat duplikat." });
     }
 
     if (error instanceof Prisma.PrismaClientKnownRequestError && error.code === "P2025") {
@@ -4756,7 +4864,7 @@ deviceRecordRouter.put("/device-records/:id", async (req, res, next) => {
     if (error instanceof Error && error.message.startsWith("ROLE_USER_FORBIDDEN_FIELDS:")) {
       const changedColumns = error.message.replace("ROLE_USER_FORBIDDEN_FIELDS:", "").trim();
       return res.status(403).json({
-        message: `Role user hanya boleh edit kolom User Name, User Email, Location, IP List, dan Keterangan. Perubahan Job Code harus melalui workflow approval. Kolom tidak diizinkan: ${changedColumns}.`,
+        message: `Role user hanya boleh edit kolom User Name, Location, IP List, dan Keterangan. User Email terisi otomatis dari Data Email. Perubahan Job Code harus melalui workflow approval. Kolom tidak diizinkan: ${changedColumns}.`,
       });
     }
 

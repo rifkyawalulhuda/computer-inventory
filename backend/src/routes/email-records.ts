@@ -984,6 +984,55 @@ emailRecordRouter.get("/email-records/import-template", requireRole("admin"), as
   }
 });
 
+emailRecordRouter.get("/email-records/options", async (req, res, next) => {
+  try {
+    const scope = await resolveDataScope(req);
+    const requestedDepartmentId = Number(req.query.departmentId);
+    const departmentId = Number.isInteger(requestedDepartmentId) && requestedDepartmentId > 0
+      ? requestedDepartmentId
+      : scope.userDepartmentId ?? null;
+
+    if (!departmentId) {
+      return res.status(400).json({ message: "Department wajib dipilih." });
+    }
+
+    if (scope.editorRole === "user" && departmentId !== scope.userDepartmentId) {
+      return res.status(403).json({ message: "Role user tidak diizinkan mengakses Data Email di Department lain." });
+    }
+
+    const rows = await prisma.emailAccount.findMany({
+      where: { departmentId },
+      orderBy: [
+        { userName: "asc" },
+        { email: "asc" },
+      ],
+      select: {
+        id: true,
+        departmentId: true,
+        departmentJobCodeId: true,
+        userName: true,
+        email: true,
+      },
+    });
+
+    res.json({
+      data: rows.map((row) => ({
+        id: row.id,
+        departmentId: row.departmentId,
+        departmentJobCodeId: row.departmentJobCodeId,
+        userName: cleanText(row.userName),
+        email: cleanText(row.email).toLowerCase(),
+      })),
+    });
+  } catch (error) {
+    if (error instanceof Error && error.message === "ROLE_USER_JOB_CODE_NOT_FOUND") {
+      return res.status(403).json({ message: "Department user tidak ditemukan. Hubungi admin." });
+    }
+
+    next(error);
+  }
+});
+
 emailRecordRouter.get("/email-records/:id", async (req, res, next) => {
   try {
     const id = cleanText(req.params.id);

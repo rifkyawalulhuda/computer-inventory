@@ -527,7 +527,7 @@
                     <div class="d-flex flex-wrap justify-content-between align-items-center gap-2 mb-3">
                         <div>
                             <h5 class="card-title mb-1" id="formCardTitle">Form Input Data Perangkat</h5>
-                            <p class="text-warning mb-0 mt-1 d-none" id="roleEditHint">Role user hanya bisa edit: User Name, User Email, Location, IP List, dan Keterangan. Perubahan Job Code harus lewat workflow approval.</p>
+                            <p class="text-warning mb-0 mt-1 d-none" id="roleEditHint">Role user hanya bisa edit: User Name, Location, IP List, dan Keterangan. User Email terisi otomatis dari Data Email. Perubahan Job Code harus lewat workflow approval.</p>
                         </div>
                         <div class="d-flex flex-wrap gap-2">
                             <button type="button" class="btn btn-warning d-none" id="changeJobCodeButton">Ubah Job Code</button>
@@ -614,11 +614,13 @@
                                     <div class="row g-3">
                                         <div class="col-xl-2 col-lg-4 col-md-6">
                                             <label for="userName" class="form-label">User Name</label>
-                                            <input type="text" class="form-control" id="userName" maxlength="120" placeholder="Nama pengguna perangkat">
+                                            <select class="form-select" id="userName">
+                                                <option value="">Pilih Department dulu</option>
+                                            </select>
                                         </div>
                                         <div class="col-xl-2 col-lg-4 col-md-6">
                                             <label for="userEmail" class="form-label">User Email</label>
-                                            <input type="email" class="form-control" id="userEmail" maxlength="191" placeholder="email@company.com">
+                                            <input type="email" class="form-control" id="userEmail" maxlength="191" placeholder="Otomatis terisi dari Data Email" readonly>
                                         </div>
                                         <div class="col-xl-2 col-lg-4 col-md-6">
                                             <label for="departmentJobCodeId" class="form-label">Job Code</label>
@@ -883,6 +885,7 @@
         let masterUsers = [];
         let masterJobCodes = [];
         let deviceRows = [];
+        let emailAccountOptionsByDepartment = new Map();
         let editingDeviceId = "";
         let currentEditingRow = null;
         let changeRequestTargetUsers = [];
@@ -898,7 +901,6 @@
             modelInput,
             hostNameInput,
             userNameInput,
-            userEmailInput,
             departmentJobCodeIdInput,
             locationInput,
             ipListInput,
@@ -909,8 +911,8 @@
             keteranganInput,
             bitlockerKeyInput
         ];
-        const userAllowedEditInputIds = new Set(["userName", "userEmail", "location", "ipList", "keterangan"]);
-        const searchableSelectInputs = [pomsSiteCodeSystemInput, jobCodeIdInput, picUserIdInput, departmentJobCodeIdInput, categoryInput, leaseStatusInput].filter(Boolean);
+        const userAllowedEditInputIds = new Set(["userName", "location", "ipList", "keterangan"]);
+        const searchableSelectInputs = [pomsSiteCodeSystemInput, jobCodeIdInput, picUserIdInput, userNameInput, departmentJobCodeIdInput, categoryInput, leaseStatusInput].filter(Boolean);
 
         function canUseSelect2() {
             return Boolean(window.jQuery && window.jQuery.fn && typeof window.jQuery.fn.select2 === "function");
@@ -1071,6 +1073,9 @@
 
                 input.disabled = shouldDisable;
             });
+
+            userEmailInput.readOnly = true;
+            userEmailInput.disabled = false;
 
             if (!isUserRestrictedEdit) {
                 hystoryLogInput.readOnly = true;
@@ -1262,7 +1267,7 @@
                 closeChangeRequestModal();
                 showAlert(result.message || "Request perubahan Job Code berhasil dibuat.", "success");
                 const refreshedRow = await loadDeviceById(editingDeviceId);
-                editRow(refreshedRow);
+                await editRow(refreshedRow);
             } catch (error) {
                 showAlert(error.message || "Gagal membuat request perubahan Job Code.", "danger");
             } finally {
@@ -1386,6 +1391,146 @@
 
                 return false;
             });
+        }
+
+        function getUserNameSelectionState() {
+            const selectedOption = userNameInput.options?.[userNameInput.selectedIndex];
+            if (!selectedOption) {
+                return {
+                    optionValue: "",
+                    emailAccountId: "",
+                    userName: "",
+                    userEmail: "",
+                    isLegacy: false
+                };
+            }
+
+            return {
+                optionValue: String(selectedOption.value || "").trim(),
+                emailAccountId: String(selectedOption.dataset.emailAccountId || "").trim(),
+                userName: String(selectedOption.dataset.userName || "").trim(),
+                userEmail: String(selectedOption.dataset.userEmail || "").trim(),
+                isLegacy: String(selectedOption.dataset.legacy || "") === "1"
+            };
+        }
+
+        function syncUserEmailFromSelection() {
+            const selection = getUserNameSelectionState();
+            userEmailInput.value = selection.userEmail || "";
+        }
+
+        async function reloadEmailAccountOptionsByDepartment(jobCodeIdValue) {
+            const normalizedJobCodeId = String(jobCodeIdValue ?? "").trim();
+            if (!normalizedJobCodeId) {
+                return [];
+            }
+
+            const response = await apiFetch(`${API_BASE}/email-records/options?departmentId=${encodeURIComponent(normalizedJobCodeId)}`);
+            const result = await response.json().catch(() => ({}));
+            if (!response.ok) {
+                throw new Error(result.message || "Gagal memuat Data Email berdasarkan Department.");
+            }
+
+            const rows = Array.isArray(result.data) ? result.data : [];
+            emailAccountOptionsByDepartment.set(normalizedJobCodeId, rows);
+            return rows;
+        }
+
+        function buildLegacyEmailOption(preferredSelection) {
+            const userName = String(preferredSelection?.userName || "").trim();
+            const userEmail = String(preferredSelection?.userEmail || "").trim();
+            if (!userName && !userEmail) {
+                return null;
+            }
+
+            const uniqueSeed = `${userName}|${userEmail}`.replace(/\s+/g, " ").trim();
+            return {
+                id: `legacy::${uniqueSeed}`,
+                userName,
+                email: userEmail,
+                isLegacy: true
+            };
+        }
+
+        function populateUserNameOptionsByDepartment(options = {}) {
+            const selectedJobCodeId = String(jobCodeIdInput.value ?? "").trim();
+            const previousSelection = getUserNameSelectionState();
+            const preferredSelection = options?.preferredSelection || null;
+            const departmentEmailAccounts = selectedJobCodeId
+                ? (emailAccountOptionsByDepartment.get(selectedJobCodeId) || [])
+                : [];
+
+            if (!selectedJobCodeId) {
+                userNameInput.innerHTML = '<option value="">Pilih Department dulu</option>';
+                userNameInput.value = "";
+                syncSearchableSelect(userNameInput, true);
+                syncUserEmailFromSelection();
+                return;
+            }
+
+            const normalizedPreferredEmailAccountId = String(preferredSelection?.emailAccountId || "").trim();
+            const normalizedPreferredUserName = String(preferredSelection?.userName || "").trim();
+            const normalizedPreferredUserEmail = String(preferredSelection?.userEmail || "").trim().toLowerCase();
+            const normalizedPreviousValue = String(previousSelection.optionValue || "").trim();
+
+            let selectedValue = "";
+            const optionRows = [...departmentEmailAccounts];
+
+            if (normalizedPreferredEmailAccountId) {
+                const matchedById = optionRows.find((row) => String(row?.id || "").trim() === normalizedPreferredEmailAccountId);
+                if (matchedById) {
+                    selectedValue = String(matchedById.id);
+                }
+            }
+
+            if (!selectedValue && normalizedPreferredUserName && normalizedPreferredUserEmail) {
+                const matchedByIdentity = optionRows.find((row) => {
+                    return String(row?.userName || "").trim() === normalizedPreferredUserName
+                        && String(row?.email || "").trim().toLowerCase() === normalizedPreferredUserEmail;
+                });
+                if (matchedByIdentity) {
+                    selectedValue = String(matchedByIdentity.id);
+                }
+            }
+
+            if (!selectedValue && normalizedPreviousValue) {
+                const matchedByPreviousValue = optionRows.find((row) => String(row?.id || "").trim() === normalizedPreviousValue);
+                if (matchedByPreviousValue) {
+                    selectedValue = String(matchedByPreviousValue.id);
+                }
+            }
+
+            if (!selectedValue) {
+                const legacyOption = buildLegacyEmailOption(preferredSelection);
+                if (legacyOption) {
+                    optionRows.push(legacyOption);
+                    selectedValue = legacyOption.id;
+                }
+            }
+
+            if (!optionRows.length) {
+                userNameInput.innerHTML = '<option value="">Tidak ada data email pada department ini</option>';
+                userNameInput.value = "";
+                syncSearchableSelect(userNameInput, true);
+                syncUserEmailFromSelection();
+                return;
+            }
+
+            userNameInput.innerHTML = [
+                '<option value="">Pilih User Name</option>',
+                ...optionRows.map((row) => {
+                    const optionId = String(row?.id || "").trim();
+                    const optionUserName = String(row?.userName || "").trim();
+                    const optionUserEmail = String(row?.email || "").trim();
+                    const isLegacy = Boolean(row?.isLegacy);
+                    const suffix = isLegacy ? " - Data existing" : "";
+                    return `<option value="${escapeHtml(optionId)}" data-email-account-id="${escapeHtml(isLegacy ? "" : optionId)}" data-user-name="${escapeHtml(optionUserName)}" data-user-email="${escapeHtml(optionUserEmail)}" data-legacy="${isLegacy ? "1" : "0"}">${escapeHtml(optionUserName || "-")} (${escapeHtml(optionUserEmail || "-")})${escapeHtml(suffix)}</option>`;
+                })
+            ].join("");
+
+            userNameInput.value = selectedValue;
+            syncSearchableSelect(userNameInput, true);
+            syncUserEmailFromSelection();
         }
 
         function populatePicOptionsByJobCode() {
@@ -1557,8 +1702,6 @@
             form.reset();
             formCardTitle.textContent = "Form Input Data Perangkat";
             submitButton.textContent = "Simpan Data";
-            userNameInput.value = "";
-            userEmailInput.value = "";
             pomsSiteCodeSystemInput.value = "";
             jobCodeIdInput.value = "";
             picUserIdInput.value = "";
@@ -1568,6 +1711,7 @@
             leaseStatusInput.disabled = false;
             populatePicOptionsByJobCode();
             populateDepartmentJobCodeOptionsByJobCode();
+            populateUserNameOptionsByDepartment();
             refreshDaysLease();
             applyRoleBasedFieldPermissions();
             updateChangeJobCodeButtonState();
@@ -1577,14 +1721,16 @@
             refreshDaysLease();
             const rawPomsSiteCodeSystem = String(pomsSiteCodeSystemInput.value ?? "").trim().toUpperCase();
             const rawDepartmentJobCodeId = String(departmentJobCodeIdInput.value ?? "").trim();
+            const selectedUserName = getUserNameSelectionState();
 
             const payload = {
                 pomsSiteCodeSystem: rawPomsSiteCodeSystem || null,
                 jobCodeId: Number(jobCodeIdInput.value),
                 departmentJobCodeId: rawDepartmentJobCodeId ? Number(rawDepartmentJobCodeId) : null,
+                emailAccountId: selectedUserName.emailAccountId || null,
                 picUserId: picUserIdInput.value,
-                userName: userNameInput.value.trim(),
-                userEmail: userEmailInput.value.trim(),
+                userName: selectedUserName.userName || null,
+                userEmail: selectedUserName.userEmail || null,
                 serialNo: serialNoInput.value.trim(),
                 category: categoryInput.value.trim(),
                 model: modelInput.value.trim(),
@@ -1737,19 +1883,30 @@
             return masterUsers;
         }
 
-        async function handleJobCodeSelectionChange() {
+        async function handleJobCodeSelectionChange(options = {}) {
             if (isLoadingPicOptions) {
                 return;
             }
 
             isLoadingPicOptions = true;
+            const preferredSelection = options?.preferredSelection || null;
             try {
                 await reloadMasterUsersByJobCode(jobCodeIdInput.value);
             } catch (_error) {
                 // Keep using cached master users when refresh fails.
+            }
+
+            try {
+                const selectedJobCodeId = String(jobCodeIdInput.value ?? "").trim();
+                if (selectedJobCodeId) {
+                    await reloadEmailAccountOptionsByDepartment(selectedJobCodeId);
+                }
+            } catch (_error) {
+                // Keep using cached Data Email options when refresh fails.
             } finally {
                 populatePicOptionsByJobCode();
                 populateDepartmentJobCodeOptionsByJobCode();
+                populateUserNameOptionsByDepartment({ preferredSelection });
                 isLoadingPicOptions = false;
             }
         }
@@ -1789,6 +1946,7 @@
 
             masterJobCodes = Array.isArray(jobCodeJson.data) ? jobCodeJson.data : [];
             masterUsers = Array.isArray(masterUserJson.data) ? masterUserJson.data : [];
+            emailAccountOptionsByDepartment = new Map();
 
             populatePomsSiteCodeSystemOptions();
             jobCodeIdInput.innerHTML = [
@@ -1798,9 +1956,11 @@
 
             populatePicOptionsByJobCode();
             populateDepartmentJobCodeOptionsByJobCode();
+            populateUserNameOptionsByDepartment();
             refreshDaysLease();
             syncSearchableSelect(pomsSiteCodeSystemInput, true);
             syncSearchableSelect(jobCodeIdInput, true);
+            syncSearchableSelect(userNameInput, true);
             syncSearchableSelect(departmentJobCodeIdInput, true);
             syncSearchableSelect(categoryInput);
             syncSearchableSelect(leaseStatusInput);
@@ -2061,7 +2221,7 @@
             openViewDrawer(row);
         }
 
-        function editRow(row) {
+        async function editRow(row) {
             currentEditingRow = row;
             if (isBackToKddiStatus(row["Lease Status"])) {
                 showAlert("Data dengan Lease Status Back To KDDI tidak dapat diedit.", "warning");
@@ -2071,8 +2231,13 @@
             pomsSiteCodeSystemInput.value = row["Site Code Sistem POMS"] || "";
             const resolvedJobCodeId = findJobCodeIdByCode(row["Department"]);
             jobCodeIdInput.value = resolvedJobCodeId;
-            populatePicOptionsByJobCode();
-            populateDepartmentJobCodeOptionsByJobCode();
+            await handleJobCodeSelectionChange({
+                preferredSelection: {
+                    emailAccountId: String(row?.emailAccountId || "").trim(),
+                    userName: String(row?.["User Name"] || "").trim(),
+                    userEmail: String(row?.["User Email"] || "").trim()
+                }
+            });
             const resolvedDepartmentJobCodeId = findDepartmentJobCodeIdByCode(row["Job Code"], resolvedJobCodeId);
             departmentJobCodeIdInput.value = resolvedDepartmentJobCodeId;
             selectPicByName(row["PIC Name"]);
@@ -2081,8 +2246,6 @@
             categoryInput.value = row["Category"] || "";
             modelInput.value = row["Model"] || "";
             hostNameInput.value = row["Host Name"] || "";
-            userNameInput.value = row["User Name"] || "";
-            userEmailInput.value = row["User Email"] || "";
             locationInput.value = row["Location"] || "";
             ipListInput.value = row["IP List"] || "";
             startDateInput.value = row["Start Date"] || "";
@@ -2189,7 +2352,7 @@
 
                 if (action === "edit") {
                     hideAlert();
-                    editRow(row);
+                    await editRow(row);
                     return;
                 }
 
@@ -2292,7 +2455,7 @@
 
                 if (editingFromQueryId) {
                     const row = await loadDeviceById(editingFromQueryId);
-                    editRow(row);
+                    await editRow(row);
 
                     if (isFlowResubmitMode && currentUserRole === "admin") {
                         formCardTitle.textContent = "Revisi Data Perangkat (Resubmit Flow)";
@@ -2313,7 +2476,14 @@
             }
         }
 
-        jobCodeIdInput.addEventListener("change", handleJobCodeSelectionChange);
+        jobCodeIdInput.addEventListener("change", async () => {
+            try {
+                await handleJobCodeSelectionChange();
+            } catch (error) {
+                showAlert(error.message || "Gagal memuat data berdasarkan Department.", "danger");
+            }
+        });
+        userNameInput.addEventListener("change", syncUserEmailFromSelection);
         startDateInput.addEventListener("change", refreshDaysLease);
         endDateInput.addEventListener("change", refreshDaysLease);
         leaseStatusInput.addEventListener("change", () => {
@@ -2404,8 +2574,23 @@
         initializeSearchableSelects();
         if (canUseSelect2()) {
             const $jobCodeSelect = window.jQuery(jobCodeIdInput);
-            $jobCodeSelect.on("select2:select", handleJobCodeSelectionChange);
-            $jobCodeSelect.on("select2:clear", handleJobCodeSelectionChange);
+            $jobCodeSelect.on("select2:select", async () => {
+                try {
+                    await handleJobCodeSelectionChange();
+                } catch (error) {
+                    showAlert(error.message || "Gagal memuat data berdasarkan Department.", "danger");
+                }
+            });
+            $jobCodeSelect.on("select2:clear", async () => {
+                try {
+                    await handleJobCodeSelectionChange();
+                } catch (error) {
+                    showAlert(error.message || "Gagal memuat data berdasarkan Department.", "danger");
+                }
+            });
+            const $userNameSelect = window.jQuery(userNameInput);
+            $userNameSelect.on("select2:select", syncUserEmailFromSelection);
+            $userNameSelect.on("select2:clear", syncUserEmailFromSelection);
         }
         initialize();
     </script>
